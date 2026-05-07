@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Truck, Loader2, Search } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
+import { useRole } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -24,6 +25,7 @@ interface MachineRow {
 }
 
 export default function MachinesListPage() {
+  const { canManageCompany } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +76,14 @@ export default function MachinesListPage() {
             Карточки СЗМ и буровых станков с двойной наработкой (моточасы + тонны прокачки)
           </p>
         </div>
-        <Button asChild>
-          <Link href="/app/machines/new">
-            <Plus className="w-4 h-4" />
-            Добавить машину
-          </Link>
-        </Button>
+        {canManageCompany && (
+          <Button asChild>
+            <Link href="/app/machines/new">
+              <Plus className="w-4 h-4" />
+              Добавить машину
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -104,7 +108,7 @@ export default function MachinesListPage() {
           <p className="text-accent-700">{error}</p>
         </Card>
       ) : machines.length === 0 ? (
-        <EmptyState />
+        <EmptyState canAdd={canManageCompany} />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
@@ -163,23 +167,28 @@ export default function MachinesListPage() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ canAdd }: { canAdd: boolean }) {
   return (
     <Card className="p-12 text-center">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-50 text-primary-600 mb-4">
         <Truck className="w-6 h-6" />
       </div>
-      <h3 className="font-heading font-semibold text-secondary-900 mb-2">Парк пока пуст</h3>
+      <h3 className="font-heading font-semibold text-secondary-900 mb-2">
+        {canAdd ? 'Парк пока пуст' : 'Машины не назначены'}
+      </h3>
       <p className="text-secondary-600 text-sm max-w-md mx-auto mb-6">
-        Добавьте первую машину — типы НИПИГОРМАШа (МЗВ, МСЗ, МСЗУ, МЗУ),
-        тоннаж, серийник, карьер где она работает.
+        {canAdd
+          ? 'Добавьте первую машину — типы НИПИГОРМАШа (МЗВ, МСЗ, МСЗУ, МЗУ), тоннаж, серийник, карьер где она работает.'
+          : 'Здесь появятся машины, которые назначит вам руководитель сервисной службы. Свяжитесь с ним, если ожидаете доступ.'}
       </p>
-      <Button asChild>
-        <Link href="/app/machines/new">
-          <Plus className="w-4 h-4" />
-          Добавить машину
-        </Link>
-      </Button>
+      {canAdd && (
+        <Button asChild>
+          <Link href="/app/machines/new">
+            <Plus className="w-4 h-4" />
+            Добавить машину
+          </Link>
+        </Button>
+      )}
     </Card>
   );
 }

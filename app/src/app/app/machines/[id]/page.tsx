@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
+import { useRole } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +74,7 @@ const KIND_LABELS: Record<MaintenanceKind, string> = {
 };
 
 export default function MachineDetailPage() {
+  const { canManageCompany } = useRole();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
@@ -189,10 +191,12 @@ export default function MachineDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
-          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          Удалить
-        </Button>
+        {canManageCompany && (
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Удалить
+          </Button>
+        )}
       </div>
 
       {/* Stats: dual mileage */}

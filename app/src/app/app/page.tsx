@@ -22,7 +22,7 @@ import {
   AlertTriangle,
   Activity,
 } from 'lucide-react';
-import { useGlobal } from '@/lib/context/GlobalContext';
+import { useGlobal, useRole } from '@/lib/context/GlobalContext';
 import { createSPASassClient } from '@/lib/supabase/client';
 import {
   forecastNextMaintenance,
@@ -58,6 +58,7 @@ const KIND_LABELS: Record<MaintenanceKind, string> = {
 
 export default function DashboardContent() {
   const { loading: globalLoading, user } = useGlobal();
+  const { isOperator, isCompanyAdmin, isTier2 } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
@@ -127,7 +128,23 @@ export default function DashboardContent() {
       .slice(0, 3);
   }, [machines, schedules]);
 
-  const greeting = user?.email?.split('@')[0] ?? 'оператор';
+  const greeting = user?.full_name || user?.email?.split('@')[0] || 'оператор';
+  const roleHero = isTier2
+    ? {
+        title: 'НПГМ — Сервисная служба',
+        subtitle: 'Заявки от компаний, тикеты Tier 2, кросс-tenant обзор парка.',
+      }
+    : isCompanyAdmin
+    ? {
+        title: 'Руководитель сервисной службы',
+        subtitle: 'Парк, заявки от операторов, тикеты, плановое ТО — по вашей компании.',
+      }
+    : isOperator
+    ? {
+        title: 'Оператор СЗМ',
+        subtitle: 'Ваши смены, чек-листы, обращения по машине.',
+      }
+    : { title: 'NPGM Service App', subtitle: '' };
 
   if (globalLoading) {
     return (
@@ -153,14 +170,13 @@ export default function DashboardContent() {
         <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600" />
         <div className="relative">
           <p className="text-primary-200 text-xs font-semibold uppercase tracking-wider mb-2">
-            NPGM Service App · Pilot
+            {roleHero.title}
           </p>
           <h1 className="font-heading text-2xl md:text-3xl font-bold mb-2">
             Здравствуйте, {greeting}
           </h1>
           <p className="text-primary-100 max-w-2xl text-sm md:text-base">
-            Парк техники, плановое ТО, заявки на запчасти и техподдержка — в одном
-            окне.
+            {roleHero.subtitle}
           </p>
         </div>
       </div>

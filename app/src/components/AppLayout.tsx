@@ -16,7 +16,7 @@ import {
     Wrench,
     Box,
 } from 'lucide-react';
-import { useGlobal } from "@/lib/context/GlobalContext";
+import { useGlobal, useRole } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 
@@ -28,6 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
     const { user } = useGlobal();
+    const { isOperator, isCompanyAdmin, isTier2, role } = useRole();
 
     const handleLogout = async () => {
         try {
@@ -48,15 +49,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             : parts[0].slice(0, 2).toUpperCase();
     };
 
-    const navigation = [
-        { name: 'Главная', href: '/app', icon: Home },
-        { name: 'Парк техники', href: '/app/machines', icon: Truck },
-        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText },
-        { name: 'ТО', href: '/app/maintenance', icon: Wrench },
-        { name: 'Гараж', href: '/app/parts', icon: Box },
-        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck },
-        { name: 'Профиль', href: '/app/user-settings', icon: User },
+    // Sidebar entries differ by role. Operators get a focused view (their work),
+    // company admins get the full company-wide management surface, and Tier 2
+    // (НПГМ side) gets the cross-tenant view.
+    const baseNav = [
+        { name: 'Главная', href: '/app', icon: Home, roles: ['all'] },
+        { name: 'Парк техники', href: '/app/machines', icon: Truck, roles: ['all'] },
+        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck, roles: ['operator', 'company_admin'] },
+        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
+        { name: 'ТО', href: '/app/maintenance', icon: Wrench, roles: ['company_admin', 'tier2_engineer'] },
+        { name: 'Гараж', href: '/app/parts', icon: Box, roles: ['company_admin', 'operator'] },
+        { name: 'Профиль', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
+    const navigation = baseNav.filter(
+        (n) => n.roles.includes('all') || (role !== null && n.roles.includes(role))
+    );
+
+    const roleBadge = isCompanyAdmin
+        ? { label: 'Руководитель сервисной службы', tone: 'bg-primary-50 text-primary-700' }
+        : isTier2
+        ? { label: 'НПГМ — Сервисная служба', tone: 'bg-accent-50 text-accent-700' }
+        : isOperator
+        ? { label: 'Оператор', tone: 'bg-emerald-50 text-emerald-700' }
+        : null;
 
     const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
 
@@ -143,8 +158,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <div className="p-3 border-b border-secondary-100">
                                     <p className="text-xs text-secondary-500">Вошли как</p>
                                     <p className="text-sm font-medium text-secondary-900 truncate">
-                                        {user?.email}
+                                        {user?.full_name || user?.email}
                                     </p>
+                                    {roleBadge && (
+                                        <span className={`inline-block mt-1.5 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded ${roleBadge.tone}`}>
+                                            {roleBadge.label}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="py-1">
                                     <button
