@@ -51,7 +51,10 @@ create index if not exists parts_catalog_custom_lookup
 
 -- Replace the read policy so a company sees baseline + its own customs;
 -- writes for non-platform users are restricted to their own custom rows.
+-- Drop both old (0013-era) and new (0018-era) names so the migration is
+-- idempotent across partial-apply states.
 drop policy if exists parts_catalog_authed_read on parts_catalog;
+drop policy if exists parts_catalog_baseline_or_own_read on parts_catalog;
 drop policy if exists parts_catalog_company_custom_write on parts_catalog;
 drop policy if exists parts_catalog_platform_write on parts_catalog;
 
