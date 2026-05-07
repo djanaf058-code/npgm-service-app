@@ -27,6 +27,15 @@ export type MachineStatus = 'active' | 'maintenance' | 'decommissioned';
 
 export type GgdType = 'SN' | 'acetic_acid' | null;
 
+export type TicketStatus =
+  | 'new'
+  | 'tier2_responding'
+  | 'awaiting_operator'
+  | 'resolved'
+  | 'closed_self';
+
+export type MessageSender = 'operator' | 'service_engineer' | 'tier2';
+
 export interface Database {
   __InternalSupabase: {
     PostgrestVersion: '12.2.3';
@@ -203,6 +212,78 @@ export interface Database {
           { foreignKeyName: 'machine_assignments_operator_id_fkey'; columns: ['operator_id']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
         ];
       };
+
+      // ----------------------------------------------------------------
+      tickets: {
+        Row: {
+          id: string;
+          company_id: string;
+          machine_id: string | null;
+          operator_id: string;
+          status: TicketStatus;
+          priority: number;
+          title: string | null;
+          resolution_summary: string | null;
+          created_at: string;
+          resolved_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          machine_id?: string | null;
+          operator_id: string;
+          status?: TicketStatus;
+          priority?: number;
+          title?: string | null;
+          resolution_summary?: string | null;
+        };
+        Update: {
+          machine_id?: string | null;
+          status?: TicketStatus;
+          priority?: number;
+          title?: string | null;
+          resolution_summary?: string | null;
+          resolved_at?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'tickets_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'tickets_machine_id_fkey'; columns: ['machine_id']; referencedRelation: 'machines'; referencedColumns: ['id'] },
+          { foreignKeyName: 'tickets_operator_id_fkey'; columns: ['operator_id']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
+      ticket_messages: {
+        Row: {
+          id: string;
+          ticket_id: string;
+          sender_type: MessageSender;
+          sender_id: string;
+          text: string | null;
+          image_url: string | null;
+          related_manual_chunks: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          ticket_id: string;
+          sender_type: MessageSender;
+          sender_id: string;
+          text?: string | null;
+          image_url?: string | null;
+          related_manual_chunks?: string[] | null;
+        };
+        Update: {
+          text?: string | null;
+          image_url?: string | null;
+          related_manual_chunks?: string[] | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'ticket_messages_ticket_id_fkey'; columns: ['ticket_id']; referencedRelation: 'tickets'; referencedColumns: ['id'] },
+          { foreignKeyName: 'ticket_messages_sender_id_fkey'; columns: ['sender_id']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
+        ];
+      };
     };
 
     Views: {
@@ -223,6 +304,8 @@ export interface Database {
     Enums: {
       user_role: UserRole;
       auger_position: AugerPosition;
+      ticket_status: TicketStatus;
+      message_sender: MessageSender;
     };
 
     CompositeTypes: {

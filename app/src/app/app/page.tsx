@@ -46,7 +46,7 @@ export default function DashboardContent() {
       icon: MessageSquareText,
       title: 'Тикеты',
       description: 'Вопросы операторов, эскалации к Tier 2',
-      sprint: 'Sprint 2',
+      sprint: '',
     },
     {
       href: '/app/maintenance',

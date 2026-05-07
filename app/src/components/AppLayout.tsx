@@ -50,11 +50,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const navigation = [
         { name: 'Главная', href: '/app', icon: Home },
         { name: 'Парк техники', href: '/app/machines', icon: Truck },
-        // Following pages are planned for the next sprints — keep in nav so
-        // their structure is visible, links 404 today (handled gracefully).
-        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, soon: 'Sprint 2' },
-        { name: 'Смены и чек-листы', href: '/app/shifts', icon: ClipboardCheck, soon: 'Sprint 3' },
-        { name: 'ТО и запчасти', href: '/app/maintenance', icon: Wrench, soon: 'Sprint 3' },
+        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText },
+        { name: 'Смены и чек-листы', href: '/app/shifts', icon: ClipboardCheck, soon: 'Sprint 1.10' },
+        { name: 'ТО и запчасти', href: '/app/maintenance', icon: Wrench, soon: 'Sprint 1.12' },
         { name: 'Профиль', href: '/app/user-settings', icon: User },
     ];
 
