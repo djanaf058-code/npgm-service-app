@@ -1,9 +1,11 @@
 -- Seed 0005 — checklist templates aligned with НИПИГОРМАШ РЭ.
 -- Run AFTER migration 0022 (which adds 'monthly' to checklist_kind).
 -- Source: РЭ МСЗУ-14-НПБ §5.5, РЭ МЗВ-16 §5.6, Operation Manual MZU-16-4K §5.5.
--- Replaces seed 0004 entirely. Safe to re-run.
-
-delete from checklist_templates;
+--
+-- Idempotent: uses INSERT ... ON CONFLICT (machine_type, kind) DO UPDATE,
+-- so re-running this seed updates the items list in place. We can't DELETE
+-- the templates because checklist_executions hold an FK to template_id —
+-- those rows preserve audit history of past shifts.
 
 -- ============================================================
 -- ЕЖЕСМЕННЫЕ (pre_shift) — каждую смену
@@ -30,7 +32,8 @@ values ('МЗВ', 'pre_shift', '[
   {"id":"tech_emulsion_level","name_ru":"Уровень эмульсии в баке","severity":"normal"},
   {"id":"tech_drum","name_ru":"Барабан и зарядный рукав — визуальный осмотр","severity":"normal"},
   {"id":"tech_control","name_ru":"Пульт управления и САУ","severity":"critical"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МСЗ (100% ANFO) -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -53,7 +56,8 @@ values ('МСЗ', 'pre_shift', '[
   {"id":"tech_diesel_level","name_ru":"Уровень дизельного топлива в технологическом баке","severity":"normal"},
   {"id":"tech_auger","name_ru":"Шнек — визуальный осмотр","severity":"critical"},
   {"id":"tech_control","name_ru":"Пульт управления и САУ","severity":"critical"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МСЗУ (универсал) -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -79,7 +83,8 @@ values ('МСЗУ', 'pre_shift', '[
   {"id":"tech_auger","name_ru":"Шнек — визуальный осмотр","severity":"critical"},
   {"id":"tech_drum","name_ru":"Барабан и зарядный рукав — визуальный осмотр","severity":"normal"},
   {"id":"tech_control","name_ru":"Пульт управления и САУ","severity":"critical"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МЗУ (Em + AN, без дизеля) -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -105,7 +110,8 @@ values ('МЗУ', 'pre_shift', '[
   {"id":"tech_ggd_4k","name_ru":"Уровень ГГД (исполнение 4К)","severity":"normal"},
   {"id":"tech_auger","name_ru":"Шнек — визуальный осмотр","severity":"critical"},
   {"id":"tech_control","name_ru":"Пульт управления и САУ","severity":"critical"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ============================================================
 -- ЕЖЕМЕСЯЧНЫЕ (monthly) — раз в 30 дней
@@ -122,7 +128,8 @@ values ('МЗВ', 'monthly', '[
   {"id":"m_pump_rpm","name_ru":"Проверка счёта оборотов всех насосов (сравнение с тахометром)","severity":"normal"},
   {"id":"m_calibration","name_ru":"Тарировка калибровочных коэффициентов","severity":"critical"},
   {"id":"m_pump_filters","name_ru":"Прочистка фильтров на всасывающих магистралях насосов ГГД, ПКД, ВОДЫ","severity":"normal"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МСЗ ежемесячное -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -133,7 +140,8 @@ values ('МСЗ', 'monthly', '[
   {"id":"m_pump_rpm","name_ru":"Проверка счёта оборотов насоса дизеля","severity":"normal"},
   {"id":"m_calibration","name_ru":"Тарировка калибровочных коэффициентов","severity":"critical"},
   {"id":"m_pump_filters","name_ru":"Прочистка сетчатых у-фильтров на всасывающих магистралях","severity":"normal"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МСЗУ ежемесячное -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -144,7 +152,8 @@ values ('МСЗУ', 'monthly', '[
   {"id":"m_pump_rpm","name_ru":"Проверка счёта оборотов всех насосов","severity":"normal"},
   {"id":"m_calibration","name_ru":"Тарировка калибровочных коэффициентов","severity":"critical"},
   {"id":"m_pump_filters","name_ru":"Прочистка сетчатых у-фильтров на всасывающих магистралях, промывка ёмкостей","severity":"normal"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
 
 -- ------------------------------- МЗУ ежемесячное -------------------------------
 insert into checklist_templates (machine_type, kind, items)
@@ -156,4 +165,5 @@ values ('МЗУ', 'monthly', '[
   {"id":"m_pump_rpm","name_ru":"Проверка счёта оборотов всех насосов","severity":"normal"},
   {"id":"m_calibration","name_ru":"Тарировка калибровочных коэффициентов","severity":"critical"},
   {"id":"m_pump_filters","name_ru":"Прочистка у-фильтров насосов ВОДЫ, ГГД-1, ГГД-2","severity":"normal"}
-]');
+]')
+on conflict (machine_type, kind) do update set items = excluded.items;
