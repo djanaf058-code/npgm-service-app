@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
 import type {
   MaintenanceKind,
@@ -354,11 +355,10 @@ function NewMaintenanceRequestInner() {
         <Card className="p-5 space-y-4">
           <div>
             <Label htmlFor="plannedDate">Желаемая дата проведения ТО</Label>
-            <Input
+            <DatePicker
               id="plannedDate"
-              type="date"
               value={plannedDate}
-              onChange={(e) => setPlannedDate(e.target.value)}
+              onChange={setPlannedDate}
               className="mt-1 max-w-xs"
             />
           </div>

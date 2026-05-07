@@ -257,19 +257,25 @@ export function ChargingPlanInput({
             label="Эмульсия"
             value={mix.emulsion_pct}
             accent="primary"
-            onChangeValue={(v) => setMix((m) => ({ ...m, emulsion_pct: clamp(v) }))}
+            onChangeValue={(v) =>
+              setMix((m) => rebalance(m, 'emulsion_pct', clamp(v)))
+            }
           />
           <PctRow
             label="Аммиачная селитра (AN)"
             value={mix.an_pct}
             accent="amber"
-            onChangeValue={(v) => setMix((m) => ({ ...m, an_pct: clamp(v) }))}
+            onChangeValue={(v) =>
+              setMix((m) => rebalance(m, 'an_pct', clamp(v)))
+            }
           />
           <PctRow
             label="Дизельное топливо"
             value={mix.diesel_pct}
             accent="secondary"
-            onChangeValue={(v) => setMix((m) => ({ ...m, diesel_pct: clamp(v) }))}
+            onChangeValue={(v) =>
+              setMix((m) => rebalance(m, 'diesel_pct', clamp(v)))
+            }
           />
           <div
             className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
@@ -299,6 +305,52 @@ export function ChargingPlanInput({
 function clamp(v: number): number {
   if (!Number.isFinite(v)) return 0;
   return Math.max(0, Math.min(100, v));
+}
+
+// When one slider moves, redistribute the remaining 100 - newValue
+// across the other two components, preserving their previous ratio.
+// If both other components were 0, split equally between them.
+// If newValue alone exceeds 100, clamp it and zero the others.
+function rebalance(
+  current: ComponentMix,
+  changedKey: keyof ComponentMix,
+  newValue: number
+): ComponentMix {
+  const v = clamp(newValue);
+  const otherKeys = (Object.keys(current) as (keyof ComponentMix)[]).filter(
+    (k) => k !== changedKey
+  );
+  const remaining = 100 - v;
+  const a = current[otherKeys[0]];
+  const b = current[otherKeys[1]];
+  const otherSum = a + b;
+  let na: number;
+  let nb: number;
+  if (remaining <= 0) {
+    na = 0;
+    nb = 0;
+  } else if (otherSum <= 0) {
+    na = remaining / 2;
+    nb = remaining / 2;
+  } else {
+    na = (remaining * a) / otherSum;
+    nb = (remaining * b) / otherSum;
+  }
+  // Round to 1 decimal to avoid floating noise; carry remainder to the larger.
+  const round1 = (x: number) => Math.round(x * 10) / 10;
+  na = round1(na);
+  nb = round1(nb);
+  // Ensure precise sum=100 by absorbing the rounding delta into the larger one.
+  const delta = 100 - (v + na + nb);
+  if (na >= nb) na = round1(na + delta);
+  else nb = round1(nb + delta);
+
+  return {
+    ...current,
+    [changedKey]: v,
+    [otherKeys[0]]: na,
+    [otherKeys[1]]: nb,
+  } as ComponentMix;
 }
 
 function ComponentRow({

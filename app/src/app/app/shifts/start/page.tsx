@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
 import { ChargingPlanInput, type ChargingPlanValue } from '@/components/shifts/ChargingPlanInput';
 import type {
@@ -301,11 +302,10 @@ export default function StartShiftPage() {
           </div>
           <div>
             <Label htmlFor="plannedFor">Дата смены</Label>
-            <Input
+            <DatePicker
               id="plannedFor"
-              type="date"
               value={plannedFor}
-              onChange={(e) => setPlannedFor(e.target.value)}
+              onChange={setPlannedFor}
               className="mt-1"
             />
           </div>

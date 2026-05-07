@@ -9,6 +9,7 @@ import { useGlobal } from '@/lib/context/GlobalContext';
 import type { Database } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -269,12 +270,12 @@ export default function NewMachinePage() {
           <div className="grid md:grid-cols-2 gap-5">
             <div>
               <Label htmlFor="inServiceSince">В эксплуатации с</Label>
-              <Input
+              <DatePicker
                 id="inServiceSince"
-                type="date"
                 value={inServiceSince}
-                onChange={(e) => setInServiceSince(e.target.value)}
+                onChange={setInServiceSince}
                 className="mt-1"
+                fromYear={2000}
               />
             </div>
 
