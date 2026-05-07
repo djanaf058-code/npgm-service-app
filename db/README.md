@@ -18,7 +18,7 @@ Source of truth for the schema is [`docs/architecture/data-model.md`](../docs/ar
 npm install -g supabase
 
 # link the local repo to your remote project
-supabase link --project-ref rbjwbhudxlfiutnvsetl
+supabase link --project-ref YOUR_PROJECT_REF
 
 # push all pending migrations
 supabase db push
