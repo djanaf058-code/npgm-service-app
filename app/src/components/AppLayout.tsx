@@ -14,6 +14,7 @@ import {
     MessageSquareText,
     ClipboardCheck,
     Wrench,
+    Box,
 } from 'lucide-react';
 import { useGlobal } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
@@ -51,8 +52,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { name: 'Главная', href: '/app', icon: Home },
         { name: 'Парк техники', href: '/app/machines', icon: Truck },
         { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText },
-        { name: 'Смены и чек-листы', href: '/app/shifts', icon: ClipboardCheck, soon: 'Sprint 1.10' },
-        { name: 'ТО и запчасти', href: '/app/maintenance', icon: Wrench, soon: 'Sprint 1.12' },
+        { name: 'ТО', href: '/app/maintenance', icon: Wrench },
+        { name: 'Гараж', href: '/app/parts', icon: Box },
+        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck, soon: 'Скоро' },
         { name: 'Профиль', href: '/app/user-settings', icon: User },
     ];
 

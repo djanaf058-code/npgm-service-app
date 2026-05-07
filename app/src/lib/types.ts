@@ -36,6 +36,43 @@ export type TicketStatus =
 
 export type MessageSender = 'operator' | 'service_engineer' | 'tier2';
 
+export type PartCategory = 'filter' | 'seal' | 'sensor' | 'module' | 'pump_part' | 'consumable';
+
+export type PartUnit = 'pcs' | 'm' | 'kg' | 'l' | 'set';
+
+export type MaintenanceKind = 'TO' | 'TO-1' | 'TO-2' | 'annual' | 'unscheduled';
+
+export type MaintenanceStatus =
+  | 'forecast'
+  | 'requested'
+  | 'planned'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+/** BOM item embedded in maintenance_schedules.parts_required (and planned/requested in events). */
+export interface MaintenanceBomItem {
+  part_id: string;
+  display_name_ru: string;
+  display_name_en?: string;
+  quantity: number;
+  source?: 'schedule_default' | 'manual_freeform' | 'photo_request';
+}
+
+/** Free-form addition by operator when they don't know the part name. */
+export interface MaintenanceFreeformItem {
+  description: string;
+  photo_url?: string | null;
+  quantity_estimate?: number | null;
+}
+
+/** Single work step on a maintenance regime. */
+export interface MaintenanceWorkItem {
+  name_ru: string;
+  name_en?: string;
+  hours_norm?: number;
+}
+
 export interface Database {
   __InternalSupabase: {
     PostgrestVersion: '12.2.3';
@@ -254,6 +291,224 @@ export interface Database {
       };
 
       // ----------------------------------------------------------------
+      parts_catalog: {
+        Row: {
+          id: string;
+          display_name_ru: string;
+          display_name_en: string | null;
+          category: PartCategory;
+          application_ru: string | null;
+          application_en: string | null;
+          manufacturer: string;
+          part_number: string;
+          internal_sku: string | null;
+          unit: PartUnit;
+          compatible_machine_types: string[];
+          last_known_price_rub: number | null;
+          last_known_price_usd: number | null;
+          price_updated_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          display_name_ru: string;
+          display_name_en?: string | null;
+          category: PartCategory;
+          application_ru?: string | null;
+          application_en?: string | null;
+          manufacturer?: string;
+          part_number: string;
+          internal_sku?: string | null;
+          unit?: PartUnit;
+          compatible_machine_types?: string[];
+          last_known_price_rub?: number | null;
+          last_known_price_usd?: number | null;
+          price_updated_at?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          display_name_ru?: string;
+          display_name_en?: string | null;
+          category?: PartCategory;
+          application_ru?: string | null;
+          application_en?: string | null;
+          manufacturer?: string;
+          part_number?: string;
+          internal_sku?: string | null;
+          unit?: PartUnit;
+          compatible_machine_types?: string[];
+          last_known_price_rub?: number | null;
+          last_known_price_usd?: number | null;
+          price_updated_at?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+
+      // ----------------------------------------------------------------
+      parts_inventory: {
+        Row: {
+          id: string;
+          company_id: string;
+          part_id: string;
+          machine_id: string | null;
+          quantity: number;
+          reorder_threshold: number | null;
+          last_replenished_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          part_id: string;
+          machine_id?: string | null;
+          quantity?: number;
+          reorder_threshold?: number | null;
+          last_replenished_at?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          machine_id?: string | null;
+          quantity?: number;
+          reorder_threshold?: number | null;
+          last_replenished_at?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'parts_inventory_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'parts_inventory_part_id_fkey'; columns: ['part_id']; referencedRelation: 'parts_catalog'; referencedColumns: ['id'] },
+          { foreignKeyName: 'parts_inventory_machine_id_fkey'; columns: ['machine_id']; referencedRelation: 'machines'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
+      parts_usage: {
+        Row: {
+          id: string;
+          inventory_id: string;
+          ticket_id: string | null;
+          maintenance_event_id: string | null;
+          quantity_used: number;
+          used_at: string;
+          used_by: string | null;
+          notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          inventory_id: string;
+          ticket_id?: string | null;
+          maintenance_event_id?: string | null;
+          quantity_used: number;
+          used_by?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          quantity_used?: number;
+          notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'parts_usage_inventory_id_fkey'; columns: ['inventory_id']; referencedRelation: 'parts_inventory'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
+      maintenance_schedules: {
+        Row: {
+          id: string;
+          machine_type: string;
+          kind: MaintenanceKind;
+          interval_tons: number;
+          alternates_with: MaintenanceKind | null;
+          work_items: MaintenanceWorkItem[];
+          total_hours_norm: number | null;
+          parts_required: MaintenanceBomItem[];
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          machine_type: string;
+          kind: MaintenanceKind;
+          interval_tons: number;
+          alternates_with?: MaintenanceKind | null;
+          work_items?: MaintenanceWorkItem[];
+          total_hours_norm?: number | null;
+          parts_required?: MaintenanceBomItem[];
+          notes?: string | null;
+        };
+        Update: {
+          interval_tons?: number;
+          alternates_with?: MaintenanceKind | null;
+          work_items?: MaintenanceWorkItem[];
+          total_hours_norm?: number | null;
+          parts_required?: MaintenanceBomItem[];
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+
+      // ----------------------------------------------------------------
+      maintenance_events: {
+        Row: {
+          id: string;
+          company_id: string;
+          machine_id: string;
+          schedule_id: string | null;
+          kind: MaintenanceKind;
+          status: MaintenanceStatus;
+          tons_at_creation: number | null;
+          forecast_tons: number | null;
+          planned_date: string | null;
+          completed_at: string | null;
+          parts_requested: MaintenanceBomItem[];
+          parts_freeform: MaintenanceFreeformItem[];
+          works_performed: MaintenanceWorkItem[] | null;
+          performed_by: string | null;
+          requested_by: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          machine_id: string;
+          schedule_id?: string | null;
+          kind: MaintenanceKind;
+          status?: MaintenanceStatus;
+          tons_at_creation?: number | null;
+          forecast_tons?: number | null;
+          planned_date?: string | null;
+          parts_requested?: MaintenanceBomItem[];
+          parts_freeform?: MaintenanceFreeformItem[];
+          works_performed?: MaintenanceWorkItem[] | null;
+          performed_by?: string | null;
+          requested_by?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          status?: MaintenanceStatus;
+          planned_date?: string | null;
+          completed_at?: string | null;
+          parts_requested?: MaintenanceBomItem[];
+          parts_freeform?: MaintenanceFreeformItem[];
+          works_performed?: MaintenanceWorkItem[] | null;
+          performed_by?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'maintenance_events_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'maintenance_events_machine_id_fkey'; columns: ['machine_id']; referencedRelation: 'machines'; referencedColumns: ['id'] },
+          { foreignKeyName: 'maintenance_events_schedule_id_fkey'; columns: ['schedule_id']; referencedRelation: 'maintenance_schedules'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
       ticket_messages: {
         Row: {
           id: string;
@@ -306,6 +561,8 @@ export interface Database {
       auger_position: AugerPosition;
       ticket_status: TicketStatus;
       message_sender: MessageSender;
+      maintenance_kind: MaintenanceKind;
+      maintenance_status: MaintenanceStatus;
     };
 
     CompositeTypes: {
