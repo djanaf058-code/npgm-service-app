@@ -58,7 +58,7 @@ export type ShiftStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled' 
 
 export type ChargingRecipe = 'ANFO' | 'EMULSION' | 'BLEND_70_30' | 'BLEND_30_70' | 'OTHER';
 
-export type ChecklistKind = 'pre_shift' | 'weekly' | 'maintenance';
+export type ChecklistKind = 'pre_shift' | 'monthly' | 'weekly' | 'maintenance';
 
 export type ChecklistItemSeverity = 'critical' | 'normal';
 
@@ -69,7 +69,7 @@ export interface ChecklistItem {
   severity: ChecklistItemSeverity;
 }
 
-export type ChecklistAnswerStatus = 'pass' | 'fail' | 'skip';
+export type ChecklistAnswerStatus = 'pass' | 'fail' | 'skip'; // 'skip' kept for legacy rows; UI no longer offers it
 
 export interface ChecklistAnswer {
   item_id: string;
@@ -210,6 +210,7 @@ export interface Database {
           pit_location: string | null;
           engine_hours: number;
           tons_pumped: number;
+          last_monthly_check_at: string | null;
           status: MachineStatus;
           notes: string | null;
           created_at: string;

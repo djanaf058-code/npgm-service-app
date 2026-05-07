@@ -14,7 +14,6 @@ import {
   Save,
   Check,
   X as XIcon,
-  Minus,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,8 @@ interface ShiftDetail {
 
 interface ChecklistRow {
   id: string;
+  template_id: string;
+  template: { kind: 'pre_shift' | 'monthly' | string } | null;
   items_snapshot: ChecklistItem[];
   items_status: ChecklistAnswer[];
   has_critical_fail: boolean;
@@ -77,7 +78,7 @@ export default function ShiftDetailPage() {
   const shiftId = params.id;
 
   const [shift, setShift] = useState<ShiftDetail | null>(null);
-  const [checklist, setChecklist] = useState<ChecklistRow | null>(null);
+  const [checklists, setChecklists] = useState<ChecklistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,9 +103,11 @@ export default function ShiftDetailPage() {
           .maybeSingle(),
         supabase
           .from('checklist_executions')
-          .select('id, items_snapshot, items_status, has_critical_fail, notes, completed_at')
+          .select(
+            'id, template_id, items_snapshot, items_status, has_critical_fail, notes, completed_at, template:checklist_templates(kind)'
+          )
           .eq('shift_id', shiftId)
-          .maybeSingle(),
+          .order('completed_at', { ascending: true }),
       ]);
       if (shiftResp.error) throw shiftResp.error;
       if (!shiftResp.data) {
@@ -112,7 +115,7 @@ export default function ShiftDetailPage() {
         return;
       }
       setShift(shiftResp.data as unknown as ShiftDetail);
-      if (checkResp.data) setChecklist(checkResp.data as unknown as ChecklistRow);
+      if (checkResp.data) setChecklists(checkResp.data as unknown as ChecklistRow[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally {
@@ -362,63 +365,66 @@ export default function ShiftDetailPage() {
         </Card>
       </div>
 
-      {/* Checklist */}
-      {checklist && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-heading text-base flex items-center gap-2">
-              Чек-лист перед сменой
-              {checklist.has_critical_fail && (
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
-                  <AlertTriangle className="w-3 h-3" /> Критичный fail
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-y divide-secondary-100">
-              {checklist.items_snapshot.map((item) => {
-                const ans = checklist.items_status.find((a) => a.item_id === item.id);
-                const status = ans?.status ?? 'skip';
-                const Icon = status === 'pass' ? Check : status === 'fail' ? XIcon : Minus;
-                const color =
-                  status === 'pass'
-                    ? 'text-emerald-700 bg-emerald-50'
-                    : status === 'fail'
-                      ? 'text-accent-700 bg-accent-50'
-                      : 'text-secondary-600 bg-secondary-100';
-                return (
-                  <li key={item.id} className="py-2.5">
-                    <div className="flex items-start gap-3">
-                      <span className={`flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded ${color}`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-secondary-900">
-                          {item.name_ru}
-                          {item.severity === 'critical' && (
-                            <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent-700">
-                              critical
-                            </span>
+      {/* Checklists (one or two: pre_shift + monthly when due) */}
+      {checklists.length > 0 && checklists.map((cl) => {
+        const isMonthly = cl.template?.kind === 'monthly';
+        return (
+          <Card key={cl.id}>
+            <CardHeader>
+              <CardTitle className="font-heading text-base flex items-center gap-2 flex-wrap">
+                {isMonthly ? 'Ежемесячный осмотр' : 'Ежесменный осмотр'}
+                {cl.has_critical_fail && (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
+                    <AlertTriangle className="w-3 h-3" /> Критичный fail
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-secondary-100">
+                {cl.items_snapshot.map((item) => {
+                  const ans = cl.items_status.find((a) => a.item_id === item.id);
+                  const status = ans?.status ?? 'skip';
+                  const Icon = status === 'pass' ? Check : XIcon;
+                  const color =
+                    status === 'pass'
+                      ? 'text-emerald-700 bg-emerald-50'
+                      : status === 'fail'
+                        ? 'text-accent-700 bg-accent-50'
+                        : 'text-secondary-600 bg-secondary-100';
+                  return (
+                    <li key={item.id} className="py-2.5">
+                      <div className="flex items-start gap-3">
+                        <span className={`flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded ${color}`}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-secondary-900">
+                            {item.name_ru}
+                            {item.severity === 'critical' && (
+                              <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent-700">
+                                critical
+                              </span>
+                            )}
+                          </p>
+                          {ans?.comment && (
+                            <p className="text-xs text-secondary-600 italic mt-1">{ans.comment}</p>
                           )}
-                        </p>
-                        {ans?.comment && (
-                          <p className="text-xs text-secondary-600 italic mt-1">{ans.comment}</p>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            {checklist.notes && (
-              <p className="mt-3 text-xs text-secondary-600 pt-3 border-t border-secondary-100">
-                <strong>Примечание оператора:</strong> {checklist.notes}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {cl.notes && (
+                <p className="mt-3 text-xs text-secondary-600 pt-3 border-t border-secondary-100">
+                  <strong>Примечание оператора:</strong> {cl.notes}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* Close shift inline form */}
       {closeOpen && (

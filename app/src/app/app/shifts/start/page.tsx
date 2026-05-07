@@ -12,7 +12,6 @@ import {
   Wrench,
   Check,
   X as XIcon,
-  Minus,
   AlertTriangle,
   Send,
 } from 'lucide-react';
@@ -37,12 +36,31 @@ interface MachineOption {
   id: string;
   machine_type: string;
   model_code: string;
+  last_monthly_check_at: string | null;
 }
 
 interface TemplateRow {
   id: string;
   machine_type: string;
+  kind: 'pre_shift' | 'monthly';
   items: ChecklistItem[];
+}
+
+const MONTHLY_DUE_AFTER_DAYS = 30;
+
+function isMonthlyDue(lastAt: string | null): boolean {
+  if (!lastAt) return true;
+  const last = new Date(lastAt).getTime();
+  if (!Number.isFinite(last)) return true;
+  const days = (Date.now() - last) / (1000 * 60 * 60 * 24);
+  return days >= MONTHLY_DUE_AFTER_DAYS;
+}
+
+function daysSince(lastAt: string | null): number | null {
+  if (!lastAt) return null;
+  const last = new Date(lastAt).getTime();
+  if (!Number.isFinite(last)) return null;
+  return Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24));
 }
 
 type Step = 'machine' | 'checklist' | 'plan';
@@ -85,13 +103,13 @@ export default function StartShiftPage() {
           supabase.from('profiles').select('company_id').eq('id', user.id).single(),
           supabase
             .from('machines')
-            .select('id, machine_type, model_code')
+            .select('id, machine_type, model_code, last_monthly_check_at')
             .eq('status', 'active')
             .order('model_code'),
           supabase
             .from('checklist_templates')
-            .select('id, machine_type, items')
-            .eq('kind', 'pre_shift'),
+            .select('id, machine_type, kind, items')
+            .in('kind', ['pre_shift', 'monthly']),
         ]);
 
         const cid = (profileResp.data as { company_id: string } | null)?.company_id;
@@ -113,9 +131,27 @@ export default function StartShiftPage() {
   }, [user]);
 
   const selectedMachine = machines.find((m) => m.id === machineId) ?? null;
-  const template = selectedMachine
-    ? templates.find((t) => t.machine_type === selectedMachine.machine_type) ?? null
+  const preShiftTemplate = selectedMachine
+    ? templates.find(
+        (t) => t.machine_type === selectedMachine.machine_type && t.kind === 'pre_shift'
+      ) ?? null
     : null;
+  const monthlyTemplate = selectedMachine
+    ? templates.find(
+        (t) => t.machine_type === selectedMachine.machine_type && t.kind === 'monthly'
+      ) ?? null
+    : null;
+  const monthlyDue = selectedMachine ? isMonthlyDue(selectedMachine.last_monthly_check_at) : false;
+  const monthlyDays = selectedMachine ? daysSince(selectedMachine.last_monthly_check_at) : null;
+  // Active templates for this run = pre-shift always; monthly only if due.
+  const activeTemplates: TemplateRow[] = [
+    ...(preShiftTemplate ? [preShiftTemplate] : []),
+    ...(monthlyTemplate && monthlyDue ? [monthlyTemplate] : []),
+  ];
+  // Combined items list across all active templates (used for completeness check / submit).
+  const allItems = activeTemplates.flatMap((t) => t.items);
+  // Legacy var name kept for the rest of the file's logic.
+  const template = preShiftTemplate;
 
   const setAnswer = (item: ChecklistItem, status: ChecklistAnswerStatus) => {
     setAnswers((prev) => ({
@@ -153,13 +189,12 @@ export default function StartShiftPage() {
     }));
   };
 
-  const checklistComplete = template
-    ? template.items.every((it) => answers[it.id]?.status)
-    : false;
+  const checklistComplete =
+    activeTemplates.length > 0 && allItems.every((it) => answers[it.id]?.status);
 
-  const hasCriticalFail = template
-    ? template.items.some((it) => it.severity === 'critical' && answers[it.id]?.status === 'fail')
-    : false;
+  const hasCriticalFail = allItems.some(
+    (it) => it.severity === 'critical' && answers[it.id]?.status === 'fail'
+  );
 
   const handleSubmit = async () => {
     if (!companyId || !user || !selectedMachine || !template) return;
@@ -199,19 +234,25 @@ export default function StartShiftPage() {
       if (shiftErr || !shift) throw shiftErr ?? new Error('Не удалось создать смену');
       const shiftId = (shift as { id: string }).id;
 
-      // 2) Save the checklist execution
-      const itemsStatus: ChecklistAnswer[] = template.items.map((it) =>
-        answers[it.id] ?? { item_id: it.id, status: 'skip', photo_url: null, comment: null }
-      );
-      const { error: execErr } = await supabase.from('checklist_executions').insert({
-        shift_id: shiftId,
-        template_id: template.id,
-        items_snapshot: template.items,
-        items_status: itemsStatus,
-        has_critical_fail: hasCriticalFail,
-        notes: checklistNotes.trim() || null,
-        performed_by: user.id,
+      // 2) One checklist_execution per active template (pre_shift, and monthly when due).
+      const executions = activeTemplates.map((tpl) => {
+        const itemsStatus: ChecklistAnswer[] = tpl.items.map((it) =>
+          answers[it.id] ?? { item_id: it.id, status: 'skip', photo_url: null, comment: null }
+        );
+        const tplCriticalFail = tpl.items.some(
+          (it) => it.severity === 'critical' && answers[it.id]?.status === 'fail'
+        );
+        return {
+          shift_id: shiftId,
+          template_id: tpl.id,
+          items_snapshot: tpl.items,
+          items_status: itemsStatus,
+          has_critical_fail: tplCriticalFail,
+          notes: checklistNotes.trim() || null,
+          performed_by: user.id,
+        };
       });
+      const { error: execErr } = await supabase.from('checklist_executions').insert(executions);
       if (execErr) throw execErr;
 
       router.push(`/app/shifts/${shiftId}`);
@@ -336,79 +377,104 @@ export default function StartShiftPage() {
               Чек-лист перед сменой
             </h3>
             <p className="text-xs text-secondary-500 mt-1">
-              Отметьте каждый пункт. Если критичный пункт «Ошибка» — смена будет
-              заблокирована и автоматически создастся тикет в Tier 2.
+              По каждому пункту: <strong>OK</strong> — в норме; <strong>Не OK</strong> — есть
+              проблема (опишите и приложите фото). Критичная «Не OK» блокирует смену и
+              создаст тикет в Tier 2.
             </p>
           </div>
 
-          <ul className="divide-y divide-secondary-100">
-            {template.items.map((item) => {
-              const ans = answers[item.id];
-              const isCritical = item.severity === 'critical';
-              return (
-                <li key={item.id} className="py-3">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-secondary-900">
-                        {item.name_ru}{' '}
-                        {isCritical && (
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded ml-1">
-                            <AlertTriangle className="w-3 h-3" /> Критично
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <AnswerButton
-                        active={ans?.status === 'pass'}
-                        onClick={() => setAnswer(item, 'pass')}
-                        icon={Check}
-                        label="OK"
-                        variant="pass"
-                      />
-                      <AnswerButton
-                        active={ans?.status === 'fail'}
-                        onClick={() => setAnswer(item, 'fail')}
-                        icon={XIcon}
-                        label="Ошибка"
-                        variant="fail"
-                      />
-                      <AnswerButton
-                        active={ans?.status === 'skip'}
-                        onClick={() => setAnswer(item, 'skip')}
-                        icon={Minus}
-                        label="N/A"
-                        variant="skip"
-                      />
-                    </div>
+          {activeTemplates.map((tpl) => {
+            const isMonthly = tpl.kind === 'monthly';
+            return (
+              <div key={tpl.id} className="mb-5">
+                <div
+                  className={`flex items-center justify-between gap-2 mb-2 px-3 py-2 rounded-md ${
+                    isMonthly
+                      ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                      : 'bg-primary-50 text-primary-900 border border-primary-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-wider font-bold">
+                      {isMonthly ? 'Ежемесячный осмотр' : 'Ежесменный осмотр'}
+                    </span>
+                    {isMonthly && (
+                      <span className="text-xs text-amber-700">
+                        {monthlyDays === null
+                          ? '— ни разу не выполнялся'
+                          : `— просрочен на ${monthlyDays - MONTHLY_DUE_AFTER_DAYS} дн (последний ${monthlyDays} дн назад)`}
+                      </span>
+                    )}
                   </div>
-                  {ans?.status === 'fail' && (
-                    <div className="mt-2 ml-1 space-y-2 pl-3 border-l-2 border-accent-300">
-                      <Textarea
-                        placeholder="Опишите проблему…"
-                        value={ans.comment ?? ''}
-                        onChange={(e) => setAnswerComment(item.id, e.target.value)}
-                        rows={2}
-                        className="text-sm"
-                      />
-                      {companyId && (
-                        <PhotoUploader
-                          bucket="shift-photos"
-                          companyId={companyId}
-                          context="checklist-fail"
-                          initialPath={ans.photo_url}
-                          onUploaded={(p) => setAnswerPhoto(item.id, p)}
-                          onRemoved={() => setAnswerPhoto(item.id, null)}
-                          onError={(e) => setError(e)}
-                          compact
-                        />
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  <span className="text-xs text-secondary-500">
+                    {tpl.items.length} {tpl.items.length === 1 ? 'пункт' : 'пунктов'}
+                  </span>
+                </div>
+
+                <ul className="divide-y divide-secondary-100">
+                  {tpl.items.map((item) => {
+                    const ans = answers[item.id];
+                    const isCritical = item.severity === 'critical';
+                    return (
+                      <li key={item.id} className="py-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-secondary-900">
+                              {item.name_ru}{' '}
+                              {isCritical && (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded ml-1">
+                                  <AlertTriangle className="w-3 h-3" /> Критично
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <AnswerButton
+                              active={ans?.status === 'pass'}
+                              onClick={() => setAnswer(item, 'pass')}
+                              icon={Check}
+                              label="OK"
+                              variant="pass"
+                            />
+                            <AnswerButton
+                              active={ans?.status === 'fail'}
+                              onClick={() => setAnswer(item, 'fail')}
+                              icon={XIcon}
+                              label="Не OK"
+                              variant="fail"
+                            />
+                          </div>
+                        </div>
+                        {ans?.status === 'fail' && (
+                          <div className="mt-2 ml-1 space-y-2 pl-3 border-l-2 border-accent-300">
+                            <Textarea
+                              placeholder="Опишите проблему…"
+                              value={ans.comment ?? ''}
+                              onChange={(e) => setAnswerComment(item.id, e.target.value)}
+                              rows={2}
+                              className="text-sm"
+                            />
+                            {companyId && (
+                              <PhotoUploader
+                                bucket="shift-photos"
+                                companyId={companyId}
+                                context="checklist-fail"
+                                initialPath={ans.photo_url}
+                                onUploaded={(p) => setAnswerPhoto(item.id, p)}
+                                onRemoved={() => setAnswerPhoto(item.id, null)}
+                                onError={(e) => setError(e)}
+                                compact
+                              />
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
 
           <div className="mt-4 pt-4 border-t border-secondary-100">
             <Label htmlFor="checklistNotes">Дополнительно</Label>
