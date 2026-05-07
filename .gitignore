@@ -42,6 +42,7 @@ logs/
 
 # Supabase
 supabase/.temp/
+db/_combined_for_dashboard.sql
 
 # Testing
 playwright-report/
