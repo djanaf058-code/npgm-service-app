@@ -14,12 +14,23 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
+  Wrench,
+  Clock,
+  ChevronRight,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { MachineTypeBadge } from '@/components/machines/MachineTypeBadge';
 import { MachineStatusBadge } from '@/components/machines/MachineStatusBadge';
+import {
+  forecastNextMaintenance,
+  estimateDaysUntilDue,
+  type ScheduleSummary,
+  type ForecastResult,
+} from '@/lib/calculations/maintenance';
+import type { MaintenanceKind } from '@/lib/types';
 
 interface MachineDetail {
   id: string;
@@ -53,12 +64,21 @@ const GGD_LABEL: Record<string, string> = {
   acetic_acid: 'Acetic Acid (уксусная кислота)',
 };
 
+const KIND_LABELS: Record<MaintenanceKind, string> = {
+  TO: 'ТО',
+  'TO-1': 'ТО-1',
+  'TO-2': 'ТО-2',
+  annual: 'Годовое ТО',
+  unscheduled: 'Внеплановое',
+};
+
 export default function MachineDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
 
   const [machine, setMachine] = useState<MachineDetail | null>(null);
+  const [forecast, setForecast] = useState<ForecastResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -68,17 +88,23 @@ export default function MachineDetailPage() {
       try {
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
-        const { data, error } = await supabase
-          .from('machines')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-        if (error) throw error;
-        if (!data) {
+        const [machineResp, schedulesResp] = await Promise.all([
+          supabase.from('machines').select('*').eq('id', id).maybeSingle(),
+          supabase
+            .from('maintenance_schedules')
+            .select('id, machine_type, kind, interval_tons, alternates_with'),
+        ]);
+
+        if (machineResp.error) throw machineResp.error;
+        if (!machineResp.data) {
           setError('Машина не найдена или у вас нет к ней доступа');
-        } else {
-          setMachine(data as MachineDetail);
+          return;
         }
+        const m = machineResp.data as MachineDetail;
+        setMachine(m);
+
+        const schedules = (schedulesResp.data ?? []) as ScheduleSummary[];
+        setForecast(forecastNextMaintenance(m.machine_type, Number(m.tons_pumped), schedules));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Ошибка загрузки');
       } finally {
@@ -186,6 +212,15 @@ export default function MachineDetailPage() {
         />
       </div>
 
+      {/* Next maintenance forecast */}
+      {forecast && (
+        <NextMaintenanceCard
+          machineId={machine.id}
+          forecast={forecast}
+          tonsPumped={Number(machine.tons_pumped)}
+        />
+      )}
+
       {/* Passport */}
       <Card>
         <CardHeader>
@@ -246,6 +281,83 @@ export default function MachineDetailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function NextMaintenanceCard({
+  machineId,
+  forecast,
+  tonsPumped,
+}: {
+  machineId: string;
+  forecast: ForecastResult;
+  tonsPumped: number;
+}) {
+  const days = estimateDaysUntilDue(forecast.tons_remaining);
+  const tonsRem = forecast.tons_remaining;
+  const urgency =
+    tonsRem === 0 ? 'critical' : tonsRem < 200 ? 'high' : tonsRem < 500 ? 'medium' : 'low';
+  const styles = {
+    critical: 'border-accent-300 bg-accent-50/30',
+    high: 'border-amber-300 bg-amber-50/30',
+    medium: 'border-secondary-200',
+    low: 'border-secondary-200',
+  }[urgency];
+
+  return (
+    <Card className={`p-5 ${styles}`}>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+            <Wrench className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-heading font-semibold text-secondary-900">Следующее ТО</h3>
+              <Badge variant="default">{KIND_LABELS[forecast.next_kind]}</Badge>
+            </div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold">
+                  Через
+                </p>
+                <p className="font-bold text-secondary-900 tabular-nums">
+                  {Number(tonsRem).toLocaleString('ru-RU')} тонн
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Примерно
+                </p>
+                <p className="font-bold text-secondary-900 tabular-nums">
+                  {days < 365 ? `${days} дн` : '≥ года'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold">
+                  ТО при выработке
+                </p>
+                <p className="font-bold text-secondary-900 tabular-nums">
+                  {Number(forecast.next_at_tons).toLocaleString('ru-RU')} т
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-secondary-500">
+              Текущая выработка: {Number(tonsPumped).toLocaleString('ru-RU')} тонн ·
+              регламент машины — каждые 2000 тонн прокачки
+            </p>
+          </div>
+        </div>
+        <Button asChild size="sm">
+          <Link
+            href={`/app/maintenance/new?machine=${machineId}&schedule=${forecast.schedule_id}`}
+          >
+            Подать заявку
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </Button>
+      </div>
+    </Card>
   );
 }
 
