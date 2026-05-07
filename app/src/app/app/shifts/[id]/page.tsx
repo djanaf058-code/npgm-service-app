@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ShiftStatusBadge } from '@/components/shifts/ShiftStatusBadge';
+import { isBlendRecipe } from '@/lib/calculations/recipes';
 import type {
   ShiftStatus,
   ChargingRecipe,
@@ -38,10 +39,14 @@ interface ShiftDetail {
   completed_at: string | null;
   plan_recipe: ChargingRecipe | null;
   plan_tons: number | null;
+  plan_emulsion_tons: number | null;
+  plan_an_tons: number | null;
   plan_holes: number | null;
   plan_pit_location: string | null;
   plan_notes: string | null;
   actual_tons: number | null;
+  actual_emulsion_tons: number | null;
+  actual_an_tons: number | null;
   actual_engine_hours: number | null;
   actual_notes: string | null;
   machine: { id: string; model_code: string; machine_type: string; tons_pumped: number; engine_hours: number } | null;
@@ -77,7 +82,8 @@ export default function ShiftDetailPage() {
 
   const [closeOpen, setCloseOpen] = useState(false);
   const [actualTons, setActualTons] = useState('');
-  const [actualHours, setActualHours] = useState('');
+  const [actualEmulsion, setActualEmulsion] = useState('');
+  const [actualAn, setActualAn] = useState('');
   const [actualNotes, setActualNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   void router;
@@ -91,7 +97,7 @@ export default function ShiftDetailPage() {
         supabase
           .from('shifts')
           .select(
-            'id, status, planned_for, started_at, completed_at, plan_recipe, plan_tons, plan_holes, plan_pit_location, plan_notes, actual_tons, actual_engine_hours, actual_notes, machine:machines(id, model_code, machine_type, tons_pumped, engine_hours), operator:profiles!shifts_operator_id_fkey(full_name)'
+            'id, status, planned_for, started_at, completed_at, plan_recipe, plan_tons, plan_emulsion_tons, plan_an_tons, plan_holes, plan_pit_location, plan_notes, actual_tons, actual_emulsion_tons, actual_an_tons, actual_engine_hours, actual_notes, machine:machines(id, model_code, machine_type, tons_pumped, engine_hours), operator:profiles!shifts_operator_id_fkey(full_name)'
           )
           .eq('id', shiftId)
           .maybeSingle(),
@@ -122,15 +128,30 @@ export default function ShiftDetailPage() {
 
   const handleClose = async () => {
     if (!shift) return;
-    const tons = parseFloat(actualTons);
-    if (!Number.isFinite(tons) || tons <= 0) {
-      setError('Введите корректные фактические тонны');
-      return;
-    }
-    const hours = actualHours ? parseFloat(actualHours) : null;
-    if (actualHours && (!Number.isFinite(hours!) || hours! < 0)) {
-      setError('Часы должны быть числом');
-      return;
+    const isBlend = shift.plan_recipe ? isBlendRecipe(shift.plan_recipe) : false;
+
+    let tons: number;
+    let emulsion: number | null = null;
+    let an: number | null = null;
+
+    if (isBlend) {
+      const e = parseFloat(actualEmulsion);
+      const a = parseFloat(actualAn);
+      if (!Number.isFinite(e) || e < 0 || !Number.isFinite(a) || a < 0 || (e + a) <= 0) {
+        setError('Введите фактические тонны эмульсии и аммиачной селитры (AN)');
+        return;
+      }
+      emulsion = e;
+      an = a;
+      tons = e + a;
+    } else {
+      tons = parseFloat(actualTons);
+      if (!Number.isFinite(tons) || tons <= 0) {
+        setError('Введите корректные фактические тонны');
+        return;
+      }
+      if (shift.plan_recipe === 'EMULSION') emulsion = tons;
+      if (shift.plan_recipe === 'ANFO') an = tons;
     }
 
     setSubmitting(true);
@@ -144,7 +165,8 @@ export default function ShiftDetailPage() {
           status: 'completed',
           completed_at: new Date().toISOString(),
           actual_tons: tons,
-          actual_engine_hours: hours,
+          actual_emulsion_tons: emulsion,
+          actual_an_tons: an,
           actual_notes: actualNotes.trim() || null,
         })
         .eq('id', shift.id);
@@ -286,13 +308,29 @@ export default function ShiftDetailPage() {
         <Card className="p-5">
           <h3 className="font-heading font-semibold text-secondary-900 mb-3">План</h3>
           <dl className="space-y-2 text-sm">
-            <Row label="Тонн" value={shift.plan_tons !== null ? `${Number(shift.plan_tons).toLocaleString('ru-RU')} т` : '—'} />
-            <Row label="Скважин" value={shift.plan_holes !== null ? String(shift.plan_holes) : '—'} />
-            <Row label="Карьер" value={shift.plan_pit_location ?? '—'} />
             <Row
               label="Рецепт"
               value={shift.plan_recipe ? RECIPE_LABELS[shift.plan_recipe] : '—'}
             />
+            {shift.plan_emulsion_tons !== null && (
+              <Row
+                label="Эмульсия"
+                value={`${Number(shift.plan_emulsion_tons).toLocaleString('ru-RU')} т`}
+              />
+            )}
+            {shift.plan_an_tons !== null && (
+              <Row
+                label="Аммиачная селитра (AN)"
+                value={`${Number(shift.plan_an_tons).toLocaleString('ru-RU')} т`}
+              />
+            )}
+            <Row
+              label="Итого тонн"
+              value={shift.plan_tons !== null ? `${Number(shift.plan_tons).toLocaleString('ru-RU')} т` : '—'}
+              strong
+            />
+            <Row label="Скважин" value={shift.plan_holes !== null ? String(shift.plan_holes) : '—'} />
+            <Row label="Карьер" value={shift.plan_pit_location ?? '—'} />
           </dl>
           {shift.plan_notes && (
             <p className="mt-3 text-xs text-secondary-600 italic">{shift.plan_notes}</p>
@@ -303,14 +341,22 @@ export default function ShiftDetailPage() {
           <h3 className="font-heading font-semibold text-secondary-900 mb-3">Факт</h3>
           {shift.actual_tons !== null ? (
             <dl className="space-y-2 text-sm">
+              {shift.actual_emulsion_tons !== null && (
+                <Row
+                  label="Эмульсия"
+                  value={`${Number(shift.actual_emulsion_tons).toLocaleString('ru-RU')} т`}
+                />
+              )}
+              {shift.actual_an_tons !== null && (
+                <Row
+                  label="Аммиачная селитра (AN)"
+                  value={`${Number(shift.actual_an_tons).toLocaleString('ru-RU')} т`}
+                />
+              )}
               <Row
-                label="Тонн прокачано"
+                label="Итого прокачано"
                 value={`${Number(shift.actual_tons).toLocaleString('ru-RU')} т`}
                 strong
-              />
-              <Row
-                label="Моточасов добавлено"
-                value={shift.actual_engine_hours !== null ? `${shift.actual_engine_hours} ч` : '—'}
               />
               {shift.completed_at && (
                 <Row label="Закрыта" value={new Date(shift.completed_at).toLocaleString('ru-RU')} />
@@ -384,68 +430,115 @@ export default function ShiftDetailPage() {
       )}
 
       {/* Close shift inline form */}
-      {closeOpen && (
-        <Card className="p-5 border-emerald-300 bg-emerald-50/30">
-          <h3 className="font-heading font-semibold text-secondary-900 mb-3">Закрытие смены</h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="actualTons">Фактические тонны *</Label>
-              <Input
-                id="actualTons"
-                type="number"
-                step="0.001"
-                min="0"
-                value={actualTons}
-                onChange={(e) => setActualTons(e.target.value)}
-                placeholder={shift.plan_tons?.toString() ?? '14.5'}
-                required
+      {closeOpen && (() => {
+        const isBlend = shift.plan_recipe ? isBlendRecipe(shift.plan_recipe) : false;
+        const closeDisabled = submitting || (isBlend ? !actualEmulsion || !actualAn : !actualTons);
+        return (
+          <Card className="p-5 border-emerald-300 bg-emerald-50/30">
+            <h3 className="font-heading font-semibold text-secondary-900 mb-3">Закрытие смены</h3>
+            {isBlend ? (
+              <div className="space-y-3 p-3 rounded-md border border-primary-100 bg-white">
+                <p className="text-xs text-secondary-600">
+                  Смесевой рецепт — внесите фактический расход каждого компонента.
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="actualEmulsion">Эмульсия, т *</Label>
+                    <Input
+                      id="actualEmulsion"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={actualEmulsion}
+                      onChange={(e) => setActualEmulsion(e.target.value)}
+                      placeholder={shift.plan_emulsion_tons?.toString() ?? '10.5'}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="actualAn">Аммиачная селитра (AN), т *</Label>
+                    <Input
+                      id="actualAn"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={actualAn}
+                      onChange={(e) => setActualAn(e.target.value)}
+                      placeholder={shift.plan_an_tons?.toString() ?? '4.5'}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                {(actualEmulsion || actualAn) && (
+                  <p className="text-xs text-secondary-700">
+                    Итого:{' '}
+                    <strong className="tabular-nums">
+                      {(
+                        (parseFloat(actualEmulsion) || 0) + (parseFloat(actualAn) || 0)
+                      ).toLocaleString('ru-RU')}{' '}
+                      т
+                    </strong>{' '}
+                    — это значение добавится к счётчику машины и пересчитает прогноз ТО.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="actualTons">
+                  Фактические тонны{' '}
+                  {shift.plan_recipe === 'EMULSION'
+                    ? '(эмульсия)'
+                    : shift.plan_recipe === 'ANFO'
+                    ? '(AN)'
+                    : ''}{' '}
+                  *
+                </Label>
+                <Input
+                  id="actualTons"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={actualTons}
+                  onChange={(e) => setActualTons(e.target.value)}
+                  placeholder={shift.plan_tons?.toString() ?? '14.5'}
+                  required
+                  className="mt-1"
+                />
+                <p className="mt-1 text-xs text-secondary-500">
+                  Будут добавлены к счётчику машины и пересчитают прогноз ТО.
+                </p>
+              </div>
+            )}
+            <div className="mt-3">
+              <Label htmlFor="actualNotes">Примечания</Label>
+              <Textarea
+                id="actualNotes"
+                value={actualNotes}
+                onChange={(e) => setActualNotes(e.target.value)}
+                placeholder="Что произошло за смену…"
+                rows={2}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-secondary-500">
-                Будут добавлены к счётчику машины и пересчитают прогноз ТО.
-              </p>
             </div>
-            <div>
-              <Label htmlFor="actualHours">Моточасов добавить</Label>
-              <Input
-                id="actualHours"
-                type="number"
-                step="0.1"
-                min="0"
-                value={actualHours}
-                onChange={(e) => setActualHours(e.target.value)}
-                placeholder="8"
-                className="mt-1"
-              />
+            {error && (
+              <div className="mt-3 p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md whitespace-pre-wrap">
+                {error}
+              </div>
+            )}
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <Button variant="outline" onClick={() => setCloseOpen(false)}>
+                Отмена
+              </Button>
+              <Button onClick={handleClose} disabled={closeDisabled}>
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {submitting ? 'Закрытие…' : 'Закрыть смену'}
+              </Button>
             </div>
-          </div>
-          <div className="mt-3">
-            <Label htmlFor="actualNotes">Примечания</Label>
-            <Textarea
-              id="actualNotes"
-              value={actualNotes}
-              onChange={(e) => setActualNotes(e.target.value)}
-              placeholder="Что произошло за смену…"
-              rows={2}
-              className="mt-1"
-            />
-          </div>
-          {error && (
-            <div className="mt-3 p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md whitespace-pre-wrap">
-              {error}
-            </div>
-          )}
-          <div className="mt-4 flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={() => setCloseOpen(false)}>
-              Отмена
-            </Button>
-            <Button onClick={handleClose} disabled={submitting || !actualTons}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {submitting ? 'Закрытие…' : 'Закрыть смену'}
-            </Button>
-          </div>
-        </Card>
-      )}
+          </Card>
+        );
+      })()}
 
       {/* Cancel link for active shifts */}
       {!isClosed && !closeOpen && shift.status !== 'blocked' && (

@@ -130,14 +130,22 @@ export default function TicketDetailPage() {
   // Realtime subscription to new messages on this ticket
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let channel: any;
+    let channel: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let supabaseRef: any = null;
     let cancelled = false;
+    // Unique per mount avoids "add callbacks after subscribe()" when React
+    // Strict Mode double-mounts and the previous async cleanup hasn't completed.
+    const channelName = `ticket-${ticketId}-${Math.random().toString(36).slice(2, 10)}`;
+
     (async () => {
       const client = await createSPASassClient();
       const supabase = client.getSupabaseClient();
+      supabaseRef = supabase;
+      if (cancelled) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       channel = (supabase as any)
-        .channel(`ticket-${ticketId}`)
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -150,7 +158,6 @@ export default function TicketDetailPage() {
           async (payload: any) => {
             if (cancelled) return;
             const newRow = payload.new as MessageRow;
-            // Hydrate sender name (Realtime payload doesn't include the join)
             const { data: sender } = await supabase
               .from('profiles')
               .select('full_name')
@@ -171,7 +178,9 @@ export default function TicketDetailPage() {
 
     return () => {
       cancelled = true;
-      if (channel?.unsubscribe) channel.unsubscribe();
+      if (channel && supabaseRef) {
+        supabaseRef.removeChannel(channel);
+      }
     };
   }, [ticketId, scrollToBottom]);
 
