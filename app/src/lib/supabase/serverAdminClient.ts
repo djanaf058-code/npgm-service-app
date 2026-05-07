@@ -3,7 +3,7 @@ import {Database} from "@/lib/types";
 
 export async function createServerAdminClient() {
 
-    return createServerClient<Database>(
+    return createServerClient<Database, "public", Database["public"]>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.PRIVATE_SUPABASE_SERVICE_KEY!,
         {

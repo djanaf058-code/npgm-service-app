@@ -33,13 +33,42 @@ export async function updateSession(request: NextRequest) {
 
     // IMPORTANT: DO NOT REMOVE auth.getUser()
 
-    const {data: user} = await supabase.auth.getUser()
-    if (
-        (!user || !user.user) && request.nextUrl.pathname.startsWith('/app')
-    ) {
+    const {data: userData} = await supabase.auth.getUser()
+    const authedUser = userData?.user
+
+    const path = request.nextUrl.pathname
+    const isProtectedAppRoute = path.startsWith('/app')
+    const isOnboardingRoute = path === '/auth/onboarding'
+
+    // Not logged in → block /app/*
+    if (!authedUser && isProtectedAppRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/auth/login'
         return NextResponse.redirect(url)
+    }
+
+    // Logged in → check whether user has completed onboarding (company_id set)
+    if (authedUser && (isProtectedAppRoute || isOnboardingRoute)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const {data: profile} = await (supabase as any)
+            .from('profiles')
+            .select('company_id')
+            .eq('id', authedUser.id)
+            .maybeSingle()
+
+        const hasCompany = !!profile?.company_id
+
+        if (isProtectedAppRoute && !hasCompany) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/auth/onboarding'
+            return NextResponse.redirect(url)
+        }
+        if (isOnboardingRoute && hasCompany) {
+            // Already onboarded — don't show the onboarding page again
+            const url = request.nextUrl.clone()
+            url.pathname = '/app'
+            return NextResponse.redirect(url)
+        }
     }
 
     // IMPORTANT: You *must* return the supabaseResponse object as it is.

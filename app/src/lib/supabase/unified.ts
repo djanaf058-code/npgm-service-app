@@ -52,48 +52,10 @@ export class SassClient {
         }
     }
 
-    async uploadFile(myId: string, filename: string, file: File) {
-        filename = filename.replace(/[^0-9a-zA-Z!\-_.*'()]/g, '_');
-        filename = myId + "/" + filename
-        return this.client.storage.from('files').upload(filename, file);
-    }
-
-    async getFiles(myId: string) {
-        return this.client.storage.from('files').list(myId)
-    }
-
-    async deleteFile(myId: string, filename: string) {
-        filename = myId + "/" + filename
-        return this.client.storage.from('files').remove([filename])
-    }
-
-    async shareFile(myId: string, filename: string, timeInSec: number, forDownload: boolean = false) {
-        filename = myId + "/" + filename
-        return this.client.storage.from('files').createSignedUrl(filename, timeInSec, {
-            download: forDownload
-        });
-
-    }
-
-    async getMyTodoList(page: number = 1, pageSize: number = 100, order: string = 'created_at', done: boolean | null = false) {
-        let query = this.client.from('todo_list').select('*').range(page * pageSize - pageSize, page * pageSize - 1).order(order)
-        if (done !== null) {
-            query = query.eq('done', done)
-        }
-        return query
-    }
-
-    async createTask(row: Database["public"]["Tables"]["todo_list"]["Insert"]) {
-        return this.client.from('todo_list').insert(row)
-    }
-
-    async removeTask (id: number) {
-        return this.client.from('todo_list').delete().eq('id', id)
-    }
-
-    async updateAsDone (id: number) {
-        return this.client.from('todo_list').update({done: true}).eq('id', id)
-    }
+    // File-storage and todo-list helpers from the Razikus template were
+    // removed in Sprint 1.6 — they targeted demo tables (`todo_list`) and a
+    // `files` bucket that don't exist in the NPGM schema. Sprint 2 will add
+    // domain-specific helpers (machines, tickets, manuals).
 
     getSupabaseClient() {
         return this.client;
