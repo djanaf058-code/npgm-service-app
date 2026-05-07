@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Wrench, Loader2, Search, Package, Box } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Wrench, Loader2, Search, Package, Box, ShoppingCart, ChevronRight, AlertTriangle, AlertCircle } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { PartCategoryBadge, CATEGORY_LABELS } from '@/components/parts/PartCategoryBadge';
 import { StockBadge } from '@/components/parts/StockBadge';
 import { AddStockDialog } from '@/components/parts/AddStockDialog';
-import type { PartCategory } from '@/lib/types';
+import type { PartCategory, PartsRequestStatus, PartsRequestUrgency } from '@/lib/types';
 
 interface InventoryRow {
   id: string;
@@ -38,10 +40,35 @@ interface CatalogRow {
   compatible_machine_types: string[];
 }
 
+interface PartsRequestRow {
+  id: string;
+  status: PartsRequestStatus;
+  urgency: PartsRequestUrgency;
+  created_at: string;
+  parts_requested: { display_name_ru: string }[];
+  parts_freeform: { description: string }[];
+  machine: { model_code: string } | null;
+}
+
+const REQUEST_STATUS_LABELS: Record<PartsRequestStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
+  new: { ru: 'Новая', variant: 'destructive' },
+  approved: { ru: 'Согласована', variant: 'warning' },
+  ordered: { ru: 'Заказано', variant: 'default' },
+  delivered: { ru: 'Получено', variant: 'success' },
+  cancelled: { ru: 'Отменена', variant: 'secondary' },
+};
+
+const URGENCY_INFO: Record<PartsRequestUrgency, { ru: string; icon: React.ComponentType<{ className?: string }> | null }> = {
+  normal: { ru: 'Обычная', icon: null },
+  urgent: { ru: 'Срочная', icon: AlertCircle },
+  critical: { ru: 'Критическая', icon: AlertTriangle },
+};
+
 export default function PartsPage() {
   const { user } = useGlobal();
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
+  const [requests, setRequests] = useState<PartsRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -66,7 +93,7 @@ export default function PartsPage() {
       if (!cid) throw new Error('Профиль не привязан к компании');
       setCompanyId(cid);
 
-      const [invResp, catResp] = await Promise.all([
+      const [invResp, catResp, reqResp] = await Promise.all([
         supabase
           .from('parts_inventory')
           .select(
@@ -77,13 +104,24 @@ export default function PartsPage() {
           .from('parts_catalog')
           .select('id, display_name_ru, application_ru, category, unit, compatible_machine_types')
           .order('display_name_ru'),
+        supabase
+          .from('parts_requests')
+          .select(
+            'id, status, urgency, created_at, parts_requested, parts_freeform, machine:machines(model_code)'
+          )
+          .neq('status', 'delivered')
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: false })
+          .limit(20),
       ]);
 
       if (invResp.error) throw invResp.error;
       if (catResp.error) throw catResp.error;
+      if (reqResp.error) throw reqResp.error;
 
       setInventory((invResp.data ?? []) as unknown as InventoryRow[]);
       setCatalog((catResp.data ?? []) as unknown as CatalogRow[]);
+      setRequests((reqResp.data ?? []) as unknown as PartsRequestRow[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось загрузить гараж');
     } finally {
@@ -133,11 +171,72 @@ export default function PartsPage() {
             Склад запчастей компании. Цвет показывает остаток: 🔴 нет, 🟡 ниже порога, ✓ ок.
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Добавить запчасть
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button asChild variant="outline">
+            <Link href="/app/parts/request">
+              <ShoppingCart className="w-4 h-4" />
+              Заказать запчасти
+            </Link>
+          </Button>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Добавить на склад
+          </Button>
+        </div>
       </div>
+
+      {/* Active parts requests */}
+      {requests.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading font-semibold text-secondary-900 flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              Активные заявки на закупку
+              <Badge variant="outline">{requests.length}</Badge>
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {requests.map((r) => {
+              const UIcon = URGENCY_INFO[r.urgency].icon;
+              const itemsCount = r.parts_requested.length + r.parts_freeform.length;
+              return (
+                <Link
+                  key={r.id}
+                  href={`/app/parts/request/${r.id}`}
+                  className="flex items-center justify-between gap-3 p-3 rounded-lg border border-secondary-200 hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Badge variant={REQUEST_STATUS_LABELS[r.status].variant}>
+                      {REQUEST_STATUS_LABELS[r.status].ru}
+                    </Badge>
+                    {r.urgency !== 'normal' && (
+                      <Badge variant={r.urgency === 'critical' ? 'destructive' : 'warning'}>
+                        {UIcon && <UIcon className="w-3 h-3 inline mr-1" />}
+                        {URGENCY_INFO[r.urgency].ru}
+                      </Badge>
+                    )}
+                    <span className="text-sm text-secondary-900 truncate">
+                      {itemsCount} {itemsCount === 1 ? 'позиция' : itemsCount < 5 ? 'позиции' : 'позиций'}
+                      {r.machine && (
+                        <> · <span className="font-medium">{r.machine.model_code}</span></>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-secondary-500">
+                      {new Date(r.created_at).toLocaleDateString('ru-RU', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-secondary-300" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Summary cards */}
       {!loading && inventory.length > 0 && (

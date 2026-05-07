@@ -50,6 +50,10 @@ export type MaintenanceStatus =
   | 'completed'
   | 'cancelled';
 
+export type PartsRequestStatus = 'new' | 'approved' | 'ordered' | 'delivered' | 'cancelled';
+
+export type PartsRequestUrgency = 'normal' | 'urgent' | 'critical';
+
 /** BOM item embedded in maintenance_schedules.parts_required (and planned/requested in events). */
 export interface MaintenanceBomItem {
   part_id: string;
@@ -308,6 +312,9 @@ export interface Database {
           last_known_price_usd: number | null;
           price_updated_at: string | null;
           notes: string | null;
+          is_custom: boolean;
+          created_by_company_id: string | null;
+          image_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -327,6 +334,9 @@ export interface Database {
           last_known_price_usd?: number | null;
           price_updated_at?: string | null;
           notes?: string | null;
+          is_custom?: boolean;
+          created_by_company_id?: string | null;
+          image_url?: string | null;
         };
         Update: {
           display_name_ru?: string;
@@ -343,6 +353,9 @@ export interface Database {
           last_known_price_usd?: number | null;
           price_updated_at?: string | null;
           notes?: string | null;
+          is_custom?: boolean;
+          created_by_company_id?: string | null;
+          image_url?: string | null;
         };
         Relationships: [];
       };
@@ -358,6 +371,7 @@ export interface Database {
           reorder_threshold: number | null;
           last_replenished_at: string | null;
           notes: string | null;
+          image_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -370,6 +384,7 @@ export interface Database {
           reorder_threshold?: number | null;
           last_replenished_at?: string | null;
           notes?: string | null;
+          image_url?: string | null;
         };
         Update: {
           machine_id?: string | null;
@@ -377,6 +392,7 @@ export interface Database {
           reorder_threshold?: number | null;
           last_replenished_at?: string | null;
           notes?: string | null;
+          image_url?: string | null;
         };
         Relationships: [
           { foreignKeyName: 'parts_inventory_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
@@ -509,6 +525,47 @@ export interface Database {
       };
 
       // ----------------------------------------------------------------
+      parts_requests: {
+        Row: {
+          id: string;
+          company_id: string;
+          machine_id: string | null;
+          status: PartsRequestStatus;
+          urgency: PartsRequestUrgency;
+          parts_requested: MaintenanceBomItem[];
+          parts_freeform: MaintenanceFreeformItem[];
+          notes: string | null;
+          requested_by: string | null;
+          created_at: string;
+          updated_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          machine_id?: string | null;
+          status?: PartsRequestStatus;
+          urgency?: PartsRequestUrgency;
+          parts_requested?: MaintenanceBomItem[];
+          parts_freeform?: MaintenanceFreeformItem[];
+          notes?: string | null;
+          requested_by?: string | null;
+        };
+        Update: {
+          status?: PartsRequestStatus;
+          urgency?: PartsRequestUrgency;
+          parts_requested?: MaintenanceBomItem[];
+          parts_freeform?: MaintenanceFreeformItem[];
+          notes?: string | null;
+          resolved_at?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'parts_requests_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'parts_requests_machine_id_fkey'; columns: ['machine_id']; referencedRelation: 'machines'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
       ticket_messages: {
         Row: {
           id: string;
@@ -563,6 +620,8 @@ export interface Database {
       message_sender: MessageSender;
       maintenance_kind: MaintenanceKind;
       maintenance_status: MaintenanceStatus;
+      parts_request_status: PartsRequestStatus;
+      parts_request_urgency: PartsRequestUrgency;
     };
 
     CompositeTypes: {

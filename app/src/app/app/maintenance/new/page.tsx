@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Send, Plus, X, Camera } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, Plus, X } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { PhotoUploader } from '@/components/shared/PhotoUploader';
 import type {
   MaintenanceKind,
   MaintenanceBomItem,
@@ -55,6 +56,7 @@ function NewMaintenanceRequestInner() {
   const [machine, setMachine] = useState<MachineRow | null>(null);
   const [schedule, setSchedule] = useState<ScheduleRow | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  void companyId; // used by PhotoUploader below
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -326,10 +328,18 @@ function NewMaintenanceRequestInner() {
                         className="w-16 text-right tabular-nums h-8"
                       />
                     </div>
-                    <Button type="button" variant="outline" size="sm" disabled className="text-xs">
-                      <Camera className="w-3 h-3" />
-                      Фото (скоро)
-                    </Button>
+                    {companyId && (
+                      <PhotoUploader
+                        bucket="parts-photos"
+                        companyId={companyId}
+                        context="maintenance-freeform"
+                        initialPath={item.photo_url}
+                        onUploaded={(p) => updateFreeformItem(idx, { photo_url: p })}
+                        onRemoved={() => updateFreeformItem(idx, { photo_url: null })}
+                        onError={(e) => setError(e)}
+                        compact
+                      />
+                    )}
                   </div>
                 </li>
               ))}
