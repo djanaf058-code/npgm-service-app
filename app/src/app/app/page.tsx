@@ -29,7 +29,7 @@ import {
   estimateDaysUntilDue,
   type ScheduleSummary,
 } from '@/lib/calculations/maintenance';
-import type { MaintenanceKind } from '@/lib/types';
+import type { MaintenanceKind, PartsRequestStatus } from '@/lib/types';
 
 interface MachineRow {
   id: string;
@@ -72,6 +72,20 @@ export default function DashboardContent() {
       try {
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
+        // For the parts-requests KPI tile: count rows that need *this role's* attention.
+        //   admin  → submitted (waiting on me to forward)
+        //   tier2  → forwarded / quoted / approved / ordered (queue I drive)
+        //   else   → any active (legacy semantics)
+        const requestsActionFilter: PartsRequestStatus[] | null = isCompanyAdmin
+          ? ['submitted']
+          : isTier2
+          ? ['forwarded', 'quoted', 'approved', 'ordered']
+          : null;
+
+        const requestsCountQuery = supabase
+          .from('parts_requests')
+          .select('id', { count: 'exact', head: true });
+
         const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp] = await Promise.all([
           supabase
             .from('machines')
@@ -81,11 +95,12 @@ export default function DashboardContent() {
           supabase
             .from('maintenance_schedules')
             .select('id, machine_type, kind, interval_tons, alternates_with'),
-          supabase
-            .from('parts_requests')
-            .select('id', { count: 'exact', head: true })
-            .neq('status', 'delivered')
-            .neq('status', 'cancelled'),
+          requestsActionFilter
+            ? requestsCountQuery.in('status', requestsActionFilter)
+            : requestsCountQuery
+                .neq('status', 'delivered')
+                .neq('status', 'cancelled')
+                .neq('status', 'received'),
           supabase
             .from('tickets')
             .select('id', { count: 'exact', head: true })
@@ -199,7 +214,13 @@ export default function DashboardContent() {
         />
         <KPICard
           icon={ShoppingCart}
-          label="Заявок на запчасти"
+          label={
+            isCompanyAdmin
+              ? 'На рассмотрении'
+              : isTier2
+              ? 'В очереди НПГМ'
+              : 'Заявок на запчасти'
+          }
           value={dataLoading ? '…' : activeRequestsCount ?? 0}
           accent="success"
           href="/app/parts"

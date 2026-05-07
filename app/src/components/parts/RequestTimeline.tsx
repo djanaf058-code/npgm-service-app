@@ -1,0 +1,184 @@
+'use client';
+
+import {
+  FileText,
+  Send,
+  Quote as QuoteIcon,
+  CheckCircle2,
+  Truck,
+  PackageCheck,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
+import type { PartsRequestStatus } from '@/lib/types';
+
+interface RequestEventInputs {
+  submitted_at: string | null;
+  forwarded_at: string | null;
+  quoted_at: string | null;
+  quote_notes: string | null;
+  quote_total_amount: number | null;
+  quote_currency: string | null;
+  approved_at: string | null;
+  ordered_at: string | null;
+  expected_delivery_date: string | null;
+  received_at: string | null;
+  received_quantity_text: string | null;
+  received_notes: string | null;
+  cancel_reason: string | null;
+  status: PartsRequestStatus;
+  // For "by" labels — null-safe.
+  forwarded_by_name?: string | null;
+  quoted_by_name?: string | null;
+  approved_by_name?: string | null;
+  ordered_by_name?: string | null;
+  received_by_name?: string | null;
+}
+
+interface Event {
+  key: string;
+  icon: LucideIcon;
+  title: string;
+  at: string | null;
+  byName?: string | null;
+  detail?: string | null;
+  done: boolean;
+  highlight?: 'success' | 'cancel' | null;
+}
+
+function fmt(at: string | null): string {
+  if (!at) return '';
+  const d = new Date(at);
+  return d.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function RequestTimeline(props: RequestEventInputs) {
+  const cancelled = props.status === 'cancelled';
+
+  // Reach a step iff the timestamp exists OR the status is past it.
+  const reached = (stepStatus: PartsRequestStatus): boolean => {
+    const order: PartsRequestStatus[] = [
+      'submitted',
+      'forwarded',
+      'quoted',
+      'approved',
+      'ordered',
+      'received',
+    ];
+    if (cancelled) return false;
+    return order.indexOf(props.status) >= order.indexOf(stepStatus);
+  };
+
+  const events: Event[] = [
+    {
+      key: 'submitted',
+      icon: FileText,
+      title: 'Заявка создана оператором',
+      at: props.submitted_at,
+      done: !!props.submitted_at,
+    },
+    {
+      key: 'forwarded',
+      icon: Send,
+      title: 'Передана в НПГМ',
+      at: props.forwarded_at,
+      byName: props.forwarded_by_name,
+      done: reached('forwarded'),
+    },
+    {
+      key: 'quoted',
+      icon: QuoteIcon,
+      title: 'Получено коммерческое предложение',
+      at: props.quoted_at,
+      byName: props.quoted_by_name,
+      detail: props.quote_notes
+        ? `${props.quote_notes}${
+            props.quote_total_amount
+              ? ` · ${props.quote_total_amount.toLocaleString('ru-RU')} ${props.quote_currency ?? ''}`
+              : ''
+          }`
+        : null,
+      done: reached('quoted'),
+    },
+    {
+      key: 'approved',
+      icon: CheckCircle2,
+      title: 'КП согласовано руководителем',
+      at: props.approved_at,
+      byName: props.approved_by_name,
+      done: reached('approved'),
+    },
+    {
+      key: 'ordered',
+      icon: Truck,
+      title: 'Заказ размещён',
+      at: props.ordered_at,
+      byName: props.ordered_by_name,
+      detail: props.expected_delivery_date
+        ? `ETA: ${new Date(props.expected_delivery_date).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`
+        : null,
+      done: reached('ordered'),
+    },
+    {
+      key: 'received',
+      icon: PackageCheck,
+      title: 'Получено клиентом',
+      at: props.received_at,
+      byName: props.received_by_name,
+      detail: [props.received_quantity_text, props.received_notes].filter(Boolean).join(' · ') || null,
+      done: props.status === 'received',
+      highlight: props.status === 'received' ? 'success' : null,
+    },
+  ];
+
+  return (
+    <ol className="relative border-l-2 border-secondary-200 ml-3 space-y-4">
+      {events.map((ev) => (
+        <li key={ev.key} className="ml-4">
+          <span
+            className={`absolute -left-3.5 flex items-center justify-center w-6 h-6 rounded-full border-2 ${
+              ev.done
+                ? ev.highlight === 'success'
+                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                  : 'bg-primary-500 border-primary-500 text-white'
+                : 'bg-white border-secondary-200 text-secondary-300'
+            }`}
+          >
+            <ev.icon className="w-3 h-3" />
+          </span>
+          <div className={ev.done ? '' : 'opacity-50'}>
+            <p className="text-sm font-medium text-secondary-900">{ev.title}</p>
+            {ev.at && (
+              <p className="text-xs text-secondary-500">
+                {fmt(ev.at)}
+                {ev.byName ? ` · ${ev.byName}` : ''}
+              </p>
+            )}
+            {ev.detail && (
+              <p className="text-xs text-secondary-700 mt-1 whitespace-pre-wrap">{ev.detail}</p>
+            )}
+          </div>
+        </li>
+      ))}
+      {cancelled && (
+        <li className="ml-4">
+          <span className="absolute -left-3.5 flex items-center justify-center w-6 h-6 rounded-full bg-accent-500 border-2 border-accent-500 text-white">
+            <XCircle className="w-3 h-3" />
+          </span>
+          <div>
+            <p className="text-sm font-medium text-accent-700">Заявка отменена</p>
+            {props.cancel_reason && (
+              <p className="text-xs text-accent-700 italic mt-1">{props.cancel_reason}</p>
+            )}
+          </div>
+        </li>
+      )}
+    </ol>
+  );
+}

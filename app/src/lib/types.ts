@@ -50,7 +50,21 @@ export type MaintenanceStatus =
   | 'completed'
   | 'cancelled';
 
-export type PartsRequestStatus = 'new' | 'approved' | 'ordered' | 'delivered' | 'cancelled';
+// Two-step workflow (operator → admin → НПГМ).
+// 'new' and 'delivered' are kept for backward compatibility with rows
+// created before migration 0023 — UI maps them to 'submitted' / 'received'
+// for display, but new code should not produce them.
+export type PartsRequestStatus =
+  | 'submitted'   // operator submitted, waiting for company_admin
+  | 'forwarded'   // company_admin forwarded to НПГМ (Tier 2)
+  | 'quoted'      // Tier 2 sent quote
+  | 'approved'    // company_admin accepted the quote
+  | 'ordered'     // Tier 2 placed the order with a supplier (has ETA)
+  | 'received'    // delivered to the customer + photo confirmation
+  | 'cancelled'
+  // Legacy (pre-migration 0023):
+  | 'new'
+  | 'delivered';
 
 export type PartsRequestUrgency = 'normal' | 'urgent' | 'critical';
 
@@ -561,6 +575,25 @@ export interface Database {
           parts_freeform: MaintenanceFreeformItem[];
           notes: string | null;
           requested_by: string | null;
+          submitted_at: string | null;
+          forwarded_at: string | null;
+          forwarded_by: string | null;
+          quoted_at: string | null;
+          quoted_by: string | null;
+          quote_notes: string | null;
+          quote_total_amount: number | null;
+          quote_currency: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          ordered_at: string | null;
+          ordered_by: string | null;
+          expected_delivery_date: string | null;
+          received_at: string | null;
+          received_by: string | null;
+          received_quantity_text: string | null;
+          received_photo_url: string | null;
+          received_notes: string | null;
+          cancel_reason: string | null;
           created_at: string;
           updated_at: string;
           resolved_at: string | null;
@@ -575,6 +608,7 @@ export interface Database {
           parts_freeform?: MaintenanceFreeformItem[];
           notes?: string | null;
           requested_by?: string | null;
+          submitted_at?: string | null;
         };
         Update: {
           status?: PartsRequestStatus;

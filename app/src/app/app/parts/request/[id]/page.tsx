@@ -9,14 +9,14 @@ import {
   AlertTriangle,
   AlertCircle,
   Package,
-  Calendar,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
+import { RequestStatusBadge } from '@/components/parts/RequestStatusBadge';
+import { RequestTimeline } from '@/components/parts/RequestTimeline';
+import { RequestActionPanel } from '@/components/parts/RequestActionPanel';
 import type {
   MaintenanceBomItem,
   MaintenanceFreeformItem,
@@ -34,19 +34,34 @@ interface RequestDetail {
   notes: string | null;
   created_at: string;
   resolved_at: string | null;
+  submitted_at: string | null;
+  forwarded_at: string | null;
+  quoted_at: string | null;
+  quote_notes: string | null;
+  quote_total_amount: number | null;
+  quote_currency: string | null;
+  approved_at: string | null;
+  ordered_at: string | null;
+  expected_delivery_date: string | null;
+  received_at: string | null;
+  received_quantity_text: string | null;
+  received_photo_url: string | null;
+  received_notes: string | null;
+  cancel_reason: string | null;
   machine: { id: string; model_code: string } | null;
   requester: { full_name: string } | null;
+  forwarded_by_profile: { full_name: string } | null;
+  quoted_by_profile: { full_name: string } | null;
+  approved_by_profile: { full_name: string } | null;
+  ordered_by_profile: { full_name: string } | null;
+  received_by_profile: { full_name: string } | null;
+  company: { name: string } | null;
 }
 
-const STATUS_LABELS: Record<PartsRequestStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  new: { ru: 'Новая', variant: 'destructive' },
-  approved: { ru: 'Согласована', variant: 'warning' },
-  ordered: { ru: 'Заказано', variant: 'default' },
-  delivered: { ru: 'Получено', variant: 'success' },
-  cancelled: { ru: 'Отменена', variant: 'secondary' },
-};
-
-const URGENCY_LABELS: Record<PartsRequestUrgency, { ru: string; variant: React.ComponentProps<typeof Badge>['variant']; icon: React.ComponentType<{ className?: string }> | null }> = {
+const URGENCY_LABELS: Record<
+  PartsRequestUrgency,
+  { ru: string; variant: React.ComponentProps<typeof Badge>['variant']; icon: React.ComponentType<{ className?: string }> | null }
+> = {
   normal: { ru: 'Обычная', variant: 'outline', icon: null },
   urgent: { ru: 'Срочная', variant: 'warning', icon: AlertCircle },
   critical: { ru: 'Критическая', variant: 'destructive', icon: AlertTriangle },
@@ -59,17 +74,31 @@ export default function PartsRequestDetailPage() {
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updating, setUpdating] = useState(false);
 
   const reload = async () => {
     setLoading(true);
+    setError(null);
     try {
       const client = await createSPASassClient();
       const supabase = client.getSupabaseClient();
       const { data, error: err } = await supabase
         .from('parts_requests')
         .select(
-          'id, company_id, status, urgency, parts_requested, parts_freeform, notes, created_at, resolved_at, machine:machines(id, model_code), requester:profiles!parts_requests_requested_by_fkey(full_name)'
+          [
+            'id, company_id, status, urgency, parts_requested, parts_freeform, notes,',
+            'created_at, resolved_at,',
+            'submitted_at, forwarded_at, quoted_at, quote_notes, quote_total_amount, quote_currency,',
+            'approved_at, ordered_at, expected_delivery_date,',
+            'received_at, received_quantity_text, received_photo_url, received_notes, cancel_reason,',
+            'machine:machines(id, model_code),',
+            'requester:profiles!parts_requests_requested_by_fkey(full_name),',
+            'forwarded_by_profile:profiles!parts_requests_forwarded_by_fkey(full_name),',
+            'quoted_by_profile:profiles!parts_requests_quoted_by_fkey(full_name),',
+            'approved_by_profile:profiles!parts_requests_approved_by_fkey(full_name),',
+            'ordered_by_profile:profiles!parts_requests_ordered_by_fkey(full_name),',
+            'received_by_profile:profiles!parts_requests_received_by_fkey(full_name),',
+            'company:companies(name)',
+          ].join(' ')
         )
         .eq('id', requestId)
         .maybeSingle();
@@ -90,25 +119,6 @@ export default function PartsRequestDetailPage() {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
-
-  const updateStatus = async (newStatus: PartsRequestStatus) => {
-    if (!request) return;
-    setUpdating(true);
-    try {
-      const client = await createSPASassClient();
-      const supabase = client.getSupabaseClient();
-      const update: { status: PartsRequestStatus; resolved_at?: string | null } = { status: newStatus };
-      update.resolved_at =
-        newStatus === 'delivered' || newStatus === 'cancelled' ? new Date().toISOString() : null;
-      const { error: err } = await supabase.from('parts_requests').update(update).eq('id', requestId);
-      if (err) throw err;
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось изменить статус');
-    } finally {
-      setUpdating(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -135,7 +145,6 @@ export default function PartsRequestDetailPage() {
     );
   }
 
-  const isClosed = request.status === 'delivered' || request.status === 'cancelled';
   const UrgencyIcon = URGENCY_LABELS[request.urgency].icon;
 
   return (
@@ -150,19 +159,20 @@ export default function PartsRequestDetailPage() {
       {/* Header */}
       <Card className="p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
               <Package className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <Badge variant={STATUS_LABELS[request.status].variant}>
-                  {STATUS_LABELS[request.status].ru}
-                </Badge>
+                <RequestStatusBadge status={request.status} />
                 <Badge variant={URGENCY_LABELS[request.urgency].variant}>
                   {UrgencyIcon && <UrgencyIcon className="w-3 h-3 inline mr-1" />}
                   {URGENCY_LABELS[request.urgency].ru}
                 </Badge>
+                {request.company?.name && (
+                  <Badge variant="outline">{request.company.name}</Badge>
+                )}
               </div>
               <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
                 Заказ запчастей
@@ -179,35 +189,52 @@ export default function PartsRequestDetailPage() {
                 )}
               </h1>
               <p className="text-sm text-secondary-600 mt-1">
-                Создал: <strong>{request.requester?.full_name ?? '—'}</strong> ·{' '}
-                <Calendar className="inline w-3 h-3" />{' '}
-                {new Date(request.created_at).toLocaleString('ru-RU', {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                Создал: <strong>{request.requester?.full_name ?? '—'}</strong>
               </p>
             </div>
           </div>
-
-          {!isClosed && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <Select
-                value={request.status}
-                onChange={(e) => updateStatus(e.target.value as PartsRequestStatus)}
-                disabled={updating}
-                className="max-w-[200px]"
-              >
-                {(Object.keys(STATUS_LABELS) as PartsRequestStatus[]).map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s].ru}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
         </div>
+
+        {/* Action panel — kept right under the header for visibility */}
+        <div className="mt-4 pt-4 border-t border-secondary-100">
+          <RequestActionPanel
+            requestId={request.id}
+            status={request.status}
+            companyId={request.company_id}
+            onChanged={reload}
+            onError={(e) => setError(e)}
+          />
+        </div>
+      </Card>
+
+      {/* Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading text-base">Лента событий</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RequestTimeline
+            status={request.status}
+            submitted_at={request.submitted_at ?? request.created_at}
+            forwarded_at={request.forwarded_at}
+            quoted_at={request.quoted_at}
+            quote_notes={request.quote_notes}
+            quote_total_amount={request.quote_total_amount}
+            quote_currency={request.quote_currency}
+            approved_at={request.approved_at}
+            ordered_at={request.ordered_at}
+            expected_delivery_date={request.expected_delivery_date}
+            received_at={request.received_at}
+            received_quantity_text={request.received_quantity_text}
+            received_notes={request.received_notes}
+            cancel_reason={request.cancel_reason}
+            forwarded_by_name={request.forwarded_by_profile?.full_name ?? null}
+            quoted_by_name={request.quoted_by_profile?.full_name ?? null}
+            approved_by_name={request.approved_by_profile?.full_name ?? null}
+            ordered_by_name={request.ordered_by_profile?.full_name ?? null}
+            received_by_name={request.received_by_profile?.full_name ?? null}
+          />
+        </CardContent>
       </Card>
 
       {/* Catalog parts */}
@@ -271,7 +298,7 @@ export default function PartsRequestDetailPage() {
       {request.notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-base">Примечания</CardTitle>
+            <CardTitle className="font-heading text-base">Примечания оператора</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-secondary-700 whitespace-pre-wrap">{request.notes}</p>
@@ -279,12 +306,35 @@ export default function PartsRequestDetailPage() {
         </Card>
       )}
 
-      {!isClosed && (
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={() => updateStatus('cancelled')} disabled={updating}>
-            Отменить заявку
-          </Button>
-        </div>
+      {/* Received confirmation card */}
+      {request.status === 'received' && request.received_photo_url && (
+        <Card className="border-emerald-300 bg-emerald-50/30">
+          <CardHeader>
+            <CardTitle className="font-heading text-base">Подтверждение получения</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {request.received_quantity_text && (
+                <p className="text-sm text-secondary-900">
+                  <strong>Получено:</strong> {request.received_quantity_text}
+                </p>
+              )}
+              {request.received_notes && (
+                <p className="text-xs text-secondary-700 italic whitespace-pre-wrap">{request.received_notes}</p>
+              )}
+              <div className="max-w-xs">
+                <PhotoUploader
+                  bucket="parts-photos"
+                  companyId={request.company_id}
+                  context="received"
+                  initialPath={request.received_photo_url}
+                  onUploaded={() => {}}
+                  onError={() => {}}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

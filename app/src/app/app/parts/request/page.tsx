@@ -195,7 +195,8 @@ export default function PartsRequestPage() {
           company_id: companyId,
           machine_id: machineId || null,
           urgency,
-          status: 'new',
+          status: 'submitted',
+          submitted_at: new Date().toISOString(),
           parts_requested: parts,
           parts_freeform: freeform,
           notes: notes.trim() || null,
@@ -241,6 +242,10 @@ export default function PartsRequestPage() {
         <p className="text-secondary-600 text-sm mt-1">
           Заявка не привязана к ТО — просто нужны запчасти. Можно срочно (машина стоит) или
           в обычном порядке.
+        </p>
+        <p className="text-xs text-secondary-500 mt-2">
+          После отправки заявка попадёт руководителю сервисной службы вашей компании. Он
+          одобрит и перешлёт её в НПГМ.
         </p>
       </div>
 
