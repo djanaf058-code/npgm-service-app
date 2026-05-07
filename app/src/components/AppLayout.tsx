@@ -54,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText },
         { name: 'ТО', href: '/app/maintenance', icon: Wrench },
         { name: 'Гараж', href: '/app/parts', icon: Box },
-        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck, soon: 'Скоро' },
+        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck },
         { name: 'Профиль', href: '/app/user-settings', icon: User },
     ];
 
@@ -94,27 +94,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                                     isActive
                                         ? 'bg-primary-50 text-primary-700'
                                         : 'text-secondary-600 hover:bg-secondary-50 hover:text-secondary-900'
                                 }`}
                             >
-                                <span className="flex items-center">
-                                    <item.icon
-                                        className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                                            isActive
-                                                ? 'text-primary-600'
-                                                : 'text-secondary-400 group-hover:text-secondary-600'
-                                        }`}
-                                    />
-                                    {item.name}
-                                </span>
-                                {('soon' in item) && (
-                                    <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-secondary-400">
-                                        {item.soon}
-                                    </span>
-                                )}
+                                <item.icon
+                                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                                        isActive
+                                            ? 'text-primary-600'
+                                            : 'text-secondary-400 group-hover:text-secondary-600'
+                                    }`}
+                                />
+                                {item.name}
                             </Link>
                         );
                     })}

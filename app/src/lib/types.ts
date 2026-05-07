@@ -54,6 +54,30 @@ export type PartsRequestStatus = 'new' | 'approved' | 'ordered' | 'delivered' | 
 
 export type PartsRequestUrgency = 'normal' | 'urgent' | 'critical';
 
+export type ShiftStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled' | 'blocked';
+
+export type ChargingRecipe = 'ANFO' | 'EMULSION' | 'BLEND_70_30' | 'BLEND_30_70' | 'OTHER';
+
+export type ChecklistKind = 'pre_shift' | 'weekly' | 'maintenance';
+
+export type ChecklistItemSeverity = 'critical' | 'normal';
+
+export interface ChecklistItem {
+  id: string;
+  name_ru: string;
+  name_en?: string;
+  severity: ChecklistItemSeverity;
+}
+
+export type ChecklistAnswerStatus = 'pass' | 'fail' | 'skip';
+
+export interface ChecklistAnswer {
+  item_id: string;
+  status: ChecklistAnswerStatus;
+  photo_url?: string | null;
+  comment?: string | null;
+}
+
 /** BOM item embedded in maintenance_schedules.parts_required (and planned/requested in events). */
 export interface MaintenanceBomItem {
   part_id: string;
@@ -566,6 +590,127 @@ export interface Database {
       };
 
       // ----------------------------------------------------------------
+      checklist_templates: {
+        Row: {
+          id: string;
+          machine_type: string;
+          kind: ChecklistKind;
+          items: ChecklistItem[];
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          machine_type: string;
+          kind?: ChecklistKind;
+          items?: ChecklistItem[];
+          notes?: string | null;
+        };
+        Update: {
+          machine_type?: string;
+          kind?: ChecklistKind;
+          items?: ChecklistItem[];
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+
+      // ----------------------------------------------------------------
+      shifts: {
+        Row: {
+          id: string;
+          company_id: string;
+          machine_id: string;
+          operator_id: string;
+          status: ShiftStatus;
+          planned_for: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          plan_recipe: ChargingRecipe | null;
+          plan_tons: number | null;
+          plan_holes: number | null;
+          plan_pit_location: string | null;
+          plan_notes: string | null;
+          actual_tons: number | null;
+          actual_engine_hours: number | null;
+          actual_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          machine_id: string;
+          operator_id: string;
+          status?: ShiftStatus;
+          planned_for?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          plan_recipe?: ChargingRecipe | null;
+          plan_tons?: number | null;
+          plan_holes?: number | null;
+          plan_pit_location?: string | null;
+          plan_notes?: string | null;
+          actual_tons?: number | null;
+          actual_engine_hours?: number | null;
+          actual_notes?: string | null;
+        };
+        Update: {
+          status?: ShiftStatus;
+          started_at?: string | null;
+          completed_at?: string | null;
+          plan_recipe?: ChargingRecipe | null;
+          plan_tons?: number | null;
+          plan_holes?: number | null;
+          plan_pit_location?: string | null;
+          plan_notes?: string | null;
+          actual_tons?: number | null;
+          actual_engine_hours?: number | null;
+          actual_notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'shifts_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'shifts_machine_id_fkey'; columns: ['machine_id']; referencedRelation: 'machines'; referencedColumns: ['id'] },
+          { foreignKeyName: 'shifts_operator_id_fkey'; columns: ['operator_id']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
+      checklist_executions: {
+        Row: {
+          id: string;
+          shift_id: string;
+          template_id: string;
+          items_snapshot: ChecklistItem[];
+          items_status: ChecklistAnswer[];
+          has_critical_fail: boolean;
+          notes: string | null;
+          performed_by: string | null;
+          completed_at: string;
+        };
+        Insert: {
+          id?: string;
+          shift_id: string;
+          template_id: string;
+          items_snapshot: ChecklistItem[];
+          items_status?: ChecklistAnswer[];
+          has_critical_fail?: boolean;
+          notes?: string | null;
+          performed_by?: string | null;
+        };
+        Update: {
+          items_status?: ChecklistAnswer[];
+          has_critical_fail?: boolean;
+          notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'checklist_executions_shift_id_fkey'; columns: ['shift_id']; referencedRelation: 'shifts'; referencedColumns: ['id'] },
+          { foreignKeyName: 'checklist_executions_template_id_fkey'; columns: ['template_id']; referencedRelation: 'checklist_templates'; referencedColumns: ['id'] }
+        ];
+      };
+
+      // ----------------------------------------------------------------
       ticket_messages: {
         Row: {
           id: string;
@@ -622,6 +767,9 @@ export interface Database {
       maintenance_status: MaintenanceStatus;
       parts_request_status: PartsRequestStatus;
       parts_request_urgency: PartsRequestUrgency;
+      shift_status: ShiftStatus;
+      charging_recipe: ChargingRecipe;
+      checklist_kind: ChecklistKind;
     };
 
     CompositeTypes: {

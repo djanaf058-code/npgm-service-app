@@ -20,6 +20,7 @@ import {
   Box,
   ShoppingCart,
   AlertTriangle,
+  Activity,
 } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClient } from '@/lib/supabase/client';
@@ -38,6 +39,15 @@ interface MachineRow {
   status: string;
 }
 
+interface ActiveShiftRow {
+  id: string;
+  status: 'in_progress' | 'planned' | 'blocked';
+  started_at: string | null;
+  planned_for: string | null;
+  plan_tons: number | null;
+  machine: { model_code: string; machine_type: string } | null;
+}
+
 const KIND_LABELS: Record<MaintenanceKind, string> = {
   TO: 'ТО',
   'TO-1': 'ТО-1',
@@ -52,6 +62,7 @@ export default function DashboardContent() {
   const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
+  const [activeShifts, setActiveShifts] = useState<ActiveShiftRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -60,7 +71,7 @@ export default function DashboardContent() {
       try {
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
-        const [machinesResp, schedulesResp, requestsResp, ticketsResp] = await Promise.all([
+        const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp] = await Promise.all([
           supabase
             .from('machines')
             .select('id, machine_type, model_code, tons_pumped, status')
@@ -79,11 +90,20 @@ export default function DashboardContent() {
             .select('id', { count: 'exact', head: true })
             .neq('status', 'resolved')
             .neq('status', 'closed_self'),
+          supabase
+            .from('shifts')
+            .select(
+              'id, status, started_at, planned_for, plan_tons, machine:machines(model_code, machine_type)'
+            )
+            .in('status', ['in_progress', 'planned', 'blocked'])
+            .order('started_at', { ascending: false, nullsFirst: false })
+            .limit(5),
         ]);
         setMachines((machinesResp.data ?? []) as MachineRow[]);
         setSchedules((schedulesResp.data ?? []) as ScheduleSummary[]);
         setActiveRequestsCount(requestsResp.count ?? 0);
         setOpenTicketsCount(ticketsResp.count ?? 0);
+        setActiveShifts((shiftsResp.data ?? []) as unknown as ActiveShiftRow[]);
       } finally {
         setDataLoading(false);
       }
@@ -176,6 +196,65 @@ export default function DashboardContent() {
           href="/app/tickets"
         />
       </div>
+
+      {/* Active shifts now */}
+      {!dataLoading && activeShifts.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-lg font-semibold text-secondary-900 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-600" />
+              Сейчас в работе
+            </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/app/shifts">
+                Все смены
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {activeShifts.map((s) => {
+              const blocked = s.status === 'blocked';
+              return (
+                <Link
+                  key={s.id}
+                  href={`/app/shifts/${s.id}`}
+                  className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
+                    blocked
+                      ? 'bg-accent-50/40 border-accent-200 hover:border-accent-300'
+                      : 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span
+                      className={`flex-shrink-0 inline-block w-2 h-2 rounded-full ${
+                        blocked ? 'bg-accent-500' : 'bg-emerald-500 animate-pulse'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-secondary-900 truncate">
+                        {s.machine?.model_code ?? '—'}{' '}
+                        <span className="text-xs text-secondary-500">
+                          ({s.machine?.machine_type ?? ''})
+                        </span>
+                      </p>
+                      <p className="text-xs text-secondary-600">
+                        {blocked
+                          ? 'Заблокирована — критичный fail'
+                          : s.status === 'in_progress'
+                          ? 'Смена идёт'
+                          : 'Запланирована'}
+                        {s.plan_tons ? ` · план ${Number(s.plan_tons).toLocaleString('ru-RU')} т` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-secondary-400 flex-shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Upcoming maintenance */}
       <section>
@@ -298,8 +377,7 @@ export default function DashboardContent() {
             href="/app/shifts"
             icon={ClipboardCheck}
             title="Смены и чек-листы"
-            description="План зарядки, ежедневные осмотры"
-            soon
+            description="План зарядки, предсменные осмотры, авто-учёт тонн"
           />
         </div>
       </section>
@@ -343,9 +421,17 @@ export default function DashboardContent() {
               </span>
             </li>
             <li className="flex items-start gap-2">
+              <span className="text-primary-600 mt-1">●</span>
+              <span>
+                Смены и предсменные чек-листы: критичный fail блокирует старт, фактические тонны
+                автоматически учитываются в наработке машины
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
               <span className="text-accent-600 mt-1">●</span>
               <span>
-                <strong>Скоро:</strong> смены, чек-листы операторов, план зарядки
+                <strong>Скоро:</strong> поиск по руководствам, AI-консультант с эскалацией к инженеру,
+                offline-режим для оператора в карьере
               </span>
             </li>
           </ul>
