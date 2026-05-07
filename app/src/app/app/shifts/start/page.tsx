@@ -25,9 +25,8 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
-import { getAllowedRecipes, isBlendRecipe, getBlendRatio } from '@/lib/calculations/recipes';
+import { ChargingPlanInput, type ChargingPlanValue } from '@/components/shifts/ChargingPlanInput';
 import type {
-  ChargingRecipe,
   ChecklistItem,
   ChecklistAnswer,
   ChecklistAnswerStatus,
@@ -44,14 +43,6 @@ interface TemplateRow {
   machine_type: string;
   items: ChecklistItem[];
 }
-
-const RECIPE_LABELS: Record<ChargingRecipe, string> = {
-  ANFO: 'ANFO (100%)',
-  EMULSION: '100% эмульсия',
-  BLEND_70_30: 'Смесевой 70/30 (70% эмульсии)',
-  BLEND_30_70: 'Смесевой 30/70 (70% AN)',
-  OTHER: 'Другой',
-};
 
 type Step = 'machine' | 'checklist' | 'plan';
 
@@ -77,10 +68,7 @@ export default function StartShiftPage() {
   const [checklistNotes, setChecklistNotes] = useState('');
 
   // Step 3
-  const [planRecipe, setPlanRecipe] = useState<ChargingRecipe>('ANFO');
-  const [planTons, setPlanTons] = useState('');
-  const [planEmulsionTons, setPlanEmulsionTons] = useState('');
-  const [planAnTons, setPlanAnTons] = useState('');
+  const [planValue, setPlanValue] = useState<ChargingPlanValue | null>(null);
   const [planHoles, setPlanHoles] = useState('');
   const [planPit, setPlanPit] = useState('');
   const [planNotes, setPlanNotes] = useState('');
@@ -127,44 +115,6 @@ export default function StartShiftPage() {
   const template = selectedMachine
     ? templates.find((t) => t.machine_type === selectedMachine.machine_type) ?? null
     : null;
-  const allowedRecipes = getAllowedRecipes(selectedMachine?.machine_type);
-
-  // Reset / default the recipe when machine changes so it stays valid for the type.
-  useEffect(() => {
-    if (!selectedMachine) return;
-    if (!allowedRecipes.includes(planRecipe)) {
-      setPlanRecipe(allowedRecipes[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMachine?.id]);
-
-  const isBlend = isBlendRecipe(planRecipe);
-
-  // Keep total tons in sync with the two component fields when recipe is a blend.
-  useEffect(() => {
-    if (!isBlend) return;
-    const e = parseFloat(planEmulsionTons);
-    const a = parseFloat(planAnTons);
-    const total = (Number.isFinite(e) ? e : 0) + (Number.isFinite(a) ? a : 0);
-    setPlanTons(total > 0 ? String(total) : '');
-  }, [planEmulsionTons, planAnTons, isBlend]);
-
-  // When user picks a blend, suggest the default ratio split based on planTons (if any).
-  const handleRecipeChange = (next: ChargingRecipe) => {
-    setPlanRecipe(next);
-    const ratio = getBlendRatio(next);
-    if (ratio && planTons) {
-      const total = parseFloat(planTons);
-      if (Number.isFinite(total) && total > 0) {
-        setPlanEmulsionTons((total * ratio.emulsion).toFixed(1));
-        setPlanAnTons((total * ratio.an).toFixed(1));
-      }
-    } else if (!ratio) {
-      // Switching back to a pure recipe: clear the blend fields
-      setPlanEmulsionTons('');
-      setPlanAnTons('');
-    }
-  };
 
   const setAnswer = (item: ChecklistItem, status: ChecklistAnswerStatus) => {
     setAnswers((prev) => ({
@@ -214,28 +164,9 @@ export default function StartShiftPage() {
     if (!companyId || !user || !selectedMachine || !template) return;
     setError(null);
 
-    let emulsion: number | null = null;
-    let an: number | null = null;
-    let tons: number;
-
-    if (isBlend) {
-      const e = parseFloat(planEmulsionTons);
-      const a = parseFloat(planAnTons);
-      if (!Number.isFinite(e) || e < 0 || !Number.isFinite(a) || a < 0 || (e + a) <= 0) {
-        setError('Для смесевого рецепта укажите тонны эмульсии и аммиачной селитры (AN)');
-        return;
-      }
-      emulsion = e;
-      an = a;
-      tons = e + a;
-    } else {
-      tons = parseFloat(planTons);
-      if (!Number.isFinite(tons) || tons <= 0) {
-        setError('Введите корректные плановые тонны');
-        return;
-      }
-      if (planRecipe === 'EMULSION') emulsion = tons;
-      if (planRecipe === 'ANFO') an = tons;
+    if (!planValue) {
+      setError('Заполните план зарядки: тоннаж и состав');
+      return;
     }
 
     setSubmitting(true);
@@ -253,10 +184,11 @@ export default function StartShiftPage() {
           status: hasCriticalFail ? 'blocked' : 'in_progress',
           planned_for: plannedFor,
           started_at: hasCriticalFail ? null : new Date().toISOString(),
-          plan_recipe: planRecipe,
-          plan_tons: tons,
-          plan_emulsion_tons: emulsion,
-          plan_an_tons: an,
+          plan_recipe: planValue.recipe,
+          plan_tons: planValue.totalTons,
+          plan_emulsion_tons: planValue.emulsionTons,
+          plan_an_tons: planValue.anTons,
+          plan_diesel_tons: planValue.dieselTons,
           plan_holes: planHoles ? parseInt(planHoles, 10) : null,
           plan_pit_location: planPit.trim() || null,
           plan_notes: planNotes.trim() || null,
@@ -530,92 +462,11 @@ export default function StartShiftPage() {
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="planRecipe">Рецептура *</Label>
-            {allowedRecipes.length === 1 ? (
-              <div className="mt-1 p-2 rounded-md border border-secondary-200 bg-secondary-50/40 text-sm text-secondary-700">
-                {RECIPE_LABELS[allowedRecipes[0]]}
-                <span className="ml-2 text-xs text-secondary-500">
-                  (единственный возможный для {selectedMachine?.machine_type})
-                </span>
-              </div>
-            ) : (
-              <Select
-                id="planRecipe"
-                value={planRecipe}
-                onChange={(e) => handleRecipeChange(e.target.value as ChargingRecipe)}
-                className="mt-1"
-              >
-                {allowedRecipes.map((r) => (
-                  <option key={r} value={r}>
-                    {RECIPE_LABELS[r]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </div>
-
-          {isBlend ? (
-            <div className="space-y-3 p-3 rounded-md border border-primary-100 bg-primary-50/30">
-              <p className="text-xs text-secondary-600">
-                Смесевой рецепт — укажите тонны каждого компонента отдельно. Подсказка взята из
-                номинального соотношения, скорректируйте под реальную загрузку.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="planEmulsionTons">Эмульсия, т *</Label>
-                  <Input
-                    id="planEmulsionTons"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={planEmulsionTons}
-                    onChange={(e) => setPlanEmulsionTons(e.target.value)}
-                    placeholder="10.5"
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="planAnTons">Аммиачная селитра (AN), т *</Label>
-                  <Input
-                    id="planAnTons"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={planAnTons}
-                    onChange={(e) => setPlanAnTons(e.target.value)}
-                    placeholder="4.5"
-                    required
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              {planTons && (
-                <p className="text-xs text-secondary-700">
-                  Итого: <strong className="tabular-nums">{Number(planTons).toLocaleString('ru-RU')} т</strong>
-                </p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <Label htmlFor="planTons">
-                Плановые тонны{' '}
-                {planRecipe === 'EMULSION' ? '(эмульсия)' : planRecipe === 'ANFO' ? '(AN)' : ''} *
-              </Label>
-              <Input
-                id="planTons"
-                type="number"
-                step="0.1"
-                min="0"
-                value={planTons}
-                onChange={(e) => setPlanTons(e.target.value)}
-                placeholder="14.5"
-                required
-                className="mt-1"
-              />
-            </div>
-          )}
+          <ChargingPlanInput
+            machineType={selectedMachine?.machine_type}
+            onChange={setPlanValue}
+            variant="plan"
+          />
 
           <div>
             <Label htmlFor="planHoles">Кол-во скважин</Label>
@@ -661,10 +512,7 @@ export default function StartShiftPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={
-                submitting ||
-                (isBlend ? !planEmulsionTons || !planAnTons : !planTons)
-              }
+              disabled={submitting || !planValue}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {submitting ? 'Создание…' : 'Начать смену'}
