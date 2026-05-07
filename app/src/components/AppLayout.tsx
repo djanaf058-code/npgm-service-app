@@ -9,7 +9,7 @@ import {
     X,
     ChevronDown,
     LogOut,
-    Key, Files, LucideListTodo,
+    Key,
 } from 'lucide-react';
 import { useGlobal } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
@@ -45,9 +45,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const productName = process.env.NEXT_PUBLIC_PRODUCTNAME;
 
     const navigation = [
-        { name: 'Homepage', href: '/app', icon: Home },
-        { name: 'Example Storage', href: '/app/storage', icon: Files },
-        { name: 'Example Table', href: '/app/table', icon: LucideListTodo },
+        { name: 'Dashboard', href: '/app', icon: Home },
+        // TODO Sprint 1.5: { name: 'Машины', href: '/app/machines', icon: Truck },
+        // TODO Sprint 2: { name: 'Тикеты', href: '/app/tickets', icon: MessageSquare },
         { name: 'User Settings', href: '/app/user-settings', icon: User },
     ];
 
