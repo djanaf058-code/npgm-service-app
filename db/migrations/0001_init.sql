@@ -44,15 +44,8 @@ create table if not exists machine_types (
 );
 
 -- ============================================================
--- Helper functions for RLS
--- (defined here so later migrations can use them)
+-- Helper functions for RLS — defined in 0002_users.sql after
+-- the profiles table exists. We don't create placeholders here
+-- because Supabase restricts CREATE in the `auth` schema; helpers
+-- live in `public` schema instead (public.user_company_id, etc).
 -- ============================================================
--- NB: These functions are placeholders until profiles table exists (migration 0002).
--- They will return null until then; we re-create with proper logic in 0002.
-create or replace function auth.user_company_id() returns uuid as $$
-  select null::uuid;
-$$ language sql security definer stable;
-
-create or replace function auth.user_role() returns text as $$
-  select null::text;
-$$ language sql security definer stable;

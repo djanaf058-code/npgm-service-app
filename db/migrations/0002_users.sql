@@ -42,10 +42,16 @@ create index if not exists profiles_company_idx on profiles (company_id);
 -- ============================================================
 -- Trigger: create empty profile on auth.users insert
 -- (filled during onboarding flow)
+-- Function lives in public schema; trigger on auth.users is
+-- a supported Supabase pattern.
 -- ============================================================
-create or replace function handle_new_user() returns trigger as $$
+create or replace function public.handle_new_user() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, full_name, role, language)
+  insert into public.profiles (id, full_name, role, language)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
@@ -55,20 +61,30 @@ begin
   on conflict (id) do nothing;
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute function public.handle_new_user();
 
 -- ============================================================
--- Replace placeholder helper functions with real logic
+-- Helper functions for RLS (in public schema — auth schema is restricted)
 -- ============================================================
-create or replace function auth.user_company_id() returns uuid as $$
+create or replace function public.user_company_id() returns uuid
+language sql
+security definer
+stable
+set search_path = public
+as $$
   select company_id from profiles where id = auth.uid();
-$$ language sql security definer stable;
+$$;
 
-create or replace function auth.user_role() returns text as $$
+create or replace function public.user_role() returns text
+language sql
+security definer
+stable
+set search_path = public
+as $$
   select role::text from profiles where id = auth.uid();
-$$ language sql security definer stable;
+$$;

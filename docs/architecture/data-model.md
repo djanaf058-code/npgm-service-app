@@ -452,16 +452,24 @@ create index events_company_type_idx on events (company_id, event_type, created_
 
 **RLS is enabled on every table.** Policies enforce tenant isolation: a user from Company A cannot see any data from Company B except where explicitly cross-tenant (Tier 2 sees escalated tickets but not the rest of the company's data).
 
-### Helper function
+### Helper functions
+
+Defined in `public` schema (Supabase restricts CREATE in `auth` schema):
 
 ```sql
-create or replace function auth.user_company_id() returns uuid as $$
+create or replace function public.user_company_id() returns uuid
+language sql security definer stable
+set search_path = public
+as $$
   select company_id from profiles where id = auth.uid();
-$$ language sql security definer stable;
+$$;
 
-create or replace function auth.user_role() returns user_role as $$
-  select role from profiles where id = auth.uid();
-$$ language sql security definer stable;
+create or replace function public.user_role() returns text
+language sql security definer stable
+set search_path = public
+as $$
+  select role::text from profiles where id = auth.uid();
+$$;
 ```
 
 ### Policies — overview
@@ -496,23 +504,23 @@ The full SQL implementation lives in `db/migrations/0003_rls.sql`. Examples:
 alter table companies enable row level security;
 
 create policy companies_member_read on companies
-  for select using (id = auth.user_company_id());
+  for select using (id = public.user_company_id());
 
 create policy companies_admin_write on companies
   for update using (
-    id = auth.user_company_id() and auth.user_role() = 'company_admin'
+    id = public.user_company_id() and public.user_role() = 'company_admin'
   );
 
 create policy companies_platform_admin_all on companies
-  for all using (auth.user_role() = 'platform_admin');
+  for all using (public.user_role() = 'platform_admin');
 
 -- machines: company members read+write own; tier2 sees only related ones via tickets
 create policy machines_company_all on machines
-  for all using (company_id = auth.user_company_id());
+  for all using (company_id = public.user_company_id());
 
 create policy machines_tier2_via_tickets on machines
   for select using (
-    auth.user_role() = 'tier2_engineer'
+    public.user_role() = 'tier2_engineer'
     and exists (
       select 1 from tickets t
       where t.machine_id = machines.id
