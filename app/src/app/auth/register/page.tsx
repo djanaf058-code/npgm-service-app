@@ -1,171 +1,159 @@
 'use client';
 
-import {createSPASassClient} from '@/lib/supabase/client';
+import { createSPASassClient } from '@/lib/supabase/client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import SSOButtons from "@/components/SSOButtons";
+import { Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [acceptedTerms, setAcceptedTerms] = useState(false);
-    const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const router = useRouter();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
 
-        if (!acceptedTerms) {
-            setError('You must accept the Terms of Service and Privacy Policy');
-            return;
-        }
+    if (!acceptedTerms) {
+      setError('Подтвердите согласие с условиями использования и политикой конфиденциальности');
+      return;
+    }
 
-        if (password !== confirmPassword) {
-            setError("Passwords don't match");
-            return;
-        }
+    if (password !== confirmPassword) {
+      setError('Пароли не совпадают');
+      return;
+    }
 
-        setLoading(true);
+    if (password.length < 8) {
+      setError('Пароль должен быть не короче 8 символов');
+      return;
+    }
 
-        try {
-            const supabase = await createSPASassClient();
-            const { error } = await supabase.registerEmail(email, password);
+    setLoading(true);
 
-            if (error) throw error;
+    try {
+      const supabase = await createSPASassClient();
+      const { error } = await supabase.registerEmail(email, password);
 
-            router.push('/auth/verify-email');
-        } catch (err: Error | unknown) {
-            if(err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('An unknown error occurred');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+      if (error) throw error;
 
-    return (
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            {error && (
-                <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
-                    {error}
-                </div>
-            )}
+      router.push('/auth/verify-email');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Произошла неизвестная ошибка');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                        Email address
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
-                </div>
+  return (
+    <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10">
+      <div className="text-center mb-6">
+        <h2 className="font-heading text-2xl font-semibold text-secondary-900">
+          Регистрация компании
+        </h2>
+        <p className="text-sm text-secondary-500 mt-1">
+          Создайте аккаунт администратора. Сотрудников добавите позже.
+        </p>
+      </div>
 
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                        Password
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                        Confirm Password
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-start">
-                        <div className="flex h-5 items-center">
-                            <input
-                                id="terms"
-                                name="terms"
-                                type="checkbox"
-                                checked={acceptedTerms}
-                                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                        </div>
-                        <div className="ml-3 text-sm">
-                            <label htmlFor="terms" className="text-gray-600">
-                                I agree to the{' '}
-                                <Link
-                                    href="/legal/terms"
-                                    className="font-medium text-primary-600 hover:text-primary-500"
-                                    target="_blank"
-                                >
-                                    Terms of Service
-                                </Link>{' '}
-                                and{' '}
-                                <Link
-                                    href="/legal/privacy"
-                                    className="font-medium text-primary-600 hover:text-primary-500"
-                                    target="_blank"
-                                >
-                                    Privacy Policy
-                                </Link>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex w-full justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
-                    >
-                        {loading ? 'Creating account...' : 'Create account'}
-                    </button>
-                </div>
-            </form>
-
-            <SSOButtons onError={setError}/>
-
-            <div className="mt-6 text-center text-sm">
-                <span className="text-gray-600">Already have an account?</span>
-                {' '}
-                <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
-                    Sign in
-                </Link>
-            </div>
+      {error && (
+        <div className="mb-4 p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md">
+          {error}
         </div>
-    );
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-secondary-700">
+            Рабочий email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-secondary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-secondary-700">
+            Пароль
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-secondary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+          <p className="mt-1 text-xs text-secondary-500">Не короче 8 символов</p>
+        </div>
+
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary-700">
+            Повторите пароль
+          </label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-secondary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+
+        <div className="flex items-start gap-3">
+          <input
+            id="terms"
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label htmlFor="terms" className="text-sm text-secondary-600 leading-snug">
+            Я согласен с{' '}
+            <Link href="/legal/terms" className="font-medium text-primary-600 hover:text-primary-700" target="_blank">
+              условиями использования
+            </Link>{' '}
+            и{' '}
+            <Link href="/legal/privacy" className="font-medium text-primary-600 hover:text-primary-700" target="_blank">
+              политикой конфиденциальности
+            </Link>
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {loading ? 'Создание аккаунта...' : 'Создать аккаунт'}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center text-sm">
+        <span className="text-secondary-600">Уже есть аккаунт? </span>
+        <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-700">
+          Войти
+        </Link>
+      </div>
+    </div>
+  );
 }

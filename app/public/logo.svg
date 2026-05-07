@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" role="img" aria-label="NPGM Service App">
+  <!-- mark: stylized "P" with red accent stripe — symbolizes a piston / drill column -->
+  <g transform="translate(0,4)">
+    <rect x="0" y="0" width="32" height="32" rx="6" fill="#1d4ed8"/>
+    <!-- letter P (white) -->
+    <path d="M9 7 H18 a6 6 0 0 1 0 12 H13 V25 H9 Z M13 11 V15 H17 a2 2 0 0 0 0 -4 Z"
+          fill="#ffffff"/>
+    <!-- red accent stripe (right edge) -->
+    <rect x="29" y="0" width="3" height="32" fill="#dc2626"/>
+  </g>
+  <!-- wordmark -->
+  <text x="42" y="26"
+        font-family="'IBM Plex Sans', 'Inter', system-ui, sans-serif"
+        font-weight="700"
+        font-size="20"
+        letter-spacing="0.02em"
+        fill="#0f172a">
+    NPGM
+  </text>
+  <text x="106" y="26"
+        font-family="'Inter', system-ui, sans-serif"
+        font-weight="400"
+        font-size="14"
+        letter-spacing="0.04em"
+        fill="#475569">
+    Service App
+  </text>
+</svg>

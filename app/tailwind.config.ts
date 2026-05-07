@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+  			heading: ['var(--font-ibm-plex)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+  			mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+  		},
   		colors: {
   			primary: {
   				'50': 'var(--color-primary-50)',
