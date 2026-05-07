@@ -197,13 +197,6 @@ export default function MachineDetailPage() {
             <Row label="Тип" value={`${machine.machine_type}`} />
             <Row label="Модель" value={machine.model_code} mono />
             <Row label="Грузоподъёмность" value={`${machine.tonnage_t} т`} />
-            <Row label="Положение шнека" value={AUGER_LABEL[machine.auger_position]} />
-            <Row label="Барабан" value={machine.has_drum ? 'Есть (Б)' : 'Нет'} />
-            <Row label="Компонентов" value={String(machine.component_count)} />
-            <Row
-              label="ГГД"
-              value={machine.ggd_type ? GGD_LABEL[machine.ggd_type] : 'Не используется'}
-            />
             <Row label="Серийник" value={machine.serial_number ?? '—'} mono />
             <Row
               label="В эксплуатации с"
@@ -215,6 +208,14 @@ export default function MachineDetailPage() {
               icon={Calendar}
             />
             <Row label="Карьер" value={machine.pit_location ?? '—'} icon={MapPin} />
+            {/* МСЗ — единственный тип, где положение шнека различает модификацию */}
+            {machine.machine_type === 'МСЗ' && machine.auger_position !== 'none' && (
+              <Row label="Положение шнека" value={AUGER_LABEL[machine.auger_position]} />
+            )}
+            {/* ГГД показываем только если фактически прописан */}
+            {machine.ggd_type && (
+              <Row label="ГГД" value={GGD_LABEL[machine.ggd_type]} />
+            )}
           </dl>
         </CardContent>
       </Card>
