@@ -1,82 +1,20 @@
--- 0023 — two-step parts request workflow (operator → admin → НПГМ).
+-- 0023b — RPC transition functions + RLS for the two-step parts workflow.
 --
--- Old graph:
---   new → approved → ordered → delivered / cancelled
+-- PREREQUISITE: 0023a must already be committed (it adds the enum values
+-- 'submitted', 'forwarded', 'quoted', 'received' that this file references).
+-- Running 0023b in the same Supabase SQL Editor query as 0023a will fail
+-- with 55P04 "unsafe use of new value" — that's a Postgres rule, not a bug.
 --
--- New graph:
---   submitted (operator) → forwarded (admin) → quoted (tier2) →
---     approved (admin) → ordered (tier2 + ETA) → received (operator/admin + 📷)
---   any of the above → cancelled (with reason)
---
--- All transitions go through SECURITY DEFINER RPC functions that
--- (a) check the caller's role and tenant, (b) check the current status,
--- (c) atomically update status + the corresponding *_at / *_by stamps.
--- Direct UPDATE on parts_requests is no longer the path operators take.
+-- All transitions go through SECURITY DEFINER functions that
+--   (a) check the caller's role and tenant,
+--   (b) check the current status,
+--   (c) atomically update status + the corresponding *_at / *_by stamps.
 --
 -- Idempotent.
 
 -- =========================================================================
--- A. Enum extensions
+-- A. Helper: pre-check + lock the row before any transition.
 -- =========================================================================
-do $$
-begin
-  if not exists (select 1 from pg_enum e
-                 join pg_type t on e.enumtypid = t.oid
-                 where t.typname = 'parts_request_status' and e.enumlabel = 'submitted') then
-    alter type parts_request_status add value 'submitted';
-  end if;
-  if not exists (select 1 from pg_enum e
-                 join pg_type t on e.enumtypid = t.oid
-                 where t.typname = 'parts_request_status' and e.enumlabel = 'forwarded') then
-    alter type parts_request_status add value 'forwarded';
-  end if;
-  if not exists (select 1 from pg_enum e
-                 join pg_type t on e.enumtypid = t.oid
-                 where t.typname = 'parts_request_status' and e.enumlabel = 'quoted') then
-    alter type parts_request_status add value 'quoted';
-  end if;
-  if not exists (select 1 from pg_enum e
-                 join pg_type t on e.enumtypid = t.oid
-                 where t.typname = 'parts_request_status' and e.enumlabel = 'received') then
-    alter type parts_request_status add value 'received';
-  end if;
-end$$;
-
--- =========================================================================
--- B. New columns on parts_requests
--- =========================================================================
-alter table parts_requests
-  add column if not exists submitted_at           timestamptz,
-  add column if not exists forwarded_at           timestamptz,
-  add column if not exists forwarded_by           uuid references profiles(id),
-  add column if not exists quoted_at              timestamptz,
-  add column if not exists quoted_by              uuid references profiles(id),
-  add column if not exists quote_notes            text,
-  add column if not exists quote_total_amount     numeric(12,2),
-  add column if not exists quote_currency         text,
-  add column if not exists approved_at            timestamptz,
-  add column if not exists approved_by            uuid references profiles(id),
-  add column if not exists ordered_at             timestamptz,
-  add column if not exists ordered_by             uuid references profiles(id),
-  add column if not exists expected_delivery_date date,
-  add column if not exists received_at            timestamptz,
-  add column if not exists received_by            uuid references profiles(id),
-  add column if not exists received_quantity_text text,
-  add column if not exists received_photo_url     text,
-  add column if not exists received_notes         text,
-  add column if not exists cancel_reason          text;
-
--- Backfill submitted_at for any pre-existing rows so timeline doesn't break.
-update parts_requests
-   set submitted_at = coalesce(submitted_at, created_at)
- where submitted_at is null;
-
--- =========================================================================
--- C. RPC transition functions (SECURITY DEFINER)
--- =========================================================================
-
--- Helper: assert current row exists, belongs to caller's company (or caller is internal),
--- and is in one of the expected statuses. Returns the row locked for update.
 create or replace function _assert_parts_request_state(
   p_id uuid,
   p_expected_statuses parts_request_status[]
@@ -110,6 +48,10 @@ begin
 end$$;
 
 grant execute on function _assert_parts_request_state(uuid, parts_request_status[]) to authenticated;
+
+-- =========================================================================
+-- B. Per-transition functions
+-- =========================================================================
 
 -- ----- forward_parts_request: admin: submitted → forwarded ----------------
 create or replace function forward_parts_request(p_id uuid)
@@ -284,11 +226,6 @@ declare
   allowed parts_request_status[];
 begin
   caller_role := public.user_role();
-  -- Each role can cancel only at the steps where they're the "owner" of the state:
-  --   operator    → submitted (their own draft, not yet forwarded)
-  --   admin       → submitted, forwarded, quoted, approved, ordered (anywhere within their company)
-  --   tier2       → forwarded, quoted, approved, ordered (after admin handed it off)
-  --   platform    → any non-final
   if caller_role = 'operator' then
     allowed := array['submitted']::parts_request_status[];
   elsif caller_role in ('company_admin') then
@@ -312,19 +249,16 @@ end$$;
 grant execute on function cancel_parts_request(uuid, text) to authenticated;
 
 -- =========================================================================
--- D. RLS adjustments
+-- C. RLS adjustments
 -- =========================================================================
 
--- Fix: tier2 should READ across tenants but not freely UPDATE — mutations go via RPC.
+-- The original migration 0018 created a buggy parts_requests_tier2_read with
+-- FOR ALL (allowed mutations across tenants). Drop it; replace with a
+-- SELECT-only policy that also hides 'submitted' rows from tier2 — they
+-- only see what's already been forwarded by company_admin.
 drop policy if exists parts_requests_tier2_read on parts_requests;
-create policy parts_requests_tier2_read on parts_requests
-  for select
-  to authenticated
-  using (public.user_role() = 'tier2_engineer');
-
--- Tier 2 should not see requests still pending the customer's internal review.
--- (Same policy filters on status — keeps the queue clean.)
 drop policy if exists parts_requests_tier2_visible on parts_requests;
+
 create policy parts_requests_tier2_visible on parts_requests
   for select
   to authenticated
@@ -332,12 +266,9 @@ create policy parts_requests_tier2_visible on parts_requests
     public.user_role() = 'tier2_engineer'
     and status in ('forwarded', 'quoted', 'approved', 'ordered', 'received', 'cancelled')
   );
--- Note: parts_requests_tier2_read above is broader (sees submitted too) — having
--- both means tier2 sees everything. Drop the broader one in favor of filtered:
-drop policy if exists parts_requests_tier2_read on parts_requests;
 
 -- Operators inside a company keep SELECT via parts_requests_company_all
 -- (they see their own + colleagues' for transparency). Direct UPDATE is
 -- still allowed by company_all, but the UI no longer offers a status
--- dropdown — only RPC paths. If you want to harden this further, replace
--- company_all with split SELECT/INSERT/UPDATE policies; out of scope here.
+-- dropdown — only RPC paths. Hardening (split SELECT/INSERT/UPDATE
+-- policies) can be done in a later migration if needed.
