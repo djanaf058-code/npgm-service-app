@@ -10,9 +10,14 @@ import {
     ChevronDown,
     LogOut,
     Key,
+    Truck,
+    MessageSquareText,
+    ClipboardCheck,
+    Wrench,
 } from 'lucide-react';
 import { useGlobal } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
+import Logo from "@/components/Logo";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -42,22 +47,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             : parts[0].slice(0, 2).toUpperCase();
     };
 
-    const productName = process.env.NEXT_PUBLIC_PRODUCTNAME;
-
     const navigation = [
-        { name: 'Dashboard', href: '/app', icon: Home },
-        // TODO Sprint 1.5: { name: 'Машины', href: '/app/machines', icon: Truck },
-        // TODO Sprint 2: { name: 'Тикеты', href: '/app/tickets', icon: MessageSquare },
-        { name: 'User Settings', href: '/app/user-settings', icon: User },
+        { name: 'Главная', href: '/app', icon: Home },
+        { name: 'Парк техники', href: '/app/machines', icon: Truck },
+        // Following pages are planned for the next sprints — keep in nav so
+        // their structure is visible, links 404 today (handled gracefully).
+        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, soon: 'Sprint 2' },
+        { name: 'Смены и чек-листы', href: '/app/shifts', icon: ClipboardCheck, soon: 'Sprint 3' },
+        { name: 'ТО и запчасти', href: '/app/maintenance', icon: Wrench, soon: 'Sprint 3' },
+        { name: 'Профиль', href: '/app/user-settings', icon: User },
     ];
 
     const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-secondary-50">
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-gray-600 bg-opacity-75 z-20 lg:hidden"
+                    className="fixed inset-0 bg-secondary-900/60 z-20 lg:hidden"
                     onClick={toggleSidebar}
                 />
             )}
@@ -66,11 +73,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out z-30 
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
 
-                <div className="h-16 flex items-center justify-between px-4 border-b">
-                    <span className="text-xl font-semibold text-primary-600">{productName}</span>
+                <div className="h-16 flex items-center justify-between px-4 border-b border-secondary-200">
+                    <Logo variant="full" width={150} height={30} />
                     <button
                         onClick={toggleSidebar}
-                        className="lg:hidden text-gray-500 hover:text-gray-700"
+                        className="lg:hidden text-secondary-500 hover:text-secondary-700"
                     >
                         <X className="h-6 w-6" />
                     </button>
@@ -79,23 +86,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {/* Navigation */}
                 <nav className="mt-4 px-2 space-y-1">
                     {navigation.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive =
+                            item.href === '/app'
+                                ? pathname === '/app'
+                                : pathname.startsWith(item.href);
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                                className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                                     isActive
-                                        ? 'bg-primary-50 text-primary-600'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                        ? 'bg-primary-50 text-primary-700'
+                                        : 'text-secondary-600 hover:bg-secondary-50 hover:text-secondary-900'
                                 }`}
                             >
-                                <item.icon
-                                    className={`mr-3 h-5 w-5 ${
-                                        isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                                    }`}
-                                />
-                                {item.name}
+                                <span className="flex items-center">
+                                    <item.icon
+                                        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                                            isActive
+                                                ? 'text-primary-600'
+                                                : 'text-secondary-400 group-hover:text-secondary-600'
+                                        }`}
+                                    />
+                                    {item.name}
+                                </span>
+                                {('soon' in item) && (
+                                    <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-secondary-400">
+                                        {item.soon}
+                                    </span>
+                                )}
                             </Link>
                         );
                     })}
@@ -104,10 +123,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="lg:pl-64">
-                <div className="sticky top-0 z-10 flex items-center justify-between h-16 bg-white shadow-sm px-4">
+                <div className="sticky top-0 z-10 flex items-center justify-between h-16 bg-white border-b border-secondary-200 px-4">
                     <button
                         onClick={toggleSidebar}
-                        className="lg:hidden text-gray-500 hover:text-gray-700"
+                        className="lg:hidden text-secondary-500 hover:text-secondary-700"
                     >
                         <Menu className="h-6 w-6"/>
                     </button>
@@ -115,7 +134,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <div className="relative ml-auto">
                         <button
                             onClick={() => setUserDropdownOpen(!isUserDropdownOpen)}
-                            className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900"
+                            className="flex items-center space-x-2 text-sm text-secondary-700 hover:text-secondary-900"
                         >
                             <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
                                 <span className="text-primary-700 font-medium">
@@ -127,10 +146,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         </button>
 
                         {isUserDropdownOpen && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg border">
-                                <div className="p-2 border-b border-gray-100">
-                                    <p className="text-xs text-gray-500">Signed in as</p>
-                                    <p className="text-sm font-medium text-gray-900 truncate">
+                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg border border-secondary-200">
+                                <div className="p-3 border-b border-secondary-100">
+                                    <p className="text-xs text-secondary-500">Вошли как</p>
+                                    <p className="text-sm font-medium text-secondary-900 truncate">
                                         {user?.email}
                                     </p>
                                 </div>
@@ -140,20 +159,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             setUserDropdownOpen(false);
                                             handleChangePassword()
                                         }}
-                                        className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                        className="w-full flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50"
                                     >
-                                        <Key className="mr-3 h-4 w-4 text-gray-400"/>
-                                        Change Password
+                                        <Key className="mr-3 h-4 w-4 text-secondary-400"/>
+                                        Сменить пароль
                                     </button>
                                     <button
                                         onClick={() => {
                                             handleLogout();
                                             setUserDropdownOpen(false);
                                         }}
-                                        className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        className="w-full flex items-center px-4 py-2 text-sm text-accent-700 hover:bg-accent-50"
                                     >
-                                        <LogOut className="mr-3 h-4 w-4 text-red-400"/>
-                                        Sign Out
+                                        <LogOut className="mr-3 h-4 w-4 text-accent-400"/>
+                                        Выйти
                                     </button>
                                 </div>
                             </div>
