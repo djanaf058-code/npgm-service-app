@@ -16,6 +16,7 @@ import {
     Wrench,
     Box,
     Users,
+    Shield,
 } from 'lucide-react';
 import { useGlobal, useRole } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
@@ -71,6 +72,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { name: 'Гараж', href: '/app/parts', icon: Box,
           roles: ['operator', 'service_engineer', 'project_manager'] },
         { name: 'Команда', href: '/app/team', icon: Users, roles: ['project_manager'] },
+        { name: 'Админ-панель', href: '/admin', icon: Shield, roles: ['platform_admin'] },
         { name: 'Профиль', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
     const navigation = baseNav.filter(
