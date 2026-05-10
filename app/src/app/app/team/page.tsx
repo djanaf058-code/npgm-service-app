@@ -365,7 +365,10 @@ function InviteDialog({
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error ?? 'Не удалось создать приглашение');
-      onCreated(json.url);
+      // Server returns a relative path; client builds the full URL so it works
+      // across dev/staging/prod without server-side origin guessing.
+      const fullUrl = `${window.location.origin}${json.path}`;
+      onCreated(fullUrl);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setLocalErr(msg);

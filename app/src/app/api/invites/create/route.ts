@@ -90,14 +90,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Build the absolute invite URL the admin can share.
-  // Use the request's own origin so the link works in dev / staging / prod.
-  const origin =
-    request.headers.get('x-forwarded-host')
-      ? `${request.headers.get('x-forwarded-proto') ?? 'https'}://${request.headers.get('x-forwarded-host')}`
-      : new URL(request.url).origin;
-
-  const url = `${origin}/auth/invite/${invite.token}`;
-
-  return NextResponse.json({ invite, url });
+  // The client builds the full absolute URL from window.location.origin —
+  // dev/staging/prod each have their own and the server can't reliably tell.
+  return NextResponse.json({
+    invite,
+    path: `/auth/invite/${invite.token}`,
+    token: invite.token,
+  });
 }
