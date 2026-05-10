@@ -100,6 +100,10 @@ export const useGlobal = () => {
 
 // Derived role flags for UI gating. Use these instead of comparing role strings
 // directly in components — keeps the role taxonomy in one place.
+//
+// Note: isCompanyAdmin was intentionally removed (B1). Use isProjectManager
+// for owner-of-the-company gating, or canManageCompany for "anyone with
+// company-wide rights".
 export function useRole() {
     const { user, loading } = useGlobal();
     const role = user?.role ?? null;
@@ -108,11 +112,14 @@ export function useRole() {
         role,
         isOperator: role === 'operator',
         isServiceEngineer: role === 'service_engineer',
-        isCompanyAdmin: role === 'company_admin',
+        isProjectManager: role === 'project_manager',
         isTier2: role === 'tier2_engineer',
         isPlatformAdmin: role === 'platform_admin',
         // "Manages company" — sees everything inside the company, can invite/admin.
-        canManageCompany: role === 'company_admin' || role === 'platform_admin',
+        canManageCompany: role === 'project_manager' || role === 'platform_admin',
+        // "Manages machines" — service_engineer can also CRUD machines now.
+        canManageMachines:
+            role === 'service_engineer' || role === 'project_manager' || role === 'platform_admin',
         // "Internal" — НПГМ side, cross-tenant view.
         isInternal: role === 'tier2_engineer' || role === 'platform_admin',
     };

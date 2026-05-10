@@ -58,7 +58,7 @@ const KIND_LABELS: Record<MaintenanceKind, string> = {
 
 export default function DashboardContent() {
   const { loading: globalLoading, user } = useGlobal();
-  const { isOperator, isCompanyAdmin, isTier2 } = useRole();
+  const { isOperator, isProjectManager, isTier2 } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
@@ -76,7 +76,7 @@ export default function DashboardContent() {
         //   admin  → submitted (waiting on me to forward)
         //   tier2  → forwarded / quoted / approved / ordered (queue I drive)
         //   else   → any active (legacy semantics)
-        const requestsActionFilter: PartsRequestStatus[] | null = isCompanyAdmin
+        const requestsActionFilter: PartsRequestStatus[] | null = isProjectManager
           ? ['submitted']
           : isTier2
           ? ['forwarded', 'quoted', 'approved', 'ordered']
@@ -149,7 +149,7 @@ export default function DashboardContent() {
         title: 'НПГМ — Сервисная служба',
         subtitle: 'Заявки от компаний, тикеты Tier 2, кросс-tenant обзор парка.',
       }
-    : isCompanyAdmin
+    : isProjectManager
     ? {
         title: 'Руководитель сервисной службы',
         subtitle: 'Парк, заявки от операторов, тикеты, плановое ТО — по вашей компании.',
@@ -215,7 +215,7 @@ export default function DashboardContent() {
         <KPICard
           icon={ShoppingCart}
           label={
-            isCompanyAdmin
+            isProjectManager
               ? 'На рассмотрении'
               : isTier2
               ? 'В очереди НПГМ'

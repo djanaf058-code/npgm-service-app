@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     .from('profiles')
     .update({
       company_id: company.id,
-      role: 'company_admin',
+      role: 'project_manager',
       full_name: fullName,
       language,
     })

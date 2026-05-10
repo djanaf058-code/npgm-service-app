@@ -92,7 +92,7 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 
 export default function PartsPage() {
   const { user } = useGlobal();
-  const { isOperator, isCompanyAdmin, isTier2 } = useRole();
+  const { isOperator, isProjectManager, isTier2 } = useRole();
 
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
@@ -190,7 +190,7 @@ export default function PartsPage() {
   useEffect(() => {
     if (user) reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isOperator, isTier2, isCompanyAdmin]);
+  }, [user, isOperator, isTier2, isProjectManager]);
 
   const filtered = useMemo(() => {
     return inventory.filter((row) => {
@@ -262,7 +262,7 @@ export default function PartsPage() {
                 {isOperator ? 'Создать заявку' : 'Заказать запчасти'}
               </Link>
             </Button>
-            {isCompanyAdmin && (
+            {isProjectManager && (
               <Button onClick={() => setAddDialogOpen(true)}>
                 <Plus className="w-4 h-4" />
                 Добавить на склад
@@ -279,7 +279,7 @@ export default function PartsPage() {
       )}
 
       {/* === Section 1 (admin only): На рассмотрении === */}
-      {isCompanyAdmin && buckets.pendingAdminReview.length > 0 && (
+      {isProjectManager && buckets.pendingAdminReview.length > 0 && (
         <RequestSection
           title="На рассмотрении"
           subtitle="Заявки операторов ждут вашего решения."
@@ -291,7 +291,7 @@ export default function PartsPage() {
       )}
 
       {/* === Section 2 (admin): В работе === */}
-      {isCompanyAdmin && buckets.inProgress.length > 0 && (
+      {isProjectManager && buckets.inProgress.length > 0 && (
         <RequestSection
           title="В работе"
           subtitle="Переслали в НПГМ — следим за статусом."
@@ -401,7 +401,7 @@ export default function PartsPage() {
               Загружаем гараж…
             </div>
           ) : inventory.length === 0 ? (
-            <EmptyState canAdd={isCompanyAdmin} onAdd={() => setAddDialogOpen(true)} />
+            <EmptyState canAdd={isProjectManager} onAdd={() => setAddDialogOpen(true)} />
           ) : filtered.length === 0 ? (
             <Card className="p-12 text-center">
               <p className="text-secondary-600 text-sm">Нет позиций под текущий фильтр</p>

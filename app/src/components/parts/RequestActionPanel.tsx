@@ -47,7 +47,7 @@ export function RequestActionPanel({
   onChanged,
   onError,
 }: Props) {
-  const { isOperator, isCompanyAdmin, isTier2 } = useRole();
+  const { isOperator, isProjectManager, isTier2 } = useRole();
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -68,16 +68,16 @@ export function RequestActionPanel({
   if (isFinal) return null;
 
   // Per-role action availability map (keep in sync with the RPC functions).
-  const showForward = isCompanyAdmin && status === 'submitted';
-  const showApprove = isCompanyAdmin && status === 'quoted';
+  const showForward = isProjectManager && status === 'submitted';
+  const showApprove = isProjectManager && status === 'quoted';
   const showQuote = isTier2 && status === 'forwarded';
   const showOrder = isTier2 && status === 'approved';
   const showReceived =
-    (isOperator || isCompanyAdmin) && status === 'ordered';
+    (isOperator || isProjectManager) && status === 'ordered';
   // Cancel allowed at every "live" step the role can act on.
   const showCancel =
     (isOperator && status === 'submitted') ||
-    (isCompanyAdmin && ['submitted', 'forwarded', 'quoted', 'approved', 'ordered'].includes(status)) ||
+    (isProjectManager && ['submitted', 'forwarded', 'quoted', 'approved', 'ordered'].includes(status)) ||
     (isTier2 && ['forwarded', 'quoted', 'approved', 'ordered'].includes(status));
 
   const noActions = !showForward && !showApprove && !showQuote && !showOrder && !showReceived && !showCancel;

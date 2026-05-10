@@ -192,7 +192,7 @@ export default function TicketDetailPage() {
   const senderTypeForMe = ((): MessageSender => {
     const role = myProfile?.role;
     if (role === 'tier2_engineer' || role === 'platform_admin') return 'tier2';
-    if (role === 'service_engineer' || role === 'project_manager' || role === 'company_admin') {
+    if (role === 'service_engineer' || role === 'project_manager') {
       return 'service_engineer';
     }
     return 'operator';

@@ -13,7 +13,6 @@ const ALLOWED_INVITE_ROLES: UserRole[] = [
   'operator',
   'service_engineer',
   'project_manager',
-  'company_admin',
 ];
 
 // Cryptographically random URL-safe token, ~22 chars from 16 bytes.
@@ -44,9 +43,9 @@ export async function POST(request: NextRequest) {
   if (profErr || !profile) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
-  if (!['company_admin', 'platform_admin'].includes(profile.role)) {
+  if (!['project_manager', 'platform_admin'].includes(profile.role)) {
     return NextResponse.json(
-      { error: 'Только руководитель компании может создавать приглашения' },
+      { error: 'Только проектный менеджер компании может создавать приглашения' },
       { status: 403 }
     );
   }

@@ -29,7 +29,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
     const { user } = useGlobal();
-    const { isOperator, isCompanyAdmin, isTier2, role } = useRole();
+    const {
+        isOperator,
+        isServiceEngineer,
+        isProjectManager,
+        isTier2,
+        isPlatformAdmin,
+        role,
+    } = useRole();
 
     const handleLogout = async () => {
         try {
@@ -56,21 +63,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const baseNav = [
         { name: 'Главная', href: '/app', icon: Home, roles: ['all'] },
         { name: 'Парк техники', href: '/app/machines', icon: Truck, roles: ['all'] },
-        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck, roles: ['operator', 'company_admin'] },
+        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck,
+          roles: ['operator', 'service_engineer', 'project_manager'] },
         { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
-        { name: 'ТО', href: '/app/maintenance', icon: Wrench, roles: ['company_admin', 'tier2_engineer'] },
-        { name: 'Гараж', href: '/app/parts', icon: Box, roles: ['company_admin', 'operator'] },
-        { name: 'Команда', href: '/app/team', icon: Users, roles: ['company_admin'] },
+        { name: 'ТО', href: '/app/maintenance', icon: Wrench,
+          roles: ['service_engineer', 'project_manager', 'platform_admin'] },
+        { name: 'Гараж', href: '/app/parts', icon: Box,
+          roles: ['operator', 'service_engineer', 'project_manager'] },
+        { name: 'Команда', href: '/app/team', icon: Users, roles: ['project_manager'] },
         { name: 'Профиль', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
     const navigation = baseNav.filter(
         (n) => n.roles.includes('all') || (role !== null && n.roles.includes(role))
     );
 
-    const roleBadge = isCompanyAdmin
-        ? { label: 'Руководитель сервисной службы', tone: 'bg-primary-50 text-primary-700' }
+    const roleBadge = isProjectManager
+        ? { label: 'Проектный менеджер', tone: 'bg-primary-50 text-primary-700' }
+        : isServiceEngineer
+        ? { label: 'Сервисный инженер', tone: 'bg-primary-50 text-primary-700' }
         : isTier2
-        ? { label: 'НПГМ — Сервисная служба', tone: 'bg-accent-50 text-accent-700' }
+        ? { label: 'НПГМ — Tier 2', tone: 'bg-accent-50 text-accent-700' }
+        : isPlatformAdmin
+        ? { label: 'НПГМ — Платформа', tone: 'bg-accent-50 text-accent-700' }
         : isOperator
         ? { label: 'Оператор', tone: 'bg-emerald-50 text-emerald-700' }
         : null;
