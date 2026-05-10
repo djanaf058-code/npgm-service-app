@@ -1,19 +1,54 @@
 'use client';
 
 import { createSPASassClient } from '@/lib/supabase/client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
+const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
+
+// useSearchParams() requires a Suspense boundary in Next.js 15 — without it
+// the static export step bails. Wrap the form in one.
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-20 text-secondary-500">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          Загрузка…
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('invite');
+  const inviteEmailHint = searchParams.get('email');
+
+  const [email, setEmail] = useState(inviteEmailHint ?? '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const router = useRouter();
+
+  // Persist invite token in localStorage so the GlobalContext picks it up
+  // post-verify-email and runs accept_invite() automatically.
+  useEffect(() => {
+    if (inviteToken) {
+      try {
+        window.localStorage.setItem(PENDING_INVITE_KEY, inviteToken);
+      } catch {
+        // ignore — fallback path is link-based, not catastrophic
+      }
+    }
+  }, [inviteToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,10 +89,12 @@ export default function RegisterPage() {
     <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10">
       <div className="text-center mb-6">
         <h2 className="font-heading text-2xl font-semibold text-secondary-900">
-          Регистрация компании
+          {inviteToken ? 'Регистрация по приглашению' : 'Регистрация компании'}
         </h2>
         <p className="text-sm text-secondary-500 mt-1">
-          Создайте аккаунт администратора. Сотрудников добавите позже.
+          {inviteToken
+            ? 'Создайте аккаунт. После подтверждения email вы автоматически попадёте в команду.'
+            : 'Создайте аккаунт администратора. Сотрудников добавите позже.'}
         </p>
       </div>
 

@@ -35,6 +35,28 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                 const { data: { user } } = await client.auth.getUser();
                 if (!user) throw new Error('User not found');
 
+                // Pending invite handoff: if a token was stashed by /auth/invite/[token]
+                // before sign-up/login, redeem it now that we have a session. The
+                // accept_invite RPC patches profiles.role + company_id atomically.
+                try {
+                    const pendingToken = window.localStorage.getItem('npgm.pending_invite_token');
+                    if (pendingToken) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const { error: rpcErr } = await (client as any).rpc('accept_invite', {
+                            p_token: pendingToken,
+                        });
+                        // Always clear the stash so we don't loop on a bad token.
+                        window.localStorage.removeItem('npgm.pending_invite_token');
+                        if (rpcErr) {
+                            console.warn('Не удалось принять приглашение:', rpcErr.message);
+                        }
+                    }
+                } catch (storageErr) {
+                    // Private mode / blocked storage — silently skip; user can still
+                    // be onboarded normally.
+                    void storageErr;
+                }
+
                 // Load profile so consumers know role + company without re-querying.
                 const { data: profile } = await client
                     .from('profiles')

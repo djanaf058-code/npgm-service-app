@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
+import { createSPASassClient } from '@/lib/supabase/client';
+
+const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
 
 const COUNTRIES = [
   { code: 'RU', name_ru: 'Россия' },
@@ -34,6 +37,43 @@ export default function OnboardingPage() {
   const [language, setLanguage] = useState('ru');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // While we redeem a pending invite (came from /auth/invite/[token]) we keep
+  // the form mounted but invisible — once accept_invite() succeeds the user
+  // already has a company_id, so we just bounce them into the app.
+  const [redeemingInvite, setRedeemingInvite] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = window.localStorage.getItem(PENDING_INVITE_KEY);
+        if (!token) {
+          setRedeemingInvite(false);
+          return;
+        }
+        const client = await createSPASassClient();
+        const supabase = client.getSupabaseClient();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: rpcErr } = await (supabase as any).rpc('accept_invite', { p_token: token });
+        // Always clear the token so we don't loop on a bad one.
+        window.localStorage.removeItem(PENDING_INVITE_KEY);
+        if (cancelled) return;
+        if (rpcErr) {
+          // Show the form so the user can fall back to creating a company.
+          setError(`Не удалось принять приглашение: ${rpcErr.message}`);
+          setRedeemingInvite(false);
+          return;
+        }
+        router.replace('/app');
+      } catch {
+        if (!cancelled) setRedeemingInvite(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +103,15 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+  if (redeemingInvite) {
+    return (
+      <div className="bg-white py-12 px-4 shadow sm:rounded-lg sm:px-10 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary-600 mx-auto mb-3" />
+        <p className="text-sm text-secondary-600">Принимаем приглашение…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">

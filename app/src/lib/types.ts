@@ -794,6 +794,43 @@ export interface Database {
           { foreignKeyName: 'ticket_messages_sender_id_fkey'; columns: ['sender_id']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
         ];
       };
+
+      // ----------------------------------------------------------------
+      invites: {
+        Row: {
+          id: string;
+          token: string;
+          company_id: string;
+          role: UserRole;
+          email: string | null;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          cancel_reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          company_id: string;
+          role: UserRole;
+          email?: string | null;
+          invited_by?: string | null;
+          expires_at?: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          cancel_reason?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: 'invites_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },
+          { foreignKeyName: 'invites_invited_by_fkey'; columns: ['invited_by']; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+          { foreignKeyName: 'invites_accepted_by_fkey'; columns: ['accepted_by']; referencedRelation: 'profiles'; referencedColumns: ['id'] }
+        ];
+      };
     };
 
     Views: {
