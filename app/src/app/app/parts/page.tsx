@@ -239,12 +239,31 @@ export default function PartsPage() {
     return { pendingAdminReview, inProgress, tier2Queue, history };
   }, [requests]);
 
+  // Tier 2 (НПГМ техподдержка) — не работает с заявками. Очередь ценообразования
+  // и закупки живёт у platform_admin: /admin/queue/parts (фаза B4).
+  if (isTier2) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <Card className="p-8 text-center">
+          <p className="text-secondary-700 mb-2">
+            Заявки на запчасти не входят в зону Tier 2 — это очередь
+            <strong> platform_admin</strong>.
+          </p>
+          <p className="text-sm text-secondary-500">
+            Если у вас доступ <code>platform_admin</code> — перейдите в{' '}
+            <code>/admin/queue/parts</code>.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-            {isTier2 ? 'Заявки на запчасти' : 'Гараж'}
+            Гараж
           </h1>
           <p className="text-secondary-600 text-sm mt-1">
             {isTier2
