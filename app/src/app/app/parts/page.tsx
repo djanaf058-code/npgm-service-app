@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Wrench,
@@ -16,6 +17,7 @@ import {
   Inbox,
   ListChecks,
   Clock,
+  Layers,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal, useRole } from '@/lib/context/GlobalContext';
@@ -27,12 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { PartCategoryBadge, CATEGORY_LABELS } from '@/components/parts/PartCategoryBadge';
 import { StockBadge } from '@/components/parts/StockBadge';
 import { AddStockDialog } from '@/components/parts/AddStockDialog';
-import {
-  RequestStatusBadge,
-  ACTIVE_REQUEST_STATUSES,
-  isFinalStatus,
-} from '@/components/parts/RequestStatusBadge';
-import type { PartCategory, PartsRequestStatus, PartsRequestUrgency } from '@/lib/types';
+import { RequestStatusBadge, isFinalStatus } from '@/components/parts/RequestStatusBadge';
+import { ConsolidationPicker, type OperatorRow } from '@/components/parts/ConsolidationPicker';
+import type {
+  PartCategory,
+  PartsRequestKind,
+  PartsRequestStatus,
+  PartsRequestUrgency,
+} from '@/lib/types';
 
 interface InventoryRow {
   id: string;
@@ -61,15 +65,18 @@ interface CatalogRow {
 
 interface PartsRequestRow {
   id: string;
+  kind: PartsRequestKind;
+  parent_id: string | null;
   status: PartsRequestStatus;
   urgency: PartsRequestUrgency;
   created_at: string;
   expected_delivery_date: string | null;
-  parts_requested: { display_name_ru: string }[];
+  parts_requested: { display_name_ru: string; quantity: number }[];
   parts_freeform: { description: string }[];
   machine: { model_code: string } | null;
   company: { name: string } | null;
   requester: { full_name: string | null } | null;
+  requested_by: string | null;
 }
 
 const URGENCY_INFO: Record<
@@ -81,7 +88,6 @@ const URGENCY_INFO: Record<
   critical: { ru: 'Критическая', icon: AlertTriangle },
 };
 
-// Sort: critical → urgent → normal, then newest first.
 function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
   const order: PartsRequestUrgency[] = ['critical', 'urgent', 'normal'];
   const ua = order.indexOf(a.urgency);
@@ -91,8 +97,9 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 }
 
 export default function PartsPage() {
+  const router = useRouter();
   const { user } = useGlobal();
-  const { isOperator, isProjectManager, isTier2 } = useRole();
+  const { isOperator, isServiceEngineer, isProjectManager, isTier2 } = useRole();
 
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
@@ -106,8 +113,8 @@ export default function PartsPage() {
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'zero'>('all');
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Tier 2 doesn't have a "company garage" view — they only see the request queue.
   const showInventory = !isTier2;
 
   const reload = async () => {
@@ -116,7 +123,6 @@ export default function PartsPage() {
       const client = await createSPASassClient();
       const supabase = client.getSupabaseClient();
 
-      // Profile -> company_id (used for AddStockDialog / RLS hint).
       const { data: profile } = await supabase
         .from('profiles')
         .select('company_id')
@@ -125,7 +131,6 @@ export default function PartsPage() {
       const cid = (profile as { company_id: string | null } | null)?.company_id;
       setCompanyId(cid ?? null);
 
-      // Inventory + catalog only for non-Tier2.
       const inventoryPromise = showInventory
         ? supabase
             .from('parts_inventory')
@@ -142,23 +147,22 @@ export default function PartsPage() {
             .order('display_name_ru')
         : Promise.resolve({ data: [], error: null });
 
-      // Requests query — RLS already restricts what each role can see; we just
-      // ask for "everything visible" and split into sections client-side.
-      // Operator: also restrict to "my requests" via requested_by filter.
       let reqQuery = supabase
         .from('parts_requests')
         .select(
           [
-            'id, status, urgency, created_at, expected_delivery_date,',
-            'parts_requested, parts_freeform,',
+            'id, kind, parent_id, status, urgency, created_at, expected_delivery_date,',
+            'parts_requested, parts_freeform, requested_by,',
             'machine:machines(model_code),',
             'company:companies(name),',
             'requester:profiles!parts_requests_requested_by_fkey(full_name)',
           ].join(' ')
         )
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(150);
 
+      // Operators see only their own operator-rows + the consolidated rows
+      // their requests have been folded into.
       if (isOperator) {
         reqQuery = reqQuery.eq('requested_by', user!.id);
       }
@@ -190,7 +194,7 @@ export default function PartsPage() {
   useEffect(() => {
     if (user) reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isOperator, isTier2, isProjectManager]);
+  }, [user, isOperator, isServiceEngineer, isProjectManager]);
 
   const filtered = useMemo(() => {
     return inventory.filter((row) => {
@@ -220,27 +224,70 @@ export default function PartsPage() {
     return { total, zero, low, ok: total - zero - low };
   }, [inventory]);
 
-  // Bucket requests for the section views.
+  // Bucket logic depends on the role. We compute every bucket once and the
+  // render path shows just the ones relevant for the current role.
   const buckets = useMemo(() => {
-    const pendingAdminReview = requests
-      .filter((r) => r.status === 'submitted' || r.status === 'new')
+    const operatorIncoming = requests
+      .filter((r) => r.kind === 'operator' && r.status === 'submitted')
       .sort(sortByUrgencyAndDate);
-    const inProgress = requests
-      .filter((r) =>
-        ACTIVE_REQUEST_STATUSES.includes(r.status) && r.status !== 'submitted'
+
+    // service_engineer: consolidated rows they're driving (drafting → ordered)
+    // We don't restrict to "mine" because consolidated belongs to whoever
+    // service_engineer creates it as; show all in-company.
+    const consolidatedActive = requests
+      .filter(
+        (r) =>
+          r.kind === 'consolidated' &&
+          ['drafting', 'pending_pm', 'forwarded', 'quoted', 'approved', 'ordered'].includes(r.status)
       )
       .sort(sortByUrgencyAndDate);
-    const tier2Queue = requests
-      .filter((r) => ['forwarded', 'quoted', 'approved', 'ordered'].includes(r.status))
-      .sort(sortByUrgencyAndDate);
-    const history = requests
-      .filter((r) => isFinalStatus(r.status))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return { pendingAdminReview, inProgress, tier2Queue, history };
-  }, [requests]);
 
-  // Tier 2 (НПГМ техподдержка) — не работает с заявками. Очередь ценообразования
-  // и закупки живёт у platform_admin: /admin/queue/parts (фаза B4).
+    const pendingPm = consolidatedActive.filter((r) => r.status === 'pending_pm');
+    const quoted = consolidatedActive.filter((r) => r.status === 'quoted');
+    const inFlight = consolidatedActive.filter(
+      (r) => r.status === 'forwarded' || r.status === 'approved' || r.status === 'ordered'
+    );
+    const drafting = consolidatedActive.filter((r) => r.status === 'drafting');
+
+    const myOperatorActive = requests
+      .filter(
+        (r) =>
+          r.kind === 'operator' &&
+          (r.status === 'submitted' || r.status === 'consolidated') &&
+          r.requested_by === user?.id
+      )
+      .sort(sortByUrgencyAndDate);
+
+    const history = requests
+      .filter((r) => isFinalStatus(r.status) || r.status === 'consolidated')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return {
+      operatorIncoming,
+      drafting,
+      pendingPm,
+      quoted,
+      inFlight,
+      consolidatedActive,
+      myOperatorActive,
+      history,
+    };
+  }, [requests, user?.id]);
+
+  // Operator rows the picker can pick from — needs the richer shape.
+  const pickerRows: OperatorRow[] = useMemo(() => {
+    return buckets.operatorIncoming.map((r) => ({
+      id: r.id,
+      urgency: r.urgency,
+      machine: r.machine,
+      parts_requested: r.parts_requested,
+      parts_freeform: r.parts_freeform,
+      created_at: r.created_at,
+      requester: r.requester,
+    }));
+  }, [buckets.operatorIncoming]);
+
+  // ----- Tier 2 short-circuit (kept from B2) -----
   if (isTier2) {
     return (
       <div className="p-6 max-w-2xl mx-auto">
@@ -262,33 +309,37 @@ export default function PartsPage() {
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-            Гараж
-          </h1>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">Гараж</h1>
           <p className="text-secondary-600 text-sm mt-1">
-            {isTier2
-              ? 'Очередь заявок от компаний-клиентов. На каждой — нужная реакция: КП, заказ, подтверждение.'
-              : isOperator
+            {isOperator
               ? 'Ваши заявки на запчасти и склад компании.'
-              : 'Склад запчастей компании + очередь заявок (от операторов, в работе у НПГМ).'}
+              : isServiceEngineer
+              ? 'Входящие от операторов, ваши сводные заявки и склад компании.'
+              : 'Сводные заявки в работе, согласование и склад компании.'}
           </p>
         </div>
-        {!isTier2 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button asChild variant="outline">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isOperator && (
+            <Button asChild>
               <Link href="/app/parts/request">
                 <ShoppingCart className="w-4 h-4" />
-                {isOperator ? 'Создать заявку' : 'Заказать запчасти'}
+                Создать заявку
               </Link>
             </Button>
-            {isProjectManager && (
-              <Button onClick={() => setAddDialogOpen(true)}>
-                <Plus className="w-4 h-4" />
-                Добавить на склад
-              </Button>
-            )}
-          </div>
-        )}
+          )}
+          {isServiceEngineer && (
+            <Button onClick={() => setPickerOpen(true)}>
+              <Layers className="w-4 h-4" />
+              Создать сводную
+            </Button>
+          )}
+          {isProjectManager && (
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Добавить на склад
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -297,79 +348,94 @@ export default function PartsPage() {
         </Card>
       )}
 
-      {/* === Section 1 (admin only): На рассмотрении === */}
-      {isProjectManager && buckets.pendingAdminReview.length > 0 && (
-        <RequestSection
-          title="На рассмотрении"
-          subtitle="Заявки операторов ждут вашего решения."
-          icon={Inbox}
-          items={buckets.pendingAdminReview}
-          showCompany={false}
-          accent="amber"
-        />
+      {/* ============== Service engineer view ============== */}
+      {isServiceEngineer && (
+        <>
+          <RequestSection
+            title={`Входящие от операторов (${buckets.operatorIncoming.length})`}
+            subtitle="Объедините несколько заявок в одну сводную — нажмите «Создать сводную»."
+            icon={Inbox}
+            items={buckets.operatorIncoming}
+            accent="amber"
+          />
+          <RequestSection
+            title={`Мои сводные в работе (${buckets.consolidatedActive.length})`}
+            subtitle="Сводные, которые сейчас движутся к НПГМ и обратно."
+            icon={ListChecks}
+            items={buckets.consolidatedActive}
+          />
+        </>
       )}
 
-      {/* === Section 2 (admin): В работе === */}
-      {isProjectManager && buckets.inProgress.length > 0 && (
-        <RequestSection
-          title="В работе"
-          subtitle="Переслали в НПГМ — следим за статусом."
-          icon={ListChecks}
-          items={buckets.inProgress}
-          showCompany={false}
-        />
+      {/* ============== Project manager view ============== */}
+      {isProjectManager && (
+        <>
+          <RequestSection
+            title={`На согласование scope (${buckets.pendingPm.length})`}
+            subtitle="Сервисник отправил вам сводные на одобрение состава. Цены вы увидите после КП."
+            icon={Inbox}
+            items={buckets.pendingPm}
+            accent="amber"
+          />
+          <RequestSection
+            title={`КП на рассмотрении (${buckets.quoted.length})`}
+            subtitle="НПГМ выставили КП. Можно принимать."
+            icon={ListChecks}
+            items={buckets.quoted}
+            accent="amber"
+          />
+          <RequestSection
+            title={`В работе (${buckets.inFlight.length})`}
+            subtitle="Согласовано, заказано или в пути."
+            icon={ListChecks}
+            items={buckets.inFlight}
+          />
+          {buckets.drafting.length > 0 && (
+            <RequestSection
+              title={`Черновики сводных (${buckets.drafting.length})`}
+              subtitle="Сервисник ещё собирает — пока без вашей реакции."
+              icon={Clock}
+              items={buckets.drafting}
+              muted
+            />
+          )}
+        </>
       )}
 
-      {/* === Section (operator): Мои заявки === */}
-      {isOperator && requests.filter((r) => !isFinalStatus(r.status)).length > 0 && (
-        <RequestSection
-          title="Мои активные заявки"
-          subtitle="После создания заявка идёт руководителю сервисной службы вашей компании."
-          icon={ListChecks}
-          items={requests.filter((r) => !isFinalStatus(r.status)).sort(sortByUrgencyAndDate)}
-          showCompany={false}
-        />
+      {/* ============== Operator view ============== */}
+      {isOperator && (
+        <>
+          {buckets.myOperatorActive.length > 0 && (
+            <RequestSection
+              title="Мои активные заявки"
+              subtitle="После создания заявка идёт сервисному инженеру вашей компании."
+              icon={ListChecks}
+              items={buckets.myOperatorActive}
+            />
+          )}
+          {!loading && buckets.myOperatorActive.length === 0 && (
+            <Card className="p-10 text-center">
+              <ShoppingCart className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
+              <p className="text-sm text-secondary-600">
+                У вас ещё нет заявок. Создайте первую — она уйдёт сервисному инженеру.
+              </p>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* === Section (tier2): Очередь Tier 2 === */}
-      {isTier2 && buckets.tier2Queue.length > 0 && (
-        <RequestSection
-          title={`Очередь НПГМ — ${buckets.tier2Queue.length}`}
-          subtitle="Заявки от всех компаний, которые ждут вашей реакции."
-          icon={Inbox}
-          items={buckets.tier2Queue}
-          showCompany={true}
-          accent="amber"
-        />
-      )}
-
-      {/* === History (всем) === */}
+      {/* ============== History (everyone) ============== */}
       {buckets.history.length > 0 && (
         <RequestSection
-          title="История"
-          subtitle="Завершённые и отменённые заявки."
+          title={`История (${buckets.history.length})`}
+          subtitle="Завершённые, отменённые и поглощённые в сводные."
           icon={Clock}
-          items={buckets.history.slice(0, 20)}
-          showCompany={isTier2}
+          items={buckets.history.slice(0, 30)}
           muted
         />
       )}
 
-      {/* === Empty state for queues === */}
-      {!loading &&
-        requests.length === 0 &&
-        (isOperator || isTier2) && (
-          <Card className="p-10 text-center">
-            <ShoppingCart className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
-            <p className="text-sm text-secondary-600">
-              {isTier2
-                ? 'Очередь пустая — ни одна компания пока не отправляла заявок.'
-                : 'У вас ещё нет заявок. Создайте первую — она уйдёт руководителю сервисной службы.'}
-            </p>
-          </Card>
-        )}
-
-      {/* === Inventory (admin / operator) === */}
+      {/* ============== Inventory (operator + service + PM) ============== */}
       {showInventory && (
         <>
           {!loading && inventory.length > 0 && (
@@ -491,6 +557,18 @@ export default function PartsPage() {
           }}
         />
       )}
+
+      {/* Consolidation picker for service_engineer */}
+      <ConsolidationPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        operatorRows={pickerRows}
+        onConsolidated={(consolidatedId) => {
+          setPickerOpen(false);
+          router.push(`/app/parts/request/${consolidatedId}`);
+        }}
+        onError={(msg) => setError(msg)}
+      />
     </div>
   );
 }
@@ -502,7 +580,6 @@ function RequestSection({
   subtitle,
   icon: Icon,
   items,
-  showCompany,
   accent,
   muted = false,
 }: {
@@ -510,7 +587,6 @@ function RequestSection({
   subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
   items: PartsRequestRow[];
-  showCompany: boolean;
   accent?: 'amber';
   muted?: boolean;
 }) {
@@ -528,27 +604,21 @@ function RequestSection({
           <Icon className="w-4 h-4" />
           <h2 className="text-[11px] uppercase tracking-wider font-bold">{title}</h2>
         </div>
-        <span className="text-xs text-secondary-500">{items.length}</span>
       </div>
       {subtitle && <p className="text-xs text-secondary-500 px-3 mb-2">{subtitle}</p>}
       <div className="space-y-2">
         {items.map((r) => (
-          <RequestRowCard key={r.id} request={r} showCompany={showCompany} />
+          <RequestRowCard key={r.id} request={r} />
         ))}
       </div>
     </section>
   );
 }
 
-function RequestRowCard({
-  request: r,
-  showCompany,
-}: {
-  request: PartsRequestRow;
-  showCompany: boolean;
-}) {
+function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
   const UIcon = URGENCY_INFO[r.urgency].icon;
   const itemsCount = r.parts_requested.length + r.parts_freeform.length;
+  const isConsolidated = r.kind === 'consolidated';
   return (
     <Link
       href={`/app/parts/request/${r.id}`}
@@ -557,14 +627,17 @@ function RequestRowCard({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <RequestStatusBadge status={r.status} />
+          {isConsolidated && (
+            <Badge variant="default">
+              <Layers className="w-3 h-3 inline mr-1" />
+              сводная
+            </Badge>
+          )}
           {r.urgency !== 'normal' && (
             <Badge variant={r.urgency === 'critical' ? 'destructive' : 'warning'}>
               {UIcon && <UIcon className="w-3 h-3 inline mr-1" />}
               {URGENCY_INFO[r.urgency].ru}
             </Badge>
-          )}
-          {showCompany && r.company?.name && (
-            <Badge variant="outline">{r.company.name}</Badge>
           )}
           <span className="text-sm text-secondary-900 truncate">
             {itemsCount} {itemsCount === 1 ? 'позиция' : itemsCount < 5 ? 'позиции' : 'позиций'}
@@ -641,7 +714,7 @@ function EmptyState({ canAdd, onAdd }: { canAdd: boolean; onAdd: () => void }) {
       <p className="text-secondary-600 text-sm max-w-md mx-auto mb-6">
         {canAdd
           ? 'Добавьте первую запчасть со склада. Можно указать привязку к конкретной машине или хранить общим резервом.'
-          : 'Здесь появятся запчасти после того, как руководитель сервисной службы пополнит склад.'}
+          : 'Здесь появятся запчасти после того, как руководитель пополнит склад.'}
       </p>
       {canAdd && (
         <Button onClick={onAdd}>

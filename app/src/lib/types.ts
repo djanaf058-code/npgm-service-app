@@ -50,21 +50,26 @@ export type MaintenanceStatus =
   | 'completed'
   | 'cancelled';
 
-// Two-step workflow (operator → admin → НПГМ).
-// 'new' and 'delivered' are kept for backward compatibility with rows
-// created before migration 0023 — UI maps them to 'submitted' / 'received'
-// for display, but new code should not produce them.
+// Three-step workflow (operator → service_engineer → project_manager → platform_admin → received).
+// See docs/superpowers/specs/2026-05-10-roles-consolidation-redesign.md.
 export type PartsRequestStatus =
-  | 'submitted'   // operator submitted, waiting for company_admin
-  | 'forwarded'   // company_admin forwarded to НПГМ (Tier 2)
-  | 'quoted'      // Tier 2 sent quote
-  | 'approved'    // company_admin accepted the quote
-  | 'ordered'     // Tier 2 placed the order with a supplier (has ETA)
-  | 'received'    // delivered to the customer + photo confirmation
+  // operator-level (kind='operator'):
+  | 'submitted'    // operator just created it; awaits service_engineer
+  | 'consolidated' // service_engineer absorbed it into a consolidated sweep
+  // consolidated-level (kind='consolidated'):
+  | 'drafting'     // service_engineer is still building the sweep
+  | 'pending_pm'   // service_engineer sent it; awaits project_manager scope review
+  | 'forwarded'    // PM approved scope; visible to platform_admin
+  | 'quoted'       // platform_admin sent a quote; PM can now see prices
+  | 'approved'     // PM accepted the quote
+  | 'ordered'      // platform_admin placed the order; ETA set
+  | 'received'     // delivered + photo confirmation
   | 'cancelled'
   // Legacy (pre-migration 0023):
   | 'new'
   | 'delivered';
+
+export type PartsRequestKind = 'operator' | 'consolidated';
 
 export type PartsRequestUrgency = 'normal' | 'urgent' | 'critical';
 
@@ -569,6 +574,8 @@ export interface Database {
           id: string;
           company_id: string;
           machine_id: string | null;
+          kind: PartsRequestKind;
+          parent_id: string | null;
           status: PartsRequestStatus;
           urgency: PartsRequestUrgency;
           parts_requested: MaintenanceBomItem[];
@@ -576,6 +583,9 @@ export interface Database {
           notes: string | null;
           requested_by: string | null;
           submitted_at: string | null;
+          consolidated_at: string | null;
+          submitted_to_pm_at: string | null;
+          submitted_to_pm_by: string | null;
           forwarded_at: string | null;
           forwarded_by: string | null;
           quoted_at: string | null;
@@ -602,6 +612,8 @@ export interface Database {
           id?: string;
           company_id: string;
           machine_id?: string | null;
+          kind?: PartsRequestKind;
+          parent_id?: string | null;
           status?: PartsRequestStatus;
           urgency?: PartsRequestUrgency;
           parts_requested?: MaintenanceBomItem[];
@@ -609,6 +621,7 @@ export interface Database {
           notes?: string | null;
           requested_by?: string | null;
           submitted_at?: string | null;
+          consolidated_at?: string | null;
         };
         Update: {
           status?: PartsRequestStatus;

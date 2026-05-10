@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Quote as QuoteIcon, CheckCircle2, Truck, PackageCheck, XCircle } from 'lucide-react';
+import {
+  Send,
+  Quote as QuoteIcon,
+  CheckCircle2,
+  Truck,
+  PackageCheck,
+  XCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useRole } from '@/lib/context/GlobalContext';
@@ -11,18 +18,19 @@ import {
   CancelDialog,
   MarkReceivedDialog,
 } from './RequestDialogs';
-import type { PartsRequestStatus } from '@/lib/types';
+import type { PartsRequestKind, PartsRequestStatus } from '@/lib/types';
 
 interface Props {
   requestId: string;
   status: PartsRequestStatus;
+  kind: PartsRequestKind;
   companyId: string;
   // Called after a successful RPC so the parent page reloads.
   onChanged: () => void;
   onError: (msg: string) => void;
 }
 
-// Wrap supabase RPC errors into Error so dialogs surface them.
+// Wraps supabase RPC errors into Error so dialogs surface them.
 async function rpc<T = unknown>(
   fn: string,
   args: Record<string, unknown>
@@ -32,10 +40,7 @@ async function rpc<T = unknown>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).rpc(fn, args);
   if (error) {
-    const detail =
-      // PostgREST shape: error.message often holds Postgres exception text.
-      error.message || JSON.stringify(error);
-    throw new Error(detail);
+    throw new Error(error.message || JSON.stringify(error));
   }
   return data as T;
 }
@@ -43,17 +48,23 @@ async function rpc<T = unknown>(
 export function RequestActionPanel({
   requestId,
   status,
+  kind,
   companyId,
   onChanged,
   onError,
 }: Props) {
-  const { isOperator, isProjectManager, isTier2 } = useRole();
+  const {
+    isOperator,
+    isServiceEngineer,
+    isProjectManager,
+    isPlatformAdmin,
+  } = useRole();
+
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [receivedOpen, setReceivedOpen] = useState(false);
 
-  // Wraps "loading + reload + error" boilerplate around an RPC call.
   const callRpc = async (fn: string, args: Record<string, unknown>) => {
     try {
       await rpc(fn, args);
@@ -64,64 +75,102 @@ export function RequestActionPanel({
     }
   };
 
-  const isFinal = status === 'received' || status === 'cancelled';
-  if (isFinal) return null;
+  // Final statuses — no actions to surface.
+  if (status === 'received' || status === 'cancelled' || status === 'consolidated') {
+    return null;
+  }
 
-  // Per-role action availability map (keep in sync with the RPC functions).
-  const showForward = isProjectManager && status === 'submitted';
-  const showApprove = isProjectManager && status === 'quoted';
-  const showQuote = isTier2 && status === 'forwarded';
-  const showOrder = isTier2 && status === 'approved';
-  const showReceived =
-    (isOperator || isProjectManager) && status === 'ordered';
-  // Cancel allowed at every "live" step the role can act on.
-  const showCancel =
-    (isOperator && status === 'submitted') ||
-    (isProjectManager && ['submitted', 'forwarded', 'quoted', 'approved', 'ordered'].includes(status)) ||
-    (isTier2 && ['forwarded', 'quoted', 'approved', 'ordered'].includes(status));
+  // ===== Visibility matrix (kept dense and explicit so the rules are readable) =====
+  // Operator-level row (kind='operator'):
+  const showOperatorCancel =
+    kind === 'operator' && isOperator && status === 'submitted';
 
-  const noActions = !showForward && !showApprove && !showQuote && !showOrder && !showReceived && !showCancel;
+  // Consolidated-level rows (kind='consolidated'):
+  const showSubmitToPm =
+    kind === 'consolidated' && isServiceEngineer && status === 'drafting';
+  const showApproveScope =
+    kind === 'consolidated' && isProjectManager && status === 'pending_pm';
+  const showAcceptQuote =
+    kind === 'consolidated' && isProjectManager && status === 'quoted';
+  const showSendQuote =
+    kind === 'consolidated' && isPlatformAdmin && status === 'forwarded';
+  const showPlaceOrder =
+    kind === 'consolidated' && isPlatformAdmin && status === 'approved';
+  const showMarkReceived =
+    kind === 'consolidated' &&
+    (isOperator || isServiceEngineer || isProjectManager) &&
+    status === 'ordered';
+
+  // Cancel buttons: each role can cancel only at its step (matches the RPC).
+  const canCancel =
+    (isOperator && kind === 'operator' && status === 'submitted') ||
+    (isServiceEngineer &&
+      kind === 'consolidated' &&
+      ['drafting', 'pending_pm'].includes(status)) ||
+    (isProjectManager &&
+      ['drafting', 'pending_pm', 'forwarded', 'quoted', 'approved'].includes(status)) ||
+    (isPlatformAdmin &&
+      ['drafting', 'pending_pm', 'forwarded', 'quoted', 'approved', 'ordered'].includes(status));
+
+  const noActions =
+    !showOperatorCancel &&
+    !showSubmitToPm &&
+    !showApproveScope &&
+    !showAcceptQuote &&
+    !showSendQuote &&
+    !showPlaceOrder &&
+    !showMarkReceived &&
+    !canCancel;
   if (noActions) return null;
 
   return (
     <>
       <div className="flex items-center justify-end gap-2 flex-wrap">
-        {showCancel && (
+        {canCancel && (
           <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
             <XCircle className="w-4 h-4" />
             Отменить
           </Button>
         )}
 
-        {showForward && (
-          <Button onClick={() => callRpc('forward_parts_request', { p_id: requestId })}>
+        {(showOperatorCancel) && null /* cancel button above already covers this case */}
+
+        {showSubmitToPm && (
+          <Button onClick={() => callRpc('submit_consolidated_to_pm', { p_id: requestId })}>
             <Send className="w-4 h-4" />
-            Переслать в НПГМ
+            Отправить PM
           </Button>
         )}
 
-        {showQuote && (
+        {showApproveScope && (
+          <Button onClick={() => callRpc('pm_approve_scope', { p_id: requestId })}>
+            <Send className="w-4 h-4" />
+            Согласовать scope
+          </Button>
+        )}
+
+        {showSendQuote && (
           <Button onClick={() => setQuoteOpen(true)}>
             <QuoteIcon className="w-4 h-4" />
             Прислать КП
           </Button>
         )}
 
-        {showApprove && (
-          <Button onClick={() => callRpc('approve_parts_request', { p_id: requestId })}>
+        {showAcceptQuote && (
+          <Button onClick={() => callRpc('pm_accept_quote', { p_id: requestId })}>
             <CheckCircle2 className="w-4 h-4" />
             Принять КП
           </Button>
         )}
 
-        {showOrder && (
+        {showPlaceOrder && (
           <Button onClick={() => setOrderOpen(true)}>
             <Truck className="w-4 h-4" />
             Разместить заказ
           </Button>
         )}
 
-        {showReceived && (
+        {showMarkReceived && (
           <Button onClick={() => setReceivedOpen(true)}>
             <PackageCheck className="w-4 h-4" />
             Получено

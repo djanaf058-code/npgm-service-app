@@ -2,6 +2,7 @@
 
 import {
   FileText,
+  Layers,
   Send,
   Quote as QuoteIcon,
   CheckCircle2,
@@ -10,10 +11,13 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
-import type { PartsRequestStatus } from '@/lib/types';
+import type { PartsRequestStatus, PartsRequestKind } from '@/lib/types';
 
 interface RequestEventInputs {
+  kind: PartsRequestKind;
   submitted_at: string | null;
+  consolidated_at: string | null;
+  submitted_to_pm_at: string | null;
   forwarded_at: string | null;
   quoted_at: string | null;
   quote_notes: string | null;
@@ -28,6 +32,7 @@ interface RequestEventInputs {
   cancel_reason: string | null;
   status: PartsRequestStatus;
   // For "by" labels — null-safe.
+  submitted_to_pm_by_name?: string | null;
   forwarded_by_name?: string | null;
   quoted_by_name?: string | null;
   approved_by_name?: string | null;
@@ -60,33 +65,67 @@ function fmt(at: string | null): string {
 
 export function RequestTimeline(props: RequestEventInputs) {
   const cancelled = props.status === 'cancelled';
+  const isOperatorKind = props.kind === 'operator';
 
   // Reach a step iff the timestamp exists OR the status is past it.
+  // Operator-level chain is much shorter — only submitted → consolidated.
   const reached = (stepStatus: PartsRequestStatus): boolean => {
-    const order: PartsRequestStatus[] = [
-      'submitted',
-      'forwarded',
-      'quoted',
-      'approved',
-      'ordered',
-      'received',
-    ];
     if (cancelled) return false;
+    const order: PartsRequestStatus[] = isOperatorKind
+      ? ['submitted', 'consolidated']
+      : [
+          'drafting',
+          'pending_pm',
+          'forwarded',
+          'quoted',
+          'approved',
+          'ordered',
+          'received',
+        ];
     return order.indexOf(props.status) >= order.indexOf(stepStatus);
   };
 
+  // For operator-kind rows we show a 2-step trace: created → absorbed into sweep.
+  if (isOperatorKind) {
+    const events: Event[] = [
+      {
+        key: 'submitted',
+        icon: FileText,
+        title: 'Заявка создана оператором',
+        at: props.submitted_at,
+        done: !!props.submitted_at,
+      },
+      {
+        key: 'consolidated',
+        icon: Layers,
+        title: 'Включена в сводную',
+        at: props.consolidated_at,
+        done: reached('consolidated'),
+      },
+    ];
+    return renderTimeline(events, cancelled, props.cancel_reason);
+  }
+
   const events: Event[] = [
     {
-      key: 'submitted',
+      key: 'drafting',
       icon: FileText,
-      title: 'Заявка создана оператором',
-      at: props.submitted_at,
+      title: 'Сводная создана сервисным инженером',
+      at: props.submitted_at,  // populated when the consolidated row was created
       done: !!props.submitted_at,
+    },
+    {
+      key: 'pending_pm',
+      icon: Send,
+      title: 'Отправлено PM на согласование',
+      at: props.submitted_to_pm_at,
+      byName: props.submitted_to_pm_by_name,
+      done: reached('pending_pm'),
     },
     {
       key: 'forwarded',
       icon: Send,
-      title: 'Передана в НПГМ',
+      title: 'Согласовано PM, передано в НПГМ',
       at: props.forwarded_at,
       byName: props.forwarded_by_name,
       done: reached('forwarded'),
@@ -137,6 +176,10 @@ export function RequestTimeline(props: RequestEventInputs) {
     },
   ];
 
+  return renderTimeline(events, cancelled, props.cancel_reason);
+}
+
+function renderTimeline(events: Event[], cancelled: boolean, cancelReason: string | null) {
   return (
     <ol className="relative border-l-2 border-secondary-200 ml-3 space-y-4">
       {events.map((ev) => (
@@ -173,8 +216,8 @@ export function RequestTimeline(props: RequestEventInputs) {
           </span>
           <div>
             <p className="text-sm font-medium text-accent-700">Заявка отменена</p>
-            {props.cancel_reason && (
-              <p className="text-xs text-accent-700 italic mt-1">{props.cancel_reason}</p>
+            {cancelReason && (
+              <p className="text-xs text-accent-700 italic mt-1">{cancelReason}</p>
             )}
           </div>
         </li>

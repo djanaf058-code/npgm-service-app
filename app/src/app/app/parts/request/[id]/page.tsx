@@ -21,6 +21,7 @@ import { RequestActionPanel } from '@/components/parts/RequestActionPanel';
 import type {
   MaintenanceBomItem,
   MaintenanceFreeformItem,
+  PartsRequestKind,
   PartsRequestStatus,
   PartsRequestUrgency,
 } from '@/lib/types';
@@ -28,6 +29,8 @@ import type {
 interface RequestDetail {
   id: string;
   company_id: string;
+  kind: PartsRequestKind;
+  parent_id: string | null;
   status: PartsRequestStatus;
   urgency: PartsRequestUrgency;
   parts_requested: MaintenanceBomItem[];
@@ -36,6 +39,8 @@ interface RequestDetail {
   created_at: string;
   resolved_at: string | null;
   submitted_at: string | null;
+  consolidated_at: string | null;
+  submitted_to_pm_at: string | null;
   forwarded_at: string | null;
   quoted_at: string | null;
   quote_notes: string | null;
@@ -51,12 +56,24 @@ interface RequestDetail {
   cancel_reason: string | null;
   machine: { id: string; model_code: string } | null;
   requester: { full_name: string } | null;
+  submitted_to_pm_by_profile: { full_name: string } | null;
   forwarded_by_profile: { full_name: string } | null;
   quoted_by_profile: { full_name: string } | null;
   approved_by_profile: { full_name: string } | null;
   ordered_by_profile: { full_name: string } | null;
   received_by_profile: { full_name: string } | null;
   company: { name: string } | null;
+}
+
+interface ChildOperatorRow {
+  id: string;
+  status: PartsRequestStatus;
+  urgency: PartsRequestUrgency;
+  parts_requested: MaintenanceBomItem[];
+  parts_freeform: MaintenanceFreeformItem[];
+  machine: { model_code: string } | null;
+  requester: { full_name: string } | null;
+  created_at: string;
 }
 
 const URGENCY_LABELS: Record<
@@ -74,6 +91,8 @@ export default function PartsRequestDetailPage() {
   const { isTier2 } = useRole();
 
   const [request, setRequest] = useState<RequestDetail | null>(null);
+  const [children, setChildren] = useState<ChildOperatorRow[]>([]);
+  const [parent, setParent] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,13 +106,15 @@ export default function PartsRequestDetailPage() {
         .from('parts_requests')
         .select(
           [
-            'id, company_id, status, urgency, parts_requested, parts_freeform, notes,',
+            'id, company_id, kind, parent_id, status, urgency, parts_requested, parts_freeform, notes,',
             'created_at, resolved_at,',
-            'submitted_at, forwarded_at, quoted_at, quote_notes, quote_total_amount, quote_currency,',
+            'submitted_at, consolidated_at, submitted_to_pm_at,',
+            'forwarded_at, quoted_at, quote_notes, quote_total_amount, quote_currency,',
             'approved_at, ordered_at, expected_delivery_date,',
             'received_at, received_quantity_text, received_photo_url, received_notes, cancel_reason,',
             'machine:machines(id, model_code),',
             'requester:profiles!parts_requests_requested_by_fkey(full_name),',
+            'submitted_to_pm_by_profile:profiles!parts_requests_submitted_to_pm_by_fkey(full_name),',
             'forwarded_by_profile:profiles!parts_requests_forwarded_by_fkey(full_name),',
             'quoted_by_profile:profiles!parts_requests_quoted_by_fkey(full_name),',
             'approved_by_profile:profiles!parts_requests_approved_by_fkey(full_name),',
@@ -108,7 +129,27 @@ export default function PartsRequestDetailPage() {
       if (!data) {
         setError('Заявка не найдена или у вас нет к ней доступа');
       } else {
-        setRequest(data as unknown as RequestDetail);
+        const detail = data as unknown as RequestDetail;
+        setRequest(detail);
+        // For consolidated rows, fetch the operator children too.
+        if (detail.kind === 'consolidated') {
+          const { data: ch } = await supabase
+            .from('parts_requests')
+            .select(
+              'id, status, urgency, parts_requested, parts_freeform, created_at, machine:machines(model_code), requester:profiles!parts_requests_requested_by_fkey(full_name)'
+            )
+            .eq('parent_id', detail.id)
+            .order('created_at', { ascending: true });
+          setChildren((ch ?? []) as unknown as ChildOperatorRow[]);
+          setParent(null);
+        } else if (detail.parent_id) {
+          // For operator rows that have been consolidated, just remember the parent id.
+          setParent({ id: detail.parent_id });
+          setChildren([]);
+        } else {
+          setChildren([]);
+          setParent(null);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
@@ -219,6 +260,7 @@ export default function PartsRequestDetailPage() {
           <RequestActionPanel
             requestId={request.id}
             status={request.status}
+            kind={request.kind}
             companyId={request.company_id}
             onChanged={reload}
             onError={(e) => setError(e)}
@@ -233,8 +275,11 @@ export default function PartsRequestDetailPage() {
         </CardHeader>
         <CardContent>
           <RequestTimeline
+            kind={request.kind}
             status={request.status}
             submitted_at={request.submitted_at ?? request.created_at}
+            consolidated_at={request.consolidated_at}
+            submitted_to_pm_at={request.submitted_to_pm_at}
             forwarded_at={request.forwarded_at}
             quoted_at={request.quoted_at}
             quote_notes={request.quote_notes}
@@ -247,6 +292,7 @@ export default function PartsRequestDetailPage() {
             received_quantity_text={request.received_quantity_text}
             received_notes={request.received_notes}
             cancel_reason={request.cancel_reason}
+            submitted_to_pm_by_name={request.submitted_to_pm_by_profile?.full_name ?? null}
             forwarded_by_name={request.forwarded_by_profile?.full_name ?? null}
             quoted_by_name={request.quoted_by_profile?.full_name ?? null}
             approved_by_name={request.approved_by_profile?.full_name ?? null}
@@ -255,6 +301,60 @@ export default function PartsRequestDetailPage() {
           />
         </CardContent>
       </Card>
+
+      {/* For an operator-row that has been consolidated, link to the parent. */}
+      {request.kind === 'operator' && parent && (
+        <Card className="p-4 bg-secondary-50/40">
+          <p className="text-sm text-secondary-700">
+            Эта заявка вошла в сводную:{' '}
+            <Link
+              href={`/app/parts/request/${parent.id}`}
+              className="text-primary-700 font-medium hover:underline"
+            >
+              открыть сводную →
+            </Link>
+          </p>
+        </Card>
+      )}
+
+      {/* For a consolidated request, list its operator children. */}
+      {request.kind === 'consolidated' && children.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-base">
+              Дочерние заявки операторов ({children.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-secondary-100">
+              {children.map((c) => {
+                const itemsCount = c.parts_requested.length + c.parts_freeform.length;
+                return (
+                  <li key={c.id} className="py-2 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                      <Badge variant="outline">{c.machine?.model_code ?? '—'}</Badge>
+                      <span className="text-sm text-secondary-900">
+                        {itemsCount} {itemsCount === 1 ? 'позиция' : 'позиций'}
+                      </span>
+                      {c.requester?.full_name && (
+                        <span className="text-xs text-secondary-500">
+                          · {c.requester.full_name}
+                        </span>
+                      )}
+                    </div>
+                    <Link
+                      href={`/app/parts/request/${c.id}`}
+                      className="text-xs text-primary-600 hover:underline"
+                    >
+                      открыть →
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Catalog parts */}
       {request.parts_requested.length > 0 && (

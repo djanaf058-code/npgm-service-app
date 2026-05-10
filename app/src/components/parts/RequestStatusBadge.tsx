@@ -5,18 +5,21 @@ const LABELS: Record<
   PartsRequestStatus,
   { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }
 > = {
-  // Two-step workflow (current).
-  submitted: { ru: 'На рассмотрении', variant: 'secondary' },
-  forwarded: { ru: 'У НПГМ',          variant: 'default' },
-  quoted:    { ru: 'Получен КП',      variant: 'default' },
-  approved:  { ru: 'Согласовано',     variant: 'warning' },
-  ordered:   { ru: 'В пути',          variant: 'warning' },
-  received:  { ru: 'Получено',        variant: 'success' },
-  cancelled: { ru: 'Отменена',        variant: 'destructive' },
-  // Legacy values (pre-migration 0023). Map them to the closest new label
-  // so existing rows still render sensibly without a backfill.
-  new:       { ru: 'На рассмотрении', variant: 'secondary' },
-  delivered: { ru: 'Получено',        variant: 'success' },
+  // Operator-level statuses.
+  submitted:    { ru: 'У сервисника',    variant: 'secondary' },
+  consolidated: { ru: 'В сводной',       variant: 'outline' },
+  // Consolidated-level statuses.
+  drafting:     { ru: 'Черновик сводной', variant: 'outline' },
+  pending_pm:   { ru: 'Ждёт PM',          variant: 'warning' },
+  forwarded:    { ru: 'У НПГМ',           variant: 'default' },
+  quoted:       { ru: 'Получен КП',       variant: 'default' },
+  approved:     { ru: 'Согласовано',      variant: 'warning' },
+  ordered:      { ru: 'В пути',           variant: 'warning' },
+  received:     { ru: 'Получено',         variant: 'success' },
+  cancelled:    { ru: 'Отменена',         variant: 'destructive' },
+  // Legacy values (pre-migration 0023).
+  new:          { ru: 'У сервисника',     variant: 'secondary' },
+  delivered:    { ru: 'Получено',         variant: 'success' },
 };
 
 export function RequestStatusBadge({ status }: { status: PartsRequestStatus }) {
@@ -27,8 +30,12 @@ export function RequestStatusBadge({ status }: { status: PartsRequestStatus }) {
 export const REQUEST_STATUS_LABELS = LABELS;
 
 // Display order for sections / sorting.
+// Operator-level: submitted only (consolidated is "absorbed" — final-ish for ops).
+// Consolidated-level: drafting → pending_pm → forwarded → quoted → approved → ordered.
 export const ACTIVE_REQUEST_STATUSES: PartsRequestStatus[] = [
   'submitted',
+  'drafting',
+  'pending_pm',
   'forwarded',
   'quoted',
   'approved',
