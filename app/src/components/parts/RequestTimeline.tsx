@@ -11,6 +11,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { useRole } from '@/lib/context/GlobalContext';
 import type { PartsRequestStatus, PartsRequestKind } from '@/lib/types';
 
 interface RequestEventInputs {
@@ -66,6 +67,11 @@ function fmt(at: string | null): string {
 export function RequestTimeline(props: RequestEventInputs) {
   const cancelled = props.status === 'cancelled';
   const isOperatorKind = props.kind === 'operator';
+  const { isOperator, isServiceEngineer, isTier2 } = useRole();
+  // Cost is hidden from operator / service_engineer / tier2 always.
+  // Project manager sees it once status reaches 'quoted' (i.e. quote was
+  // actually sent). Platform_admin sees it always.
+  const canSeePrice = !(isOperator || isServiceEngineer || isTier2);
 
   // Reach a step iff the timestamp exists OR the status is past it.
   // Operator-level chain is much shorter — only submitted → consolidated.
@@ -136,12 +142,15 @@ export function RequestTimeline(props: RequestEventInputs) {
       title: 'Получено коммерческое предложение',
       at: props.quoted_at,
       byName: props.quoted_by_name,
+      // Show notes always; show the amount only to roles allowed to see prices.
       detail: props.quote_notes
         ? `${props.quote_notes}${
-            props.quote_total_amount
+            canSeePrice && props.quote_total_amount
               ? ` · ${props.quote_total_amount.toLocaleString('ru-RU')} ${props.quote_currency ?? ''}`
               : ''
           }`
+        : canSeePrice && props.quote_total_amount
+        ? `${props.quote_total_amount.toLocaleString('ru-RU')} ${props.quote_currency ?? ''}`
         : null,
       done: reached('quoted'),
     },
