@@ -12,6 +12,8 @@ import type { UserRole } from '@/lib/types';
 interface InvitePreview {
   role: UserRole;
   email: string | null;
+  full_name: string | null;
+  is_preregistered: boolean;
   company_name?: string;
   expires_at: string;
   expired: boolean;
@@ -55,6 +57,13 @@ export default function InviteLandingPage() {
         const supabase = client.getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (cancelled) return;
+        // Pre-registered invites have their own activation flow (set password,
+        // not sign up). Redirect immediately — no point showing the registration
+        // landing for an account that already exists.
+        if (previewJson?.is_preregistered && !previewJson.accepted && !previewJson.expired) {
+          router.replace(`/auth/set-password/${token}`);
+          return;
+        }
         setPreview(previewJson as InvitePreview);
         setSignedIn(!!user);
       } catch (e) {

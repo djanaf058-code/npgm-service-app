@@ -9,11 +9,14 @@ interface CreateInviteBody {
   email?: string | null; // optional; if set, recipient must register with this email
 }
 
-const ALLOWED_INVITE_ROLES: UserRole[] = [
-  'operator',
-  'service_engineer',
-  'project_manager',
-];
+// Who can create what kind of anonymous link. service_engineer is capped to
+// the same operational roles they have peer access to; project_manager and
+// platform_admin can also issue project_manager links.
+const ROLES_BY_INVITER: Partial<Record<UserRole, UserRole[]>> = {
+  service_engineer: ['operator', 'service_engineer'],
+  project_manager: ['operator', 'service_engineer', 'project_manager'],
+  platform_admin: ['operator', 'service_engineer', 'project_manager'],
+};
 
 // Cryptographically random URL-safe token, ~22 chars from 16 bytes.
 function generateToken(): string {
@@ -43,9 +46,10 @@ export async function POST(request: NextRequest) {
   if (profErr || !profile) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
-  if (!['project_manager', 'platform_admin'].includes(profile.role)) {
+  const allowed = ROLES_BY_INVITER[profile.role as UserRole] ?? [];
+  if (allowed.length === 0) {
     return NextResponse.json(
-      { error: 'Только проектный менеджер компании может создавать приглашения' },
+      { error: 'У вас нет прав создавать приглашения' },
       { status: 403 }
     );
   }
@@ -60,8 +64,8 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  if (!ALLOWED_INVITE_ROLES.includes(body.role)) {
-    return NextResponse.json({ error: 'Недопустимая роль' }, { status: 400 });
+  if (!allowed.includes(body.role)) {
+    return NextResponse.json({ error: 'Эту роль вы не можете назначить' }, { status: 403 });
   }
   const email = body.email?.trim().toLowerCase() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -79,6 +83,7 @@ export async function POST(request: NextRequest) {
       role: body.role,
       email,
       invited_by: user.id,
+      status: 'pending',
     })
     .select('id, token, role, email, expires_at, created_at')
     .single();

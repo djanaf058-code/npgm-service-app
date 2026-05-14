@@ -816,6 +816,9 @@ export interface Database {
           company_id: string;
           role: UserRole;
           email: string | null;
+          full_name: string | null;
+          user_id: string | null;
+          status: 'pending' | 'pre_registered' | 'consumed' | 'cancelled' | null;
           invited_by: string | null;
           expires_at: string;
           accepted_at: string | null;
@@ -829,6 +832,9 @@ export interface Database {
           company_id: string;
           role: UserRole;
           email?: string | null;
+          full_name?: string | null;
+          user_id?: string | null;
+          status?: 'pending' | 'pre_registered' | 'consumed' | 'cancelled';
           invited_by?: string | null;
           expires_at?: string;
         };
@@ -837,6 +843,7 @@ export interface Database {
           accepted_by?: string | null;
           cancel_reason?: string | null;
           expires_at?: string;
+          status?: 'pending' | 'pre_registered' | 'consumed' | 'cancelled';
         };
         Relationships: [
           { foreignKeyName: 'invites_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },

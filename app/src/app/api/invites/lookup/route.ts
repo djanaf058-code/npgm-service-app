@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
   const adminAny = admin as any;
   const { data, error } = await adminAny
     .from('invites')
-    .select('id, role, email, expires_at, accepted_at, company:companies(name)')
+    .select(
+      'id, role, email, full_name, user_id, status, expires_at, accepted_at, company:companies(name)'
+    )
     .eq('token', token)
     .maybeSingle();
 
@@ -29,11 +31,14 @@ export async function GET(request: NextRequest) {
   }
 
   const expired = new Date(data.expires_at).getTime() < Date.now();
-  const accepted = !!data.accepted_at;
+  const accepted = !!data.accepted_at || data.status === 'consumed';
+  const isPreregistered = !!data.user_id;
 
   return NextResponse.json({
     role: data.role as UserRole,
     email: data.email as string | null,
+    full_name: data.full_name as string | null,
+    is_preregistered: isPreregistered,
     company_name: data.company?.name as string | undefined,
     expires_at: data.expires_at,
     expired,

@@ -117,6 +117,10 @@ export function useRole() {
         isPlatformAdmin: role === 'platform_admin',
         // "Manages company" — sees everything inside the company, can invite/admin.
         canManageCompany: role === 'project_manager' || role === 'platform_admin',
+        // "Can invite teammates" — service_engineer can pre-register operators
+        // and peers; project_manager additionally invites other PMs.
+        canInviteTeam:
+            role === 'service_engineer' || role === 'project_manager' || role === 'platform_admin',
         // "Manages machines" — service_engineer can also CRUD machines now.
         canManageMachines:
             role === 'service_engineer' || role === 'project_manager' || role === 'platform_admin',
