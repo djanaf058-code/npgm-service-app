@@ -8,6 +8,9 @@ interface CreatePreRegisterBody {
   email: string;
   full_name: string;
   role: UserRole;
+  // Platform-admin only: target company to put the new user in. For other
+  // inviters this is ignored — they can only add to their own company.
+  target_company_id?: string;
 }
 
 // Who can pre-register whom. The list is the inviter's allow-list; missing
@@ -51,9 +54,6 @@ export async function POST(request: NextRequest) {
   if (profErr || !profile) {
     return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
   }
-  if (!profile.company_id) {
-    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
-  }
   const allowed = ROLES_BY_INVITER[profile.role as UserRole] ?? [];
   if (allowed.length === 0) {
     return NextResponse.json(
@@ -68,6 +68,30 @@ export async function POST(request: NextRequest) {
     body = (await request.json()) as CreatePreRegisterBody;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  // 3a. Resolve the target company. Platform admins can hand-pick a tenant
+  // via target_company_id (they don't belong to a single customer company);
+  // everyone else can only invite into their own.
+  let targetCompanyId: string | null = profile.company_id ?? null;
+  if (profile.role === 'platform_admin') {
+    targetCompanyId = body.target_company_id ?? null;
+    if (!targetCompanyId) {
+      return NextResponse.json(
+        { error: 'target_company_id обязателен для platform_admin' },
+        { status: 400 }
+      );
+    }
+    const { data: target, error: targetErr } = await adminAny
+      .from('companies')
+      .select('id')
+      .eq('id', targetCompanyId)
+      .maybeSingle();
+    if (targetErr || !target) {
+      return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 });
+    }
+  } else if (!targetCompanyId) {
+    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
   }
   const email = body.email?.trim().toLowerCase();
   const fullName = body.full_name?.trim();
@@ -109,7 +133,7 @@ export async function POST(request: NextRequest) {
   const { error: patchErr } = await adminAny
     .from('profiles')
     .update({
-      company_id: profile.company_id,
+      company_id: targetCompanyId,
       role: body.role,
       full_name: fullName,
     })
@@ -128,7 +152,7 @@ export async function POST(request: NextRequest) {
     .from('invites')
     .insert({
       token,
-      company_id: profile.company_id,
+      company_id: targetCompanyId,
       role: body.role,
       email,
       full_name: fullName,

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {usePathname, useRouter} from 'next/navigation';
 import {
@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
 
-    const { user } = useGlobal();
+    const { user, loading: globalLoading } = useGlobal();
     const {
         isOperator,
         isServiceEngineer,
@@ -38,6 +38,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         isPlatformAdmin,
         role,
     } = useRole();
+
+    // Platform admin lives in /admin — they don't have their own tenant data
+    // to look at in /app. Bounce them across once the role is known so they
+    // don't see the customer-facing dashboard with empty/stale numbers.
+    useEffect(() => {
+        if (!globalLoading && isPlatformAdmin) {
+            router.replace('/admin');
+        }
+    }, [globalLoading, isPlatformAdmin, router]);
 
     const handleLogout = async () => {
         try {
@@ -71,7 +80,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           roles: ['service_engineer', 'project_manager', 'platform_admin'] },
         { name: 'Гараж', href: '/app/parts', icon: Box,
           roles: ['operator', 'service_engineer', 'project_manager'] },
-        { name: 'Команда', href: '/app/team', icon: Users, roles: ['project_manager'] },
+        { name: 'Команда', href: '/app/team', icon: Users, roles: ['project_manager', 'service_engineer'] },
         { name: 'Админ-панель', href: '/admin', icon: Shield, roles: ['platform_admin'] },
         { name: 'Профиль', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];

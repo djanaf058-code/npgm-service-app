@@ -7,6 +7,8 @@ import type { UserRole } from '@/lib/types';
 interface CreateInviteBody {
   role: UserRole;
   email?: string | null; // optional; if set, recipient must register with this email
+  // Platform-admin only: target tenant. Ignored for other roles.
+  target_company_id?: string;
 }
 
 // Who can create what kind of anonymous link. service_engineer is capped to
@@ -53,9 +55,6 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     );
   }
-  if (!profile.company_id) {
-    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
-  }
 
   // 3. Parse body.
   let body: CreateInviteBody;
@@ -66,6 +65,29 @@ export async function POST(request: NextRequest) {
   }
   if (!allowed.includes(body.role)) {
     return NextResponse.json({ error: 'Эту роль вы не можете назначить' }, { status: 403 });
+  }
+
+  // Resolve target company. Same rule as preregister: platform_admin picks,
+  // everyone else gets their own.
+  let targetCompanyId: string | null = profile.company_id ?? null;
+  if (profile.role === 'platform_admin') {
+    targetCompanyId = body.target_company_id ?? null;
+    if (!targetCompanyId) {
+      return NextResponse.json(
+        { error: 'target_company_id обязателен для platform_admin' },
+        { status: 400 }
+      );
+    }
+    const { data: target, error: targetErr } = await adminAny
+      .from('companies')
+      .select('id')
+      .eq('id', targetCompanyId)
+      .maybeSingle();
+    if (targetErr || !target) {
+      return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 });
+    }
+  } else if (!targetCompanyId) {
+    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
   }
   const email = body.email?.trim().toLowerCase() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -79,7 +101,7 @@ export async function POST(request: NextRequest) {
     .from('invites')
     .insert({
       token,
-      company_id: profile.company_id,
+      company_id: targetCompanyId,
       role: body.role,
       email,
       invited_by: user.id,
