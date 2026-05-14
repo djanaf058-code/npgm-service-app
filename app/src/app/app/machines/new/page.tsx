@@ -111,11 +111,20 @@ export default function NewMachinePage() {
 
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
-        .select('company_id')
+        .select('company_id, role')
         .eq('id', user!.id)
         .single();
       if (profileErr || !profile) throw profileErr ?? new Error('Профиль не найден');
-      const companyId = (profile as { company_id: string }).company_id;
+      const callerProfile = profile as { company_id: string | null; role: string };
+
+      // Platform admin can pass ?company_id=<uuid> to create the machine in
+      // a specific tenant (they come here from /admin/companies/[id]). For
+      // everyone else, the caller's own company is the only legal target.
+      const queryCompanyId = new URLSearchParams(window.location.search).get('company_id');
+      const companyId =
+        callerProfile.role === 'platform_admin' && queryCompanyId
+          ? queryCompanyId
+          : callerProfile.company_id;
       if (!companyId) throw new Error('Не удалось определить компанию');
 
       const insertPayload: Database['public']['Tables']['machines']['Insert'] = {

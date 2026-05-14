@@ -39,14 +39,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         role,
     } = useRole();
 
-    // Platform admin lives in /admin — they don't have their own tenant data
-    // to look at in /app. Bounce them across once the role is known so they
-    // don't see the customer-facing dashboard with empty/stale numbers.
+    // Platform admin lives in /admin. Bounce them off the customer-facing
+    // dashboard at /app, but let them deep-link to specific /app/* pages
+    // (e.g. /app/machines/[id]) from the admin tree so they can inspect a
+    // tenant's data without a parallel UI.
     useEffect(() => {
-        if (!globalLoading && isPlatformAdmin) {
+        if (!globalLoading && isPlatformAdmin && pathname === '/app') {
             router.replace('/admin');
         }
-    }, [globalLoading, isPlatformAdmin, router]);
+    }, [globalLoading, isPlatformAdmin, pathname, router]);
 
     const handleLogout = async () => {
         try {

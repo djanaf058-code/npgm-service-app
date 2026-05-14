@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Loader2,
@@ -18,6 +18,8 @@ import {
   Copy,
   Check,
   X,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -112,6 +114,7 @@ const ADMIN_GRANTABLE_ROLES: UserRole[] = ['operator', 'service_engineer', 'proj
 
 export default function AdminCompanyOverviewPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const companyId = params.id;
 
   const [company, setCompany] = useState<Company | null>(null);
@@ -123,6 +126,7 @@ export default function AdminCompanyOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [deleteCompanyOpen, setDeleteCompanyOpen] = useState(false);
 
   const reload = async () => {
     try {
@@ -248,18 +252,29 @@ export default function AdminCompanyOverviewPage() {
 
       {/* Header */}
       <Card className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
-            <Building2 className="w-5 h-5" />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900 truncate">
+                {company.name}
+              </h1>
+              <p className="text-sm text-secondary-500">
+                {company.country || '—'} · {company.language} · {company.timezone}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
-              {company.name}
-            </h1>
-            <p className="text-sm text-secondary-500">
-              {company.country || '—'} · {company.language} · {company.timezone}
-            </p>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteCompanyOpen(true)}
+            className="text-accent-700 border-accent-300 hover:bg-accent-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Удалить компанию
+          </Button>
         </div>
       </Card>
 
@@ -283,15 +298,12 @@ export default function AdminCompanyOverviewPage() {
           ) : (
             <ul className="divide-y divide-secondary-100">
               {members.map((m) => (
-                <li
+                <MemberRowItem
                   key={m.id}
-                  className="py-2 flex items-center justify-between gap-3 flex-wrap"
-                >
-                  <span className="text-sm text-secondary-900 font-medium">
-                    {m.full_name || '(имя не указано)'}
-                  </span>
-                  <Badge variant="outline">{m.role ? ROLE_LABELS[m.role] : '—'}</Badge>
-                </li>
+                  member={m}
+                  onChanged={reload}
+                  onError={(e) => setError(e)}
+                />
               ))}
             </ul>
           )}
@@ -340,11 +352,18 @@ export default function AdminCompanyOverviewPage() {
 
       {/* Machines */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <Truck className="w-4 h-4 text-primary-600" />
             Парк техники ({machines.length})
           </CardTitle>
+          <Button
+            size="sm"
+            onClick={() => router.push(`/app/machines/new?company_id=${companyId}`)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Добавить машину
+          </Button>
         </CardHeader>
         <CardContent>
           {machines.length === 0 ? (
@@ -352,29 +371,12 @@ export default function AdminCompanyOverviewPage() {
           ) : (
             <ul className="divide-y divide-secondary-100">
               {machines.map((m) => (
-                <li
+                <MachineRowItem
                   key={m.id}
-                  className="py-2 flex items-center justify-between gap-3 flex-wrap"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Badge variant="outline">{m.machine_type}</Badge>
-                    <span className="text-sm font-medium text-secondary-900">{m.model_code}</span>
-                    {m.pit_location && (
-                      <span className="text-xs text-secondary-500">· {m.pit_location}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-secondary-500">
-                    <span className="tabular-nums">
-                      {Number(m.tons_pumped).toLocaleString('ru-RU')} т
-                    </span>
-                    <Link
-                      href={`/app/machines/${m.id}`}
-                      className="text-primary-600 hover:underline"
-                    >
-                      открыть →
-                    </Link>
-                  </div>
-                </li>
+                  machine={m}
+                  onChanged={reload}
+                  onError={(e) => setError(e)}
+                />
               ))}
             </ul>
           )}
@@ -482,7 +484,218 @@ export default function AdminCompanyOverviewPage() {
         companyName={company.name}
         onError={(e) => setError(e)}
       />
+
+      <DeleteCompanyDialog
+        open={deleteCompanyOpen}
+        onOpenChange={setDeleteCompanyOpen}
+        company={company}
+        onDeleted={() => router.push('/admin')}
+        onError={(e) => setError(e)}
+      />
     </div>
+  );
+}
+
+// =========================================================================
+// Member row — name + role + delete button
+// =========================================================================
+
+function MemberRowItem({
+  member,
+  onChanged,
+  onError,
+}: {
+  member: MemberRow;
+  onChanged: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (
+      !confirm(
+        `Удалить ${member.full_name || 'сотрудника'}? Аккаунт будет полностью удалён — войти под этим email после нельзя.`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const resp = await fetch('/api/admin/members/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: member.id }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      onChanged();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <li className="py-2 flex items-center justify-between gap-3 flex-wrap">
+      <span className="text-sm text-secondary-900 font-medium min-w-0 flex-1 truncate">
+        {member.full_name || '(имя не указано)'}
+      </span>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Badge variant="outline">{member.role ? ROLE_LABELS[member.role] : '—'}</Badge>
+        <Button variant="outline" size="sm" onClick={remove} disabled={busy}>
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+// =========================================================================
+// Machine row — type + model + delete button
+// =========================================================================
+
+function MachineRowItem({
+  machine,
+  onChanged,
+  onError,
+}: {
+  machine: MachineRow;
+  onChanged: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (
+      !confirm(
+        `Удалить машину ${machine.model_code}? Связанные смены, заявки и история ТО тоже удалятся.`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const c = await createSPASassClient();
+      const sb = c.getSupabaseClient();
+      const { error: delErr } = await sb.from('machines').delete().eq('id', machine.id);
+      if (delErr) throw delErr;
+      onChanged();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <li className="py-2 flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Badge variant="outline">{machine.machine_type}</Badge>
+        <span className="text-sm font-medium text-secondary-900">{machine.model_code}</span>
+        {machine.pit_location && (
+          <span className="text-xs text-secondary-500">· {machine.pit_location}</span>
+        )}
+      </div>
+      <div className="flex items-center gap-3 text-xs text-secondary-500 flex-shrink-0">
+        <span className="tabular-nums">
+          {Number(machine.tons_pumped).toLocaleString('ru-RU')} т
+        </span>
+        <Link href={`/app/machines/${machine.id}`} className="text-primary-600 hover:underline">
+          открыть →
+        </Link>
+        <Button variant="outline" size="sm" onClick={remove} disabled={busy}>
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+// =========================================================================
+// Delete company dialog — requires typing the name to confirm
+// =========================================================================
+
+function DeleteCompanyDialog({
+  open,
+  onOpenChange,
+  company,
+  onDeleted,
+  onError,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  company: Company;
+  onDeleted: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [confirmText, setConfirmText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [localErr, setLocalErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setConfirmText('');
+      setLocalErr(null);
+    }
+  }, [open]);
+
+  const submit = async () => {
+    setLocalErr(null);
+    setBusy(true);
+    try {
+      const resp = await fetch('/api/admin/companies/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: company.id, confirm_name: confirmText }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      onDeleted();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLocalErr(msg);
+      onError(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-accent-700">Удалить компанию навсегда</DialogTitle>
+          <DialogDescription>
+            Удалятся все сотрудники, машины, смены, тикеты и заявки этой компании. Действие
+            нельзя отменить.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-secondary-700">
+            Введите <strong className="font-mono">{company.name}</strong> для подтверждения:
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={company.name}
+            autoFocus
+          />
+          {localErr && (
+            <p className="text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md p-2 whitespace-pre-wrap">
+              {localErr}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            Отмена
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={busy || confirmText !== company.name}
+            className="bg-accent-600 hover:bg-accent-700 text-white"
+          >
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            Удалить навсегда
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
