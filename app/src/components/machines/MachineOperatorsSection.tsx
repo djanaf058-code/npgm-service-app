@@ -244,14 +244,13 @@ function AssignOperatorDialog({
       // collision blocks a plain insert. Use upsert to re-activate.
       const { error: err } = await sb
         .from('machine_assignments')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .upsert(
           {
             machine_id: machineId,
             operator_id: selected,
             assigned_at: new Date().toISOString(),
             unassigned_at: null,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           { onConflict: 'machine_id,operator_id' }
         );
