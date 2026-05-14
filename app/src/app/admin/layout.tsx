@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -37,6 +38,15 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Bounce non-admins back to the customer app. Has to live in an effect:
+  // calling router.replace during render triggers a setState on the Router
+  // while rendering this component, which React flags as an anti-pattern.
+  useEffect(() => {
+    if (!loading && !isPlatformAdmin) {
+      router.replace('/app');
+    }
+  }, [loading, isPlatformAdmin, router]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-secondary-500">
@@ -47,9 +57,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   if (!isPlatformAdmin) {
-    // Bounce non-admins back to the customer app. We use replace so the
-    // back button doesn't ping-pong here.
-    router.replace('/app');
+    // Render nothing while the effect above pushes the redirect through.
     return null;
   }
 
