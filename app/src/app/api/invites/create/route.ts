@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Validate caller role + load company.
-  const admin = createServerAdminClient();
+  const admin = await createServerAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminAny = admin as any;
   const { data: profile, error: profErr } = await adminAny

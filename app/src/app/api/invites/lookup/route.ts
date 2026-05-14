@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'token_required' }, { status: 400 });
   }
 
-  const admin = createServerAdminClient();
+  const admin = await createServerAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminAny = admin as any;
   const { data, error } = await adminAny
