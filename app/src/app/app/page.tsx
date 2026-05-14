@@ -58,7 +58,7 @@ const KIND_LABELS: Record<MaintenanceKind, string> = {
 
 export default function DashboardContent() {
   const { loading: globalLoading, user } = useGlobal();
-  const { isOperator, isProjectManager, isTier2 } = useRole();
+  const { isOperator, isProjectManager, isPlatformAdmin } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
@@ -73,12 +73,12 @@ export default function DashboardContent() {
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
         // For the parts-requests KPI tile: count rows that need *this role's* attention.
-        //   admin  → submitted (waiting on me to forward)
-        //   tier2  → forwarded / quoted / approved / ordered (queue I drive)
-        //   else   → any active (legacy semantics)
+        //   PM             → submitted (waiting on me to forward)
+        //   platform_admin → forwarded / quoted / approved / ordered (queue I drive)
+        //   else           → any active (legacy semantics)
         const requestsActionFilter: PartsRequestStatus[] | null = isProjectManager
           ? ['submitted']
-          : isTier2
+          : isPlatformAdmin
           ? ['forwarded', 'quoted', 'approved', 'ordered']
           : null;
 
@@ -144,12 +144,7 @@ export default function DashboardContent() {
   }, [machines, schedules]);
 
   const greeting = user?.full_name || user?.email?.split('@')[0] || 'оператор';
-  const roleHero = isTier2
-    ? {
-        title: 'НПГМ — Сервисная служба',
-        subtitle: 'Заявки от компаний, тикеты Tier 2, кросс-tenant обзор парка.',
-      }
-    : isProjectManager
+  const roleHero = isProjectManager
     ? {
         title: 'Руководитель сервисной службы',
         subtitle: 'Парк, заявки от операторов, тикеты, плановое ТО — по вашей компании.',
@@ -217,7 +212,7 @@ export default function DashboardContent() {
           label={
             isProjectManager
               ? 'На рассмотрении'
-              : isTier2
+              : isPlatformAdmin
               ? 'В очереди НПГМ'
               : 'Заявок на запчасти'
           }

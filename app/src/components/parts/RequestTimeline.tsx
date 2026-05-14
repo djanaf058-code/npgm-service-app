@@ -67,11 +67,11 @@ function fmt(at: string | null): string {
 export function RequestTimeline(props: RequestEventInputs) {
   const cancelled = props.status === 'cancelled';
   const isOperatorKind = props.kind === 'operator';
-  const { isOperator, isServiceEngineer, isTier2 } = useRole();
-  // Cost is hidden from operator / service_engineer / tier2 always.
-  // Project manager sees it once status reaches 'quoted' (i.e. quote was
-  // actually sent). Platform_admin sees it always.
-  const canSeePrice = !(isOperator || isServiceEngineer || isTier2);
+  const { isOperator, isServiceEngineer } = useRole();
+  // Cost is hidden from operator / service_engineer always. Project manager
+  // sees it once status reaches 'quoted' (i.e. quote was actually sent).
+  // Platform_admin sees it always.
+  const canSeePrice = !(isOperator || isServiceEngineer);
 
   // Reach a step iff the timestamp exists OR the status is past it.
   // Operator-level chain is much shorter — only submitted → consolidated.

@@ -25,6 +25,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { MachineTypeBadge } from '@/components/machines/MachineTypeBadge';
 import { MachineStatusBadge } from '@/components/machines/MachineStatusBadge';
+import { MachineOperatorsSection } from '@/components/machines/MachineOperatorsSection';
 import {
   forecastNextMaintenance,
   estimateDaysUntilDue,
@@ -270,20 +271,7 @@ export default function MachineDetailPage() {
         </Card>
       )}
 
-      {/* Future-modules teaser */}
-      <Card className="bg-secondary-50/60 border-dashed">
-        <CardContent className="pt-6">
-          <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold mb-3">
-            Скоро здесь появится
-          </p>
-          <ul className="space-y-1.5 text-sm text-secondary-700">
-            <li>· Журнал ТО и расход запчастей (Sprint 3)</li>
-            <li>· Назначенные операторы и их смены (Sprint 1.9 / Sprint 3)</li>
-            <li>· Открытые тикеты по этой машине (Sprint 2)</li>
-            <li>· Календарь планового ТО с автозаявкой к НИПИГОРМАШу (Sprint 3)</li>
-          </ul>
-        </CardContent>
-      </Card>
+      <MachineOperatorsSection machineId={machine.id} companyId={machine.company_id} />
     </div>
   );
 }

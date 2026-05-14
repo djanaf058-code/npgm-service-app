@@ -38,16 +38,11 @@ export function PriceField({
     isServiceEngineer,
     isProjectManager,
     isPlatformAdmin,
-    isTier2,
   } = useRole();
 
   // Operator and service_engineer never see prices — they don't drive the
   // financial decision and shouldn't anchor on the supplier's number.
   if (isOperator || isServiceEngineer) {
-    return hideWhenForbidden ? null : <>{placeholder}</>;
-  }
-  // Tier 2 doesn't see parts at all (gated upstream); be defensive.
-  if (isTier2) {
     return hideWhenForbidden ? null : <>{placeholder}</>;
   }
 

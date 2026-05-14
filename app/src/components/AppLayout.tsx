@@ -34,7 +34,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         isOperator,
         isServiceEngineer,
         isProjectManager,
-        isTier2,
         isPlatformAdmin,
         role,
     } = useRole();
@@ -93,8 +92,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         ? { label: 'Проектный менеджер', tone: 'bg-primary-50 text-primary-700' }
         : isServiceEngineer
         ? { label: 'Сервисный инженер', tone: 'bg-primary-50 text-primary-700' }
-        : isTier2
-        ? { label: 'НПГМ — Tier 2', tone: 'bg-accent-50 text-accent-700' }
         : isPlatformAdmin
         ? { label: 'НПГМ — Платформа', tone: 'bg-accent-50 text-accent-700' }
         : isOperator

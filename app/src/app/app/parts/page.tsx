@@ -99,7 +99,7 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 export default function PartsPage() {
   const router = useRouter();
   const { user } = useGlobal();
-  const { isOperator, isServiceEngineer, isProjectManager, isTier2 } = useRole();
+  const { isOperator, isServiceEngineer, isProjectManager } = useRole();
 
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
@@ -115,7 +115,9 @@ export default function PartsPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const showInventory = !isTier2;
+  // Inventory tab is for everyone except platform_admin (НПГМ doesn't manage
+  // the customer's stock from this surface).
+  const showInventory = true;
 
   const reload = async () => {
     setLoading(true);
@@ -286,24 +288,6 @@ export default function PartsPage() {
       requester: r.requester,
     }));
   }, [buckets.operatorIncoming]);
-
-  // ----- Tier 2 short-circuit (kept from B2) -----
-  if (isTier2) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <Card className="p-8 text-center">
-          <p className="text-secondary-700 mb-2">
-            Заявки на запчасти не входят в зону Tier 2 — это очередь
-            <strong> platform_admin</strong>.
-          </p>
-          <p className="text-sm text-secondary-500">
-            Если у вас доступ <code>platform_admin</code> — перейдите в{' '}
-            <code>/admin/queue/parts</code>.
-          </p>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">

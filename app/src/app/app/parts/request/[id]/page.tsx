@@ -14,7 +14,6 @@ import { createSPASassClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
-import { useRole } from '@/lib/context/GlobalContext';
 import { RequestStatusBadge } from '@/components/parts/RequestStatusBadge';
 import { RequestTimeline } from '@/components/parts/RequestTimeline';
 import { RequestActionPanel } from '@/components/parts/RequestActionPanel';
@@ -88,7 +87,6 @@ const URGENCY_LABELS: Record<
 export default function PartsRequestDetailPage() {
   const params = useParams<{ id: string }>();
   const requestId = params.id;
-  const { isTier2 } = useRole();
 
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [children, setChildren] = useState<ChildOperatorRow[]>([]);
@@ -162,23 +160,6 @@ export default function PartsRequestDetailPage() {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
-
-  if (isTier2) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <Card className="p-8 text-center">
-          <p className="text-secondary-700 mb-2">
-            Заявки на запчасти не входят в зону Tier 2 — это очередь
-            <strong> platform_admin</strong>.
-          </p>
-          <p className="text-sm text-secondary-500">
-            Если у вас доступ <code>platform_admin</code> — перейдите в{' '}
-            <code>/admin/queue/parts</code>.
-          </p>
-        </Card>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
