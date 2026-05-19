@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   Loader2,
   ShoppingCart,
@@ -28,13 +29,13 @@ interface QueueRow {
   company: { id: string; name: string } | null;
 }
 
-const URGENCY_INFO: Record<
+const URGENCY_ICON: Record<
   PartsRequestUrgency,
-  { ru: string; icon: React.ComponentType<{ className?: string }> | null }
+  React.ComponentType<{ className?: string }> | null
 > = {
-  normal: { ru: 'Обычная', icon: null },
-  urgent: { ru: 'Срочная', icon: AlertCircle },
-  critical: { ru: 'Критическая', icon: AlertTriangle },
+  normal: null,
+  urgent: AlertCircle,
+  critical: AlertTriangle,
 };
 
 function sortByUrgencyAndDate(a: QueueRow, b: QueueRow): number {
@@ -46,6 +47,7 @@ function sortByUrgencyAndDate(a: QueueRow, b: QueueRow): number {
 }
 
 export default function AdminPartsQueuePage() {
+  const t = useTranslations('admin_queue');
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,11 +99,9 @@ export default function AdminPartsQueuePage() {
     <div className="p-6 max-w-6xl space-y-6">
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Очередь сводных заявок
+          {t('title')}
         </h1>
-        <p className="text-secondary-600 text-sm mt-1">
-          Заявки от всех компаний — нужно реакция (КП, заказ, или подтверждение).
-        </p>
+        <p className="text-secondary-600 text-sm mt-1">{t('subtitle')}</p>
       </div>
 
       {error && (
@@ -113,27 +113,27 @@ export default function AdminPartsQueuePage() {
       {loading ? (
         <div className="flex items-center text-secondary-500 py-10">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Загружаем очередь…
+          {t('loading_queue')}
         </div>
       ) : (
         <>
           <Section
-            title={`Готовы к КП (${buckets.readyForQuote.length})`}
-            subtitle="Сводные, которые PM согласовал — ждут вашего предложения."
+            title={t('section_for_quote', { n: buckets.readyForQuote.length })}
+            subtitle={t('section_for_quote_desc')}
             icon={Inbox}
             items={buckets.readyForQuote}
             accent="amber"
           />
           <Section
-            title={`В работе (${buckets.inFlight.length})`}
-            subtitle="С КП, согласованные клиентом, или уже размещённые у поставщика."
+            title={t('section_in_flight', { n: buckets.inFlight.length })}
+            subtitle={t('section_in_flight_desc')}
             icon={ShoppingCart}
             items={buckets.inFlight}
           />
           {buckets.history.length > 0 && (
             <Section
-              title={`История (${buckets.history.length})`}
-              subtitle="Завершённые и отменённые."
+              title={t('section_history', { n: buckets.history.length })}
+              subtitle={t('section_history_desc')}
               icon={Clock}
               items={buckets.history.slice(0, 50)}
               muted
@@ -142,9 +142,7 @@ export default function AdminPartsQueuePage() {
           {!loading && rows.length === 0 && (
             <Card className="p-10 text-center">
               <ShoppingCart className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
-              <p className="text-sm text-secondary-600">
-                Очередь пустая — ни одна компания пока не передала вам сводных заявок.
-              </p>
+              <p className="text-sm text-secondary-600">{t('empty_queue')}</p>
             </Card>
           )}
         </>
@@ -168,6 +166,7 @@ function Section({
   accent?: 'amber';
   muted?: boolean;
 }) {
+  const t = useTranslations('admin_queue');
   if (items.length === 0) return null;
   const headerTone =
     accent === 'amber'
@@ -182,8 +181,20 @@ function Section({
       {subtitle && <p className="text-xs text-secondary-500 px-3 mb-2">{subtitle}</p>}
       <div className="space-y-2">
         {items.map((r) => {
-          const UIcon = URGENCY_INFO[r.urgency].icon;
+          const UIcon = URGENCY_ICON[r.urgency];
           const itemsCount = r.parts_requested.length + r.parts_freeform.length;
+          const urgencyLabel =
+            r.urgency === 'critical'
+              ? t('urgency_critical')
+              : r.urgency === 'urgent'
+              ? t('urgency_urgent')
+              : t('urgency_normal');
+          const itemsLabel =
+            itemsCount === 1
+              ? t('items_count_one', { n: itemsCount })
+              : itemsCount < 5
+              ? t('items_count_few', { n: itemsCount })
+              : t('items_count_many', { n: itemsCount });
           return (
             <Link
               key={r.id}
@@ -197,18 +208,15 @@ function Section({
                   {r.urgency !== 'normal' && (
                     <Badge variant={r.urgency === 'critical' ? 'destructive' : 'warning'}>
                       {UIcon && <UIcon className="w-3 h-3 inline mr-1" />}
-                      {URGENCY_INFO[r.urgency].ru}
+                      {urgencyLabel}
                     </Badge>
                   )}
-                  <span className="text-sm text-secondary-900">
-                    {itemsCount}{' '}
-                    {itemsCount === 1 ? 'позиция' : itemsCount < 5 ? 'позиции' : 'позиций'}
-                  </span>
+                  <span className="text-sm text-secondary-900">{itemsLabel}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 text-xs text-secondary-500">
                   {r.expected_delivery_date && (
-                    <span title="Ожидаемая поставка">
-                      ETA{' '}
+                    <span title={t('eta_label')}>
+                      {t('eta_prefix')}{' '}
                       {new Date(r.expected_delivery_date).toLocaleDateString('ru-RU', {
                         day: '2-digit',
                         month: 'short',

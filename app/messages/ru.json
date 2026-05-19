@@ -389,5 +389,25 @@
     "delete_confirm_prompt_part2": "для подтверждения:",
     "delete_failed": "Не удалось удалить",
     "delete_forever": "Удалить навсегда"
+  },
+  "admin_queue": {
+    "title": "Очередь сводных заявок",
+    "subtitle": "Заявки от всех компаний — нужна реакция (КП, заказ, или подтверждение).",
+    "loading_queue": "Загружаем очередь…",
+    "section_for_quote": "Готовы к КП ({n})",
+    "section_for_quote_desc": "Сводные, которые PM согласовал — ждут вашего предложения.",
+    "section_in_flight": "В работе ({n})",
+    "section_in_flight_desc": "С КП, согласованные клиентом, или уже размещённые у поставщика.",
+    "section_history": "История ({n})",
+    "section_history_desc": "Завершённые и отменённые.",
+    "empty_queue": "Очередь пустая — ни одна компания пока не передала вам сводных заявок.",
+    "urgency_normal": "Обычная",
+    "urgency_urgent": "Срочная",
+    "urgency_critical": "Критическая",
+    "items_count_one": "{n} позиция",
+    "items_count_few": "{n} позиции",
+    "items_count_many": "{n} позиций",
+    "eta_label": "Ожидаемая поставка",
+    "eta_prefix": "ETA"
   }
 }

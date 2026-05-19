@@ -389,5 +389,25 @@
     "delete_confirm_prompt_part2": "to confirm:",
     "delete_failed": "Could not delete",
     "delete_forever": "Delete permanently"
+  },
+  "admin_queue": {
+    "title": "Consolidated requests queue",
+    "subtitle": "Requests from all companies — needs action (quote, order, or confirmation).",
+    "loading_queue": "Loading queue…",
+    "section_for_quote": "Ready for quote ({n})",
+    "section_for_quote_desc": "Consolidated requests the PM has approved — waiting for your proposal.",
+    "section_in_flight": "In progress ({n})",
+    "section_in_flight_desc": "Quoted, approved by the client, or already placed with the supplier.",
+    "section_history": "History ({n})",
+    "section_history_desc": "Completed and cancelled.",
+    "empty_queue": "Queue is empty — no company has forwarded consolidated requests to you yet.",
+    "urgency_normal": "Normal",
+    "urgency_urgent": "Urgent",
+    "urgency_critical": "Critical",
+    "items_count_one": "{n} item",
+    "items_count_few": "{n} items",
+    "items_count_many": "{n} items",
+    "eta_label": "Expected delivery",
+    "eta_prefix": "ETA"
   }
 }
