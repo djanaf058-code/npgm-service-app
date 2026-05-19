@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const {data: profile} = await (supabase as any)
             .from('profiles')
-            .select('company_id, role')
+            .select('company_id, role, language')
             .eq('id', authedUser.id)
             .maybeSingle()
 
@@ -81,6 +81,22 @@ export async function updateSession(request: NextRequest) {
                 url.pathname = '/app'
                 return NextResponse.redirect(url)
             }
+        }
+
+        // Sync NEXT_LOCALE cookie from profile.language so that DB is the
+        // source of truth across devices. Only writes when value differs.
+        const profileLanguage = profile?.language as string | undefined
+        const currentCookie = request.cookies.get('NEXT_LOCALE')?.value
+        if (
+            profileLanguage &&
+            (profileLanguage === 'ru' || profileLanguage === 'en') &&
+            profileLanguage !== currentCookie
+        ) {
+            supabaseResponse.cookies.set('NEXT_LOCALE', profileLanguage, {
+                path: '/',
+                maxAge: 60 * 60 * 24 * 365,
+                sameSite: 'lax',
+            })
         }
     }
 

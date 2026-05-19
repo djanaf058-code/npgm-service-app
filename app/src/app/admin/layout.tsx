@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { GlobalProvider, useGlobal, useRole } from '@/lib/context/GlobalContext';
 import Logo from '@/components/Logo';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 // Admin route tree (/admin/*) is for platform_admin only — НПГМ side. The
 // regular customer-facing app lives at /app/* with its own AppLayout.
@@ -69,6 +70,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           <span className="text-[10px] uppercase tracking-wider font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
             Admin
           </span>
+        </div>
+        <div className="mt-3 mb-4">
+          <LocaleSwitcher />
         </div>
         <nav className="space-y-1">
           {adminNav.map((item) => {

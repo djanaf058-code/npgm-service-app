@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -52,6 +53,9 @@ export default function LoginPage() {
 
   return (
     <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10">
+      <div className="fixed top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <div className="text-center mb-6">
         <h2 className="font-heading text-2xl font-semibold text-secondary-900">Вход в аккаунт</h2>
         <p className="text-sm text-secondary-500 mt-1">Введите email и пароль</p>

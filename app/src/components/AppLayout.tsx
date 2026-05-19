@@ -21,6 +21,7 @@ import {
 import { useGlobal, useRole } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
+import { LocaleSwitcher } from "@/components/i18n/LocaleSwitcher";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -164,7 +165,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <Menu className="h-6 w-6"/>
                     </button>
 
-                    <div className="relative ml-auto">
+                    <div className="ml-auto flex items-center gap-3">
+                        <LocaleSwitcher />
+
+                    <div className="relative">
                         <button
                             onClick={() => setUserDropdownOpen(!isUserDropdownOpen)}
                             className="flex items-center space-x-2 text-sm text-secondary-700 hover:text-secondary-900"
@@ -215,6 +219,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 </div>
                             </div>
                         )}
+                    </div>
                     </div>
                 </div>
 
