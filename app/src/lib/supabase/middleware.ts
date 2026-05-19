@@ -47,27 +47,40 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // Logged in → check whether user has completed onboarding (company_id set)
+    // Logged in → role/onboarding-aware redirects.
+    // platform_admin is cross-tenant: they intentionally have company_id=NULL
+    // and should never see the onboarding screen — they land in /admin.
     if (authedUser && (isProtectedAppRoute || isOnboardingRoute)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const {data: profile} = await (supabase as any)
             .from('profiles')
-            .select('company_id')
+            .select('company_id, role')
             .eq('id', authedUser.id)
             .maybeSingle()
 
         const hasCompany = !!profile?.company_id
+        const isPlatformAdmin = profile?.role === 'platform_admin'
 
-        if (isProtectedAppRoute && !hasCompany) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/auth/onboarding'
-            return NextResponse.redirect(url)
-        }
-        if (isOnboardingRoute && hasCompany) {
-            // Already onboarded — don't show the onboarding page again
-            const url = request.nextUrl.clone()
-            url.pathname = '/app'
-            return NextResponse.redirect(url)
+        if (isPlatformAdmin) {
+            // Send admin to /admin from either /app root or onboarding.
+            if (path === '/app' || isOnboardingRoute) {
+                const url = request.nextUrl.clone()
+                url.pathname = '/admin'
+                return NextResponse.redirect(url)
+            }
+            // Other /app/* subpaths are allowed (admin can inspect a tenant).
+        } else {
+            // Regular users: must have a company to use /app/*.
+            if (isProtectedAppRoute && !hasCompany) {
+                const url = request.nextUrl.clone()
+                url.pathname = '/auth/onboarding'
+                return NextResponse.redirect(url)
+            }
+            if (isOnboardingRoute && hasCompany) {
+                const url = request.nextUrl.clone()
+                url.pathname = '/app'
+                return NextResponse.redirect(url)
+            }
         }
     }
 
