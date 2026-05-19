@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { MachineTypeBadge } from '@/components/machines/MachineTypeBadge';
 import { MachineStatusBadge } from '@/components/machines/MachineStatusBadge';
 import { MachineOperatorsSection } from '@/components/machines/MachineOperatorsSection';
+import { AIChatDrawer } from '@/components/ai-chat/AIChatDrawer';
 import {
   forecastNextMaintenance,
   estimateDaysUntilDue,
@@ -67,7 +68,7 @@ export default function MachineDetailPage() {
   };
   const ggdLabel = (g: string): string => (g === 'SN' ? t('ggd_sn') : t('ggd_acetic'));
   const kindLabel = (k: MaintenanceKind) => tKind(k);
-  const { canManageCompany } = useRole();
+  const { canManageCompany, isOperator } = useRole();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
@@ -266,6 +267,10 @@ export default function MachineDetailPage() {
       )}
 
       <MachineOperatorsSection machineId={machine.id} companyId={machine.company_id} />
+
+      {isOperator && (
+        <AIChatDrawer machineId={machine.id} machineLabel={machine.model_code} />
+      )}
     </div>
   );
 }
