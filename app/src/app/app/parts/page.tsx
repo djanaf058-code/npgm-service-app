@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Plus,
   Wrench,
@@ -79,13 +80,13 @@ interface PartsRequestRow {
   requested_by: string | null;
 }
 
-const URGENCY_INFO: Record<
+const URGENCY_ICON: Record<
   PartsRequestUrgency,
-  { ru: string; icon: React.ComponentType<{ className?: string }> | null }
+  React.ComponentType<{ className?: string }> | null
 > = {
-  normal: { ru: 'Обычная', icon: null },
-  urgent: { ru: 'Срочная', icon: AlertCircle },
-  critical: { ru: 'Критическая', icon: AlertTriangle },
+  normal: null,
+  urgent: AlertCircle,
+  critical: AlertTriangle,
 };
 
 function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
@@ -97,6 +98,7 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 }
 
 export default function PartsPage() {
+  const t = useTranslations('parts');
   const router = useRouter();
   const { user } = useGlobal();
   const { isOperator, isServiceEngineer, isProjectManager } = useRole();
@@ -187,7 +189,7 @@ export default function PartsPage() {
       setCatalog(((catResp as any).data ?? []) as CatalogRow[]);
       setRequests((reqResp.data ?? []) as unknown as PartsRequestRow[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить гараж');
+      setError(err instanceof Error ? err.message : t('load_failed'));
     } finally {
       setLoading(false);
     }
@@ -293,13 +295,13 @@ export default function PartsPage() {
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">Гараж</h1>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">{t('title')}</h1>
           <p className="text-secondary-600 text-sm mt-1">
             {isOperator
-              ? 'Ваши заявки на запчасти и склад компании.'
+              ? t('subtitle_operator')
               : isServiceEngineer
-              ? 'Входящие от операторов, ваши сводные заявки и склад компании.'
-              : 'Сводные заявки в работе, согласование и склад компании.'}
+              ? t('subtitle_service')
+              : t('subtitle_pm')}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -307,20 +309,20 @@ export default function PartsPage() {
             <Button asChild>
               <Link href="/app/parts/request">
                 <ShoppingCart className="w-4 h-4" />
-                Создать заявку
+                {t('create_request')}
               </Link>
             </Button>
           )}
           {isServiceEngineer && (
             <Button onClick={() => setPickerOpen(true)}>
               <Layers className="w-4 h-4" />
-              Создать сводную
+              {t('create_consolidated')}
             </Button>
           )}
           {isProjectManager && (
             <Button onClick={() => setAddDialogOpen(true)}>
               <Plus className="w-4 h-4" />
-              Добавить на склад
+              {t('add_stock')}
             </Button>
           )}
         </div>
@@ -336,15 +338,15 @@ export default function PartsPage() {
       {isServiceEngineer && (
         <>
           <RequestSection
-            title={`Входящие от операторов (${buckets.operatorIncoming.length})`}
-            subtitle="Объедините несколько заявок в одну сводную — нажмите «Создать сводную»."
+            title={t('incoming_from_operators', { n: buckets.operatorIncoming.length })}
+            subtitle={t('incoming_desc')}
             icon={Inbox}
             items={buckets.operatorIncoming}
             accent="amber"
           />
           <RequestSection
-            title={`Мои сводные в работе (${buckets.consolidatedActive.length})`}
-            subtitle="Сводные, которые сейчас движутся к НПГМ и обратно."
+            title={t('my_consolidated_active', { n: buckets.consolidatedActive.length })}
+            subtitle={t('my_consolidated_desc')}
             icon={ListChecks}
             items={buckets.consolidatedActive}
           />
@@ -355,29 +357,29 @@ export default function PartsPage() {
       {isProjectManager && (
         <>
           <RequestSection
-            title={`На согласование scope (${buckets.pendingPm.length})`}
-            subtitle="Сервисник отправил вам сводные на одобрение состава. Цены вы увидите после КП."
+            title={t('pending_scope', { n: buckets.pendingPm.length })}
+            subtitle={t('pending_scope_desc')}
             icon={Inbox}
             items={buckets.pendingPm}
             accent="amber"
           />
           <RequestSection
-            title={`КП на рассмотрении (${buckets.quoted.length})`}
-            subtitle="НПГМ выставили КП. Можно принимать."
+            title={t('quoted_section', { n: buckets.quoted.length })}
+            subtitle={t('quoted_desc')}
             icon={ListChecks}
             items={buckets.quoted}
             accent="amber"
           />
           <RequestSection
-            title={`В работе (${buckets.inFlight.length})`}
-            subtitle="Согласовано, заказано или в пути."
+            title={t('in_flight', { n: buckets.inFlight.length })}
+            subtitle={t('in_flight_desc')}
             icon={ListChecks}
             items={buckets.inFlight}
           />
           {buckets.drafting.length > 0 && (
             <RequestSection
-              title={`Черновики сводных (${buckets.drafting.length})`}
-              subtitle="Сервисник ещё собирает — пока без вашей реакции."
+              title={t('drafting_section', { n: buckets.drafting.length })}
+              subtitle={t('drafting_desc')}
               icon={Clock}
               items={buckets.drafting}
               muted
@@ -391,8 +393,8 @@ export default function PartsPage() {
         <>
           {buckets.myOperatorActive.length > 0 && (
             <RequestSection
-              title="Мои активные заявки"
-              subtitle="После создания заявка идёт сервисному инженеру вашей компании."
+              title={t('my_active')}
+              subtitle={t('my_active_desc')}
               icon={ListChecks}
               items={buckets.myOperatorActive}
             />
@@ -401,7 +403,7 @@ export default function PartsPage() {
             <Card className="p-10 text-center">
               <ShoppingCart className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
               <p className="text-sm text-secondary-600">
-                У вас ещё нет заявок. Создайте первую — она уйдёт сервисному инженеру.
+                {t('no_requests')}
               </p>
             </Card>
           )}
@@ -411,8 +413,8 @@ export default function PartsPage() {
       {/* ============== History (everyone) ============== */}
       {buckets.history.length > 0 && (
         <RequestSection
-          title={`История (${buckets.history.length})`}
-          subtitle="Завершённые, отменённые и поглощённые в сводные."
+          title={t('history', { n: buckets.history.length })}
+          subtitle={t('history_desc')}
           icon={Clock}
           items={buckets.history.slice(0, 30)}
           muted
@@ -424,10 +426,10 @@ export default function PartsPage() {
         <>
           {!loading && inventory.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <SummaryCard label="Всего позиций" value={summary.total} icon={Package} accent="primary" />
-              <SummaryCard label="В норме" value={summary.ok} icon={Box} accent="success" />
-              <SummaryCard label="Мало" value={summary.low} icon={Box} accent="warning" />
-              <SummaryCard label="Нет в наличии" value={summary.zero} icon={Box} accent="destructive" />
+              <SummaryCard label={t('summary_total')} value={summary.total} icon={Package} accent="primary" />
+              <SummaryCard label={t('summary_ok')} value={summary.ok} icon={Box} accent="success" />
+              <SummaryCard label={t('summary_low')} value={summary.low} icon={Box} accent="warning" />
+              <SummaryCard label={t('summary_zero')} value={summary.zero} icon={Box} accent="destructive" />
             </div>
           )}
 
@@ -435,7 +437,7 @@ export default function PartsPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
               <Input
-                placeholder="Поиск по названию, применению, машине…"
+                placeholder={t('search_placeholder')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="pl-9"
@@ -446,7 +448,7 @@ export default function PartsPage() {
               onChange={(e) => setCategoryFilter(e.target.value as typeof categoryFilter)}
               className="max-w-[200px]"
             >
-              <option value="all">Все категории</option>
+              <option value="all">{t('all_categories')}</option>
               {(Object.keys(CATEGORY_LABELS) as PartCategory[]).map((c) => (
                 <option key={c} value={c}>
                   {CATEGORY_LABELS[c].ru}
@@ -458,22 +460,22 @@ export default function PartsPage() {
               onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
               className="max-w-[200px]"
             >
-              <option value="all">Все остатки</option>
-              <option value="low">Только мало</option>
-              <option value="zero">Только нет в наличии</option>
+              <option value="all">{t('all_stock')}</option>
+              <option value="low">{t('only_low')}</option>
+              <option value="zero">{t('only_zero')}</option>
             </Select>
           </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-20 text-secondary-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Загружаем гараж…
+              {t('loading_garage')}
             </div>
           ) : inventory.length === 0 ? (
             <EmptyState canAdd={isProjectManager} onAdd={() => setAddDialogOpen(true)} />
           ) : filtered.length === 0 ? (
             <Card className="p-12 text-center">
-              <p className="text-secondary-600 text-sm">Нет позиций под текущий фильтр</p>
+              <p className="text-secondary-600 text-sm">{t('no_filter_match')}</p>
             </Card>
           ) : (
             <Card className="overflow-hidden">
@@ -481,11 +483,11 @@ export default function PartsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-secondary-50 border-b border-secondary-200">
                     <tr className="text-left text-secondary-600 text-xs uppercase tracking-wider">
-                      <th className="px-4 py-3 font-semibold">Запчасть</th>
-                      <th className="px-4 py-3 font-semibold">Категория</th>
-                      <th className="px-4 py-3 font-semibold">Применение</th>
-                      <th className="px-4 py-3 font-semibold">Привязка</th>
-                      <th className="px-4 py-3 font-semibold text-right">Остаток</th>
+                      <th className="px-4 py-3 font-semibold">{t('col_part')}</th>
+                      <th className="px-4 py-3 font-semibold">{t('col_category')}</th>
+                      <th className="px-4 py-3 font-semibold">{t('col_application')}</th>
+                      <th className="px-4 py-3 font-semibold">{t('col_assignment')}</th>
+                      <th className="px-4 py-3 font-semibold text-right">{t('col_quantity')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary-100">
@@ -494,7 +496,7 @@ export default function PartsPage() {
                         <td className="px-4 py-3">
                           <p className="font-medium text-secondary-900">{row.part.display_name_ru}</p>
                           <p className="text-xs text-secondary-500 mt-0.5">
-                            для: {row.part.compatible_machine_types.join(', ') || '—'}
+                            {t('for_machines', { types: row.part.compatible_machine_types.join(', ') || '—' })}
                           </p>
                         </td>
                         <td className="px-4 py-3">
@@ -505,11 +507,11 @@ export default function PartsPage() {
                         </td>
                         <td className="px-4 py-3 text-secondary-600 text-xs">
                           {row.machine ? (
-                            <span title={`Резерв на ${row.machine.model_code}`}>
+                            <span title={t('reserve_for', { model: row.machine.model_code })}>
                               🔧 {row.machine.model_code}
                             </span>
                           ) : (
-                            <span className="text-secondary-400 italic">общий склад</span>
+                            <span className="text-secondary-400 italic">{t('common_stock')}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -600,9 +602,22 @@ function RequestSection({
 }
 
 function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
-  const UIcon = URGENCY_INFO[r.urgency].icon;
+  const t = useTranslations('parts');
+  const UIcon = URGENCY_ICON[r.urgency];
   const itemsCount = r.parts_requested.length + r.parts_freeform.length;
   const isConsolidated = r.kind === 'consolidated';
+  const urgencyLabel =
+    r.urgency === 'critical'
+      ? t('urgency_critical')
+      : r.urgency === 'urgent'
+      ? t('urgency_urgent')
+      : t('urgency_normal');
+  const itemsLabel =
+    itemsCount === 1
+      ? t('items_count_one', { n: itemsCount })
+      : itemsCount < 5
+      ? t('items_count_few', { n: itemsCount })
+      : t('items_count_many', { n: itemsCount });
   return (
     <Link
       href={`/app/parts/request/${r.id}`}
@@ -614,17 +629,17 @@ function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
           {isConsolidated && (
             <Badge variant="default">
               <Layers className="w-3 h-3 inline mr-1" />
-              сводная
+              {t('consolidated_badge')}
             </Badge>
           )}
           {r.urgency !== 'normal' && (
             <Badge variant={r.urgency === 'critical' ? 'destructive' : 'warning'}>
               {UIcon && <UIcon className="w-3 h-3 inline mr-1" />}
-              {URGENCY_INFO[r.urgency].ru}
+              {urgencyLabel}
             </Badge>
           )}
           <span className="text-sm text-secondary-900 truncate">
-            {itemsCount} {itemsCount === 1 ? 'позиция' : itemsCount < 5 ? 'позиции' : 'позиций'}
+            {itemsLabel}
             {r.machine && (
               <>
                 {' · '}
@@ -635,7 +650,7 @@ function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {r.expected_delivery_date && (
-            <span className="text-xs text-secondary-500" title="Ожидаемая поставка">
+            <span className="text-xs text-secondary-500" title={t('eta_label')}>
               ETA{' '}
               {new Date(r.expected_delivery_date).toLocaleDateString('ru-RU', {
                 day: '2-digit',
@@ -689,21 +704,20 @@ function SummaryCard({
 }
 
 function EmptyState({ canAdd, onAdd }: { canAdd: boolean; onAdd: () => void }) {
+  const t = useTranslations('parts');
   return (
     <Card className="p-12 text-center">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-50 text-primary-600 mb-4">
         <Wrench className="w-6 h-6" />
       </div>
-      <h3 className="font-heading font-semibold text-secondary-900 mb-2">Гараж пуст</h3>
+      <h3 className="font-heading font-semibold text-secondary-900 mb-2">{t('empty_title')}</h3>
       <p className="text-secondary-600 text-sm max-w-md mx-auto mb-6">
-        {canAdd
-          ? 'Добавьте первую запчасть со склада. Можно указать привязку к конкретной машине или хранить общим резервом.'
-          : 'Здесь появятся запчасти после того, как руководитель пополнит склад.'}
+        {canAdd ? t('empty_can_add_desc') : t('empty_no_access_desc')}
       </p>
       {canAdd && (
         <Button onClick={onAdd}>
           <Plus className="w-4 h-4" />
-          Добавить запчасть
+          {t('add_part')}
         </Button>
       )}
     </Card>

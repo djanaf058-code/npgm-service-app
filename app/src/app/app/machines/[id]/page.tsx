@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Truck,
@@ -55,26 +56,17 @@ interface MachineDetail {
   updated_at: string;
 }
 
-const AUGER_LABEL: Record<string, string> = {
-  upper: 'Верхний (ВП)',
-  lower: 'Нижний (НП)',
-  none: 'Нет',
-};
-
-const GGD_LABEL: Record<string, string> = {
-  SN: 'SN (нитрит натрия)',
-  acetic_acid: 'Acetic Acid (уксусная кислота)',
-};
-
-const KIND_LABELS: Record<MaintenanceKind, string> = {
-  TO: 'ТО',
-  'TO-1': 'ТО-1',
-  'TO-2': 'ТО-2',
-  annual: 'Годовое ТО',
-  unscheduled: 'Внеплановое',
-};
-
 export default function MachineDetailPage() {
+  const t = useTranslations('machines');
+  const tCommon = useTranslations('common');
+  const tKind = useTranslations('kind_labels');
+  const augerLabel = (pos: string): string => {
+    if (pos === 'upper') return t('auger_upper');
+    if (pos === 'lower') return t('auger_lower');
+    return t('auger_none');
+  };
+  const ggdLabel = (g: string): string => (g === 'SN' ? t('ggd_sn') : t('ggd_acetic'));
+  const kindLabel = (k: MaintenanceKind) => tKind(k);
   const { canManageCompany } = useRole();
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -100,7 +92,7 @@ export default function MachineDetailPage() {
 
         if (machineResp.error) throw machineResp.error;
         if (!machineResp.data) {
-          setError('Машина не найдена или у вас нет к ней доступа');
+          setError(t('not_found'));
           return;
         }
         const m = machineResp.data as MachineDetail;
@@ -109,16 +101,17 @@ export default function MachineDetailPage() {
         const schedules = (schedulesResp.data ?? []) as ScheduleSummary[];
         setForecast(forecastNextMaintenance(m.machine_type, Number(m.tons_pumped), schedules));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setError(err instanceof Error ? err.message : t('loading_error'));
       } finally {
         setLoading(false);
       }
     };
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleDelete = async () => {
-    if (!confirm('Удалить машину? Это действие необратимо.')) return;
+    if (!confirm(t('confirm_delete'))) return;
     setDeleting(true);
     try {
       const client = await createSPASassClient();
@@ -127,7 +120,7 @@ export default function MachineDetailPage() {
       if (error) throw error;
       router.push('/app/machines');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Не удалось удалить');
+      alert(err instanceof Error ? err.message : t('delete_failed'));
       setDeleting(false);
     }
   };
@@ -136,7 +129,7 @@ export default function MachineDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {tCommon('loading')}
       </div>
     );
   }
@@ -148,7 +141,7 @@ export default function MachineDetailPage() {
           href="/app/machines"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К списку машин
+          <ArrowLeft className="w-4 h-4" /> {t('back_to_list')}
         </Link>
         <Card className="p-6 text-center">
           <AlertCircle className="w-8 h-8 text-accent-600 mx-auto mb-3" />
@@ -164,7 +157,7 @@ export default function MachineDetailPage() {
         href="/app/machines"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> К списку машин
+        <ArrowLeft className="w-4 h-4" /> {t('back_to_list')}
       </Link>
 
       {/* Header */}
@@ -182,10 +175,10 @@ export default function MachineDetailPage() {
               <MachineStatusBadge status={machine.status} />
             </div>
             <p className="text-secondary-600 text-sm mt-1">
-              Грузоподъёмность {Number(machine.tonnage_t).toLocaleString('ru-RU')} т
+              {t('tonnage_t', { t: Number(machine.tonnage_t).toLocaleString('ru-RU') })}
               {machine.serial_number && (
                 <>
-                  {' · '}серийник{' '}
+                  {' · '}{t('serial_label')}{' '}
                   <span className="font-mono text-secondary-900">{machine.serial_number}</span>
                 </>
               )}
@@ -195,7 +188,7 @@ export default function MachineDetailPage() {
         {canManageCompany && (
           <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
             {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Удалить
+            {tCommon('delete')}
           </Button>
         )}
       </div>
@@ -204,15 +197,15 @@ export default function MachineDetailPage() {
       <div className="grid md:grid-cols-2 gap-4">
         <StatCard
           icon={Gauge}
-          label="Моточасы (двигатель, гидравлика)"
+          label={t('stat_engine_hours')}
           value={Number(machine.engine_hours).toLocaleString('ru-RU')}
-          unit="ч"
+          unit={tCommon('hours_short')}
         />
         <StatCard
           icon={Droplets}
-          label="Тонн прокачки (насосы, шланги, форсунки)"
+          label={t('stat_tons_pumped')}
           value={Number(machine.tons_pumped).toLocaleString('ru-RU')}
-          unit="т"
+          unit={tCommon('tons_short')}
           accent
         />
       </div>
@@ -223,23 +216,24 @@ export default function MachineDetailPage() {
           machineId={machine.id}
           forecast={forecast}
           tonsPumped={Number(machine.tons_pumped)}
+          kindLabel={kindLabel}
         />
       )}
 
       {/* Passport */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading text-base">Паспорт машины</CardTitle>
-          <CardDescription>Технические характеристики и привязка к месту работы</CardDescription>
+          <CardTitle className="font-heading text-base">{t('passport_title')}</CardTitle>
+          <CardDescription>{t('passport_desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-            <Row label="Тип" value={`${machine.machine_type}`} />
-            <Row label="Модель" value={machine.model_code} mono />
-            <Row label="Грузоподъёмность" value={`${machine.tonnage_t} т`} />
-            <Row label="Серийник" value={machine.serial_number ?? '—'} mono />
+            <Row label={t('row_type')} value={`${machine.machine_type}`} />
+            <Row label={t('row_model')} value={machine.model_code} mono />
+            <Row label={t('row_tonnage')} value={`${machine.tonnage_t} ${tCommon('tons_short')}`} />
+            <Row label={t('row_serial')} value={machine.serial_number ?? '—'} mono />
             <Row
-              label="В эксплуатации с"
+              label={t('row_in_service')}
               value={
                 machine.in_service_since
                   ? new Date(machine.in_service_since).toLocaleDateString('ru-RU')
@@ -247,14 +241,14 @@ export default function MachineDetailPage() {
               }
               icon={Calendar}
             />
-            <Row label="Карьер" value={machine.pit_location ?? '—'} icon={MapPin} />
+            <Row label={t('row_pit')} value={machine.pit_location ?? '—'} icon={MapPin} />
             {/* МСЗ — единственный тип, где положение шнека различает модификацию */}
             {machine.machine_type === 'МСЗ' && machine.auger_position !== 'none' && (
-              <Row label="Положение шнека" value={AUGER_LABEL[machine.auger_position]} />
+              <Row label={t('row_auger')} value={augerLabel(machine.auger_position)} />
             )}
             {/* ГГД показываем только если фактически прописан */}
             {machine.ggd_type && (
-              <Row label="ГГД" value={GGD_LABEL[machine.ggd_type]} />
+              <Row label={t('row_ggd')} value={ggdLabel(machine.ggd_type)} />
             )}
           </dl>
         </CardContent>
@@ -263,7 +257,7 @@ export default function MachineDetailPage() {
       {machine.notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-base">Заметки</CardTitle>
+            <CardTitle className="font-heading text-base">{t('notes')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-secondary-700 whitespace-pre-wrap">{machine.notes}</p>
@@ -280,11 +274,16 @@ function NextMaintenanceCard({
   machineId,
   forecast,
   tonsPumped,
+  kindLabel,
 }: {
   machineId: string;
   forecast: ForecastResult;
   tonsPumped: number;
+  kindLabel: (k: MaintenanceKind) => string;
 }) {
+  const t = useTranslations('machines');
+  const tCommon = useTranslations('common');
+  const tDash = useTranslations('dashboard');
   const days = estimateDaysUntilDue(forecast.tons_remaining);
   const tonsRem = forecast.tons_remaining;
   const urgency =
@@ -305,38 +304,37 @@ function NextMaintenanceCard({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-heading font-semibold text-secondary-900">Следующее ТО</h3>
-              <Badge variant="default">{KIND_LABELS[forecast.next_kind]}</Badge>
+              <h3 className="font-heading font-semibold text-secondary-900">{t('next_maintenance')}</h3>
+              <Badge variant="default">{kindLabel(forecast.next_kind)}</Badge>
             </div>
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold">
-                  Через
+                  {t('next_through')}
                 </p>
                 <p className="font-bold text-secondary-900 tabular-nums">
-                  {Number(tonsRem).toLocaleString('ru-RU')} тонн
+                  {Number(tonsRem).toLocaleString('ru-RU')} {tDash('tons_unit')}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Примерно
+                  <Clock className="w-3 h-3" /> {t('next_approx')}
                 </p>
                 <p className="font-bold text-secondary-900 tabular-nums">
-                  {days < 365 ? `${days} дн` : '≥ года'}
+                  {days < 365 ? t('approx_days', { days }) : t('approx_year_plus')}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-secondary-500 uppercase tracking-wider font-semibold">
-                  ТО при выработке
+                  {t('next_at_output')}
                 </p>
                 <p className="font-bold text-secondary-900 tabular-nums">
-                  {Number(forecast.next_at_tons).toLocaleString('ru-RU')} т
+                  {Number(forecast.next_at_tons).toLocaleString('ru-RU')} {tCommon('tons_short')}
                 </p>
               </div>
             </div>
             <p className="mt-2 text-xs text-secondary-500">
-              Текущая выработка: {Number(tonsPumped).toLocaleString('ru-RU')} тонн ·
-              регламент машины — каждые 2000 тонн прокачки
+              {t('current_output_hint', { tons: Number(tonsPumped).toLocaleString('ru-RU') })}
             </p>
           </div>
         </div>
@@ -344,7 +342,7 @@ function NextMaintenanceCard({
           <Link
             href={`/app/maintenance/new?machine=${machineId}&schedule=${forecast.schedule_id}`}
           >
-            Подать заявку
+            {tDash('submit_request')}
             <ChevronRight className="w-4 h-4" />
           </Link>
         </Button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Loader2,
   UserPlus,
@@ -54,15 +55,6 @@ interface InviteRow {
   inviter: { full_name: string | null } | null;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  operator: 'Оператор',
-  service_engineer: 'Сервисный инженер',
-  project_manager: 'Проектный менеджер',
-  company_admin: 'Руководитель сервисной службы',
-  tier2_engineer: 'НПГМ Tier 2',
-  platform_admin: 'Платформа',
-};
-
 // Map inviter role → which roles they can hand out. Centralised so the form
 // and any future API checks line up.
 function rolesForInviter(role: UserRole | null): UserRole[] {
@@ -78,6 +70,9 @@ function rolesForInviter(role: UserRole | null): UserRole[] {
 }
 
 export default function TeamPage() {
+  const t = useTranslations('team');
+  const tRoles = useTranslations('roles');
+  const roleLabel = (r: UserRole): string => tRoles(r);
   const { user } = useGlobal();
   const { role, canInviteTeam, loading: roleLoading } = useRole();
 
@@ -102,7 +97,7 @@ export default function TeamPage() {
         .eq('id', user.id)
         .single();
       const cid = (profile as { company_id: string | null } | null)?.company_id;
-      if (!cid) throw new Error('Профиль не привязан к компании');
+      if (!cid) throw new Error(t('no_company'));
 
       const [memberResp, inviteResp] = await Promise.all([
         supabase
@@ -125,7 +120,7 @@ export default function TeamPage() {
       setMembers((memberResp.data ?? []) as MemberRow[]);
       setInvites((inviteResp.data ?? []) as unknown as InviteRow[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : t('load_error'));
     } finally {
       setLoading(false);
     }
@@ -140,7 +135,7 @@ export default function TeamPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
@@ -151,10 +146,10 @@ export default function TeamPage() {
         <Card className="p-6 text-center">
           <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
           <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-            Раздел доступен только руководителям
+            {t('restricted_title')}
           </h2>
           <p className="text-sm text-secondary-600">
-            Управление командой — функция руководителя сервисной службы или проектного менеджера.
+            {t('restricted_desc')}
           </p>
         </Card>
       </div>
@@ -185,16 +180,15 @@ export default function TeamPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-            Команда
+            {t('title')}
           </h1>
           <p className="text-secondary-600 text-sm mt-1">
-            Зарегистрируйте сотрудника заранее (он только придумает пароль) или поделитесь
-            анонимной ссылкой, по которой человек зарегистрируется сам.
+            {t('subtitle')}
           </p>
         </div>
         <Button onClick={() => setInviteOpen(true)}>
           <UserPlus className="w-4 h-4" />
-          Добавить сотрудника
+          {t('add_employee')}
         </Button>
       </div>
 
@@ -208,16 +202,16 @@ export default function TeamPage() {
       <section>
         <h2 className="font-heading text-base font-semibold text-secondary-700 uppercase tracking-wider mb-3 flex items-center gap-2">
           <Users className="w-4 h-4" />
-          Сотрудники ({members.length})
+          {t('members_section', { n: members.length })}
         </h2>
         {loading ? (
           <Card className="p-6 text-center text-secondary-500">
             <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-            Загружаем…
+            {t('members_loading')}
           </Card>
         ) : members.length === 0 ? (
           <Card className="p-6 text-center text-secondary-500 text-sm">
-            Пока вы один в компании. Добавьте коллег, чтобы они начали работу.
+            {t('no_members')}
           </Card>
         ) : (
           <div className="space-y-2">
@@ -225,14 +219,14 @@ export default function TeamPage() {
               <Card key={m.id} className="p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <p className="font-medium text-secondary-900 truncate">
-                    {m.full_name || '(имя не указано)'}
+                    {m.full_name || t('no_name')}
                     {m.id === user?.id && (
-                      <span className="ml-2 text-xs text-secondary-500">(это вы)</span>
+                      <span className="ml-2 text-xs text-secondary-500">{t('you_marker')}</span>
                     )}
                   </p>
                   {m.phone && <p className="text-xs text-secondary-500 truncate">{m.phone}</p>}
                 </div>
-                <Badge variant="outline">{m.role ? ROLE_LABELS[m.role] : '—'}</Badge>
+                <Badge variant="outline">{m.role ? roleLabel(m.role) : '—'}</Badge>
               </Card>
             ))}
           </div>
@@ -244,7 +238,7 @@ export default function TeamPage() {
         <section>
           <h2 className="font-heading text-base font-semibold text-secondary-700 uppercase tracking-wider mb-3 flex items-center gap-2">
             <KeyRound className="w-4 h-4 text-primary-600" />
-            Ожидают активации ({awaitingActivation.length})
+            {t('awaiting_activation', { n: awaitingActivation.length })}
           </h2>
           <div className="space-y-2">
             {awaitingActivation.map((inv) => (
@@ -264,7 +258,7 @@ export default function TeamPage() {
         <section>
           <h2 className="font-heading text-base font-semibold text-secondary-700 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Link2 className="w-4 h-4 text-amber-600" />
-            Открытые ссылки ({pendingLinks.length})
+            {t('pending_links', { n: pendingLinks.length })}
           </h2>
           <div className="space-y-2">
             {pendingLinks.map((inv) => (
@@ -283,7 +277,7 @@ export default function TeamPage() {
       {acceptedInvites.length > 0 && (
         <section className="opacity-80">
           <h2 className="font-heading text-base font-semibold text-secondary-500 uppercase tracking-wider mb-3">
-            Принято ({acceptedInvites.length})
+            {t('accepted_section', { n: acceptedInvites.length })}
           </h2>
           <div className="space-y-1.5">
             {acceptedInvites.slice(0, 5).map((inv) => (
@@ -291,8 +285,8 @@ export default function TeamPage() {
                 key={inv.id}
                 className="text-xs text-secondary-500 px-3 py-1.5 rounded bg-secondary-50/60"
               >
-                {inv.full_name || inv.email || '(ссылка без email)'} · {ROLE_LABELS[inv.role]} ·{' '}
-                принято{' '}
+                {inv.full_name || inv.email || t('anonymous_link_email')} · {roleLabel(inv.role)} ·{' '}
+                {t('accepted_on')}{' '}
                 {inv.accepted_at && new Date(inv.accepted_at).toLocaleDateString('ru-RU')}
               </p>
             ))}
@@ -302,7 +296,7 @@ export default function TeamPage() {
 
       {expiredOrCancelled.length > 0 && (
         <p className="text-xs text-secondary-400 text-center">
-          ({expiredOrCancelled.length} истекли или отменены)
+          {t('expired_count', { n: expiredOrCancelled.length })}
         </p>
       )}
 
@@ -332,6 +326,9 @@ function PendingActivationCard({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('team');
+  const tCommon = useTranslations('common');
+  const tRoles = useTranslations('roles');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -346,15 +343,13 @@ function PendingActivationCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onError('Не удалось скопировать ссылку');
+      onError(t('no_link_copy'));
     }
   };
 
   const remove = async () => {
     if (
-      !confirm(
-        `Удалить ${invite.full_name || invite.email}? Аккаунт сотрудника будет полностью удалён.`
-      )
+      !confirm(t('confirm_remove_member', { who: invite.full_name || invite.email || '' }))
     )
       return;
     setBusy(true);
@@ -365,7 +360,7 @@ function PendingActivationCard({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      if (!resp.ok) throw new Error(json.error ?? t('remove_failed'));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -379,7 +374,7 @@ function PendingActivationCard({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <Badge variant="success">{ROLE_LABELS[invite.role]}</Badge>
+            <Badge variant="success">{tRoles(invite.role)}</Badge>
             <span className="text-sm font-medium text-secondary-900">
               {invite.full_name}
             </span>
@@ -387,23 +382,24 @@ function PendingActivationCard({
           </div>
           <p className="text-xs text-secondary-500 break-all">{url}</p>
           <p className="text-xs text-secondary-500 mt-1">
-            Сотрудник перейдёт по ссылке и придумает пароль. Истекает{' '}
-            {new Date(invite.expires_at).toLocaleDateString('ru-RU', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
+            {t('pre_reg_hint', {
+              date: new Date(invite.expires_at).toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              }),
             })}
-            {invite.inviter?.full_name && <> · от {invite.inviter.full_name}</>}
+            {invite.inviter?.full_name && t('from_inviter', { name: invite.inviter.full_name })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" onClick={copy}>
             {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Скопировано' : 'Скопировать'}
+            {copied ? tCommon('copied') : tCommon('copy')}
           </Button>
           <Button variant="outline" size="sm" onClick={remove} disabled={busy}>
             <X className="w-3 h-3" />
-            Удалить
+            {tCommon('delete')}
           </Button>
         </div>
       </div>
@@ -424,6 +420,9 @@ function PendingLinkCard({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('team');
+  const tCommon = useTranslations('common');
+  const tRoles = useTranslations('roles');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -438,12 +437,12 @@ function PendingLinkCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onError('Не удалось скопировать ссылку');
+      onError(t('no_link_copy'));
     }
   };
 
   const cancel = async () => {
-    if (!confirm('Отменить ссылку? После этого она не сработает.')) return;
+    if (!confirm(t('confirm_cancel_link'))) return;
     setBusy(true);
     try {
       const resp = await fetch('/api/invites/cancel', {
@@ -452,7 +451,7 @@ function PendingLinkCard({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось отменить');
+      if (!resp.ok) throw new Error(json.error ?? t('cancel_failed'));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -466,30 +465,31 @@ function PendingLinkCard({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <Badge variant="warning">{ROLE_LABELS[invite.role]}</Badge>
+            <Badge variant="warning">{tRoles(invite.role)}</Badge>
             {invite.email && (
               <span className="text-sm text-secondary-700">{invite.email}</span>
             )}
           </div>
           <p className="text-xs text-secondary-500 break-all">{url}</p>
           <p className="text-xs text-secondary-500 mt-1">
-            Анонимная ссылка. Истекает{' '}
-            {new Date(invite.expires_at).toLocaleDateString('ru-RU', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
+            {t('anonymous_link_hint', {
+              date: new Date(invite.expires_at).toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              }),
             })}
-            {invite.inviter?.full_name && <> · от {invite.inviter.full_name}</>}
+            {invite.inviter?.full_name && t('from_inviter', { name: invite.inviter.full_name })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" onClick={copy}>
             {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Скопировано' : 'Скопировать'}
+            {copied ? tCommon('copied') : tCommon('copy')}
           </Button>
           <Button variant="outline" size="sm" onClick={cancel} disabled={busy}>
             <X className="w-3 h-3" />
-            Отменить
+            {tCommon('cancel')}
           </Button>
         </div>
       </div>
@@ -514,6 +514,9 @@ function InviteDialog({
   availableRoles: UserRole[];
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('team');
+  const tCommon = useTranslations('common');
+  const tRoles = useTranslations('roles');
   const [mode, setMode] = useState<Mode>('preregister');
   const defaultRole: UserRole = availableRoles[0] ?? 'operator';
   const [role, setRole] = useState<UserRole>(defaultRole);
@@ -552,7 +555,7 @@ function InviteDialog({
         body: JSON.stringify(payload),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось создать приглашение');
+      if (!resp.ok) throw new Error(json.error ?? t('submit_create_invite_failed'));
       const fullUrl = `${window.location.origin}${json.path}`;
       setGeneratedUrl(fullUrl);
     } catch (e) {
@@ -571,7 +574,7 @@ function InviteDialog({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onError('Не удалось скопировать ссылку');
+      onError(t('no_link_copy'));
     }
   };
 
@@ -579,10 +582,9 @@ function InviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Добавить сотрудника</DialogTitle>
+          <DialogTitle>{t('dialog_title')}</DialogTitle>
           <DialogDescription>
-            Зарегистрируйте сотрудника заранее (он только придумает пароль) или поделитесь
-            анонимной ссылкой.
+            {t('dialog_desc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -597,7 +599,7 @@ function InviteDialog({
                   : 'text-secondary-600 hover:text-secondary-900'
               }`}
             >
-              Зарегистрировать
+              {t('tab_preregister')}
             </button>
             <button
               type="button"
@@ -608,7 +610,7 @@ function InviteDialog({
                   : 'text-secondary-600 hover:text-secondary-900'
               }`}
             >
-              Анонимная ссылка
+              {t('tab_link')}
             </button>
           </div>
         )}
@@ -616,7 +618,7 @@ function InviteDialog({
         {!generatedUrl ? (
           <div className="space-y-3">
             <div>
-              <Label htmlFor="invite_role">Роль *</Label>
+              <Label htmlFor="invite_role">{t('role_required')}</Label>
               <Select
                 id="invite_role"
                 value={role}
@@ -625,7 +627,7 @@ function InviteDialog({
               >
                 {availableRoles.map((r) => (
                   <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
+                    {tRoles(r)}
                   </option>
                 ))}
               </Select>
@@ -634,45 +636,43 @@ function InviteDialog({
             {mode === 'preregister' ? (
               <>
                 <div>
-                  <Label htmlFor="invite_name">ФИО *</Label>
+                  <Label htmlFor="invite_name">{t('full_name_required')}</Label>
                   <Input
                     id="invite_name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Иван Иванов"
+                    placeholder={t('full_name_placeholder')}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="invite_email">Email *</Label>
+                  <Label htmlFor="invite_email">{t('email_required')}</Label>
                   <Input
                     id="invite_email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ivan@company.com"
+                    placeholder={t('email_placeholder')}
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-secondary-500">
-                    Это будет логин сотрудника. Если ошибётесь — сможете удалить и создать
-                    заново до активации.
+                    {t('email_hint_preregister')}
                   </p>
                 </div>
               </>
             ) : (
               <div>
-                <Label htmlFor="invite_email_opt">Email (опционально)</Label>
+                <Label htmlFor="invite_email_opt">{t('email_optional')}</Label>
                 <Input
                   id="invite_email_opt"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ivan@company.com"
+                  placeholder={t('email_placeholder')}
                   className="mt-1"
                 />
                 <p className="mt-1 text-xs text-secondary-500">
-                  Если указать — ссылку сможет принять только этот email. Иначе ссылка
-                  принимает любого, кто откроет её первым.
+                  {t('email_hint_link')}
                 </p>
               </div>
             )}
@@ -688,8 +688,8 @@ function InviteDialog({
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md">
               <p className="text-sm text-emerald-900 font-medium mb-2">
                 {mode === 'preregister'
-                  ? 'Аккаунт создан. Перешлите ссылку сотруднику:'
-                  : 'Ссылка готова. Перешлите её:'}
+                  ? t('result_preregister')
+                  : t('result_link')}
               </p>
               <p className="text-xs text-secondary-700 font-mono break-all bg-white border border-secondary-200 rounded p-2">
                 {generatedUrl}
@@ -697,8 +697,8 @@ function InviteDialog({
             </div>
             <p className="text-xs text-secondary-500">
               {mode === 'preregister'
-                ? 'Сотрудник откроет ссылку, придумает пароль и сразу войдёт в систему.'
-                : 'Ссылка действует 14 дней. Можно отменить в любой момент в списке.'}
+                ? t('hint_preregister_result')
+                : t('hint_link_result')}
             </p>
           </div>
         )}
@@ -707,21 +707,21 @@ function InviteDialog({
           {!generatedUrl ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-                Отмена
+                {tCommon('cancel')}
               </Button>
               <Button onClick={submit} disabled={busy}>
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                {mode === 'preregister' ? 'Создать аккаунт' : 'Создать ссылку'}
+                {mode === 'preregister' ? t('btn_create_account') : t('btn_create_link')}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Закрыть
+                {tCommon('close')}
               </Button>
               <Button onClick={copyUrl}>
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Скопировано' : 'Скопировать ссылку'}
+                {copied ? tCommon('copied') : t('btn_copy_link')}
               </Button>
             </>
           )}

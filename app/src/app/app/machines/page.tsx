@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Plus, Truck, Loader2, Search } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useRole } from '@/lib/context/GlobalContext';
@@ -25,6 +26,7 @@ interface MachineRow {
 }
 
 export default function MachinesListPage() {
+  const t = useTranslations('machines');
   const { canManageCompany } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,12 +47,13 @@ export default function MachinesListPage() {
         if (error) throw error;
         setMachines((data ?? []) as MachineRow[]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить список машин');
+        setError(err instanceof Error ? err.message : t('load_failed'));
       } finally {
         setLoading(false);
       }
     };
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = machines.filter((m) => {
@@ -70,17 +73,17 @@ export default function MachinesListPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-            Парк техники
+            {t('title')}
           </h1>
           <p className="text-secondary-600 text-sm mt-1">
-            Карточки СЗМ и буровых станков с двойной наработкой (моточасы + тонны прокачки)
+            {t('subtitle')}
           </p>
         </div>
         {canManageCompany && (
           <Button asChild>
             <Link href="/app/machines/new">
               <Plus className="w-4 h-4" />
-              Добавить машину
+              {t('add_machine')}
             </Link>
           </Button>
         )}
@@ -90,7 +93,7 @@ export default function MachinesListPage() {
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
         <Input
-          placeholder="Поиск по модели, серийнику, карьеру…"
+          placeholder={t('search_placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-9"
@@ -101,7 +104,7 @@ export default function MachinesListPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20 text-secondary-500">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Загружаем парк…
+          {t('loading_fleet')}
         </div>
       ) : error ? (
         <Card className="p-6 text-center">
@@ -115,13 +118,13 @@ export default function MachinesListPage() {
             <table className="w-full text-sm">
               <thead className="bg-secondary-50 border-b border-secondary-200">
                 <tr className="text-left text-secondary-600 text-xs uppercase tracking-wider">
-                  <th className="px-4 py-3 font-semibold">Модель</th>
-                  <th className="px-4 py-3 font-semibold">Тип</th>
-                  <th className="px-4 py-3 font-semibold">Серийник</th>
-                  <th className="px-4 py-3 font-semibold">Карьер</th>
-                  <th className="px-4 py-3 font-semibold text-right">Моточасы</th>
-                  <th className="px-4 py-3 font-semibold text-right">Тонн</th>
-                  <th className="px-4 py-3 font-semibold">Статус</th>
+                  <th className="px-4 py-3 font-semibold">{t('col_model')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('col_type')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('col_serial')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('col_pit')}</th>
+                  <th className="px-4 py-3 font-semibold text-right">{t('col_engine_hours')}</th>
+                  <th className="px-4 py-3 font-semibold text-right">{t('col_tons')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('col_status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-100">
@@ -157,7 +160,7 @@ export default function MachinesListPage() {
             </table>
             {filtered.length === 0 && machines.length > 0 && (
               <div className="text-center py-8 text-secondary-500 text-sm">
-                Ничего не найдено по запросу «{query}»
+                {t('no_match', { query })}
               </div>
             )}
           </div>
@@ -168,24 +171,23 @@ export default function MachinesListPage() {
 }
 
 function EmptyState({ canAdd }: { canAdd: boolean }) {
+  const t = useTranslations('machines');
   return (
     <Card className="p-12 text-center">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-50 text-primary-600 mb-4">
         <Truck className="w-6 h-6" />
       </div>
       <h3 className="font-heading font-semibold text-secondary-900 mb-2">
-        {canAdd ? 'Парк пока пуст' : 'Машины не назначены'}
+        {canAdd ? t('empty_can_add') : t('empty_no_access')}
       </h3>
       <p className="text-secondary-600 text-sm max-w-md mx-auto mb-6">
-        {canAdd
-          ? 'Добавьте первую машину — типы НИПИГОРМАШа (МЗВ, МСЗ, МСЗУ, МЗУ), тоннаж, серийник, карьер где она работает.'
-          : 'Здесь появятся машины, которые назначит вам руководитель сервисной службы. Свяжитесь с ним, если ожидаете доступ.'}
+        {canAdd ? t('empty_can_add_desc') : t('empty_no_access_desc')}
       </p>
       {canAdd && (
         <Button asChild>
           <Link href="/app/machines/new">
             <Plus className="w-4 h-4" />
-            Добавить машину
+            {t('add_machine')}
           </Link>
         </Button>
       )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   Card,
   CardHeader,
@@ -48,15 +49,9 @@ interface ActiveShiftRow {
   machine: { model_code: string; machine_type: string } | null;
 }
 
-const KIND_LABELS: Record<MaintenanceKind, string> = {
-  TO: 'ТО',
-  'TO-1': 'ТО-1',
-  'TO-2': 'ТО-2',
-  annual: 'Годовое ТО',
-  unscheduled: 'Внеплановое',
-};
-
 export default function DashboardContent() {
+  const t = useTranslations('dashboard');
+  const tKind = useTranslations('kind_labels');
   const { loading: globalLoading, user } = useGlobal();
   const { isOperator, isProjectManager, isPlatformAdmin } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
@@ -65,6 +60,8 @@ export default function DashboardContent() {
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
   const [activeShifts, setActiveShifts] = useState<ActiveShiftRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  const kindLabel = (kind: MaintenanceKind) => tKind(kind);
 
   useEffect(() => {
     if (!user) return;
@@ -143,18 +140,18 @@ export default function DashboardContent() {
       .slice(0, 3);
   }, [machines, schedules]);
 
-  const greeting = user?.full_name || user?.email?.split('@')[0] || 'оператор';
+  const greeting = user?.full_name || user?.email?.split('@')[0] || t('default_greeting');
   const roleHero = isProjectManager
     ? {
-        title: 'Руководитель сервисной службы',
-        subtitle: 'Парк, заявки от операторов, тикеты, плановое ТО — по вашей компании.',
+        title: t('hero_pm_title'),
+        subtitle: t('hero_pm_subtitle'),
       }
     : isOperator
     ? {
-        title: 'Оператор СЗМ',
-        subtitle: 'Ваши смены, чек-листы, обращения по машине.',
+        title: t('hero_operator_title'),
+        subtitle: t('hero_operator_subtitle'),
       }
-    : { title: 'NPGM Service App', subtitle: '' };
+    : { title: t('hero_default_title'), subtitle: '' };
 
   if (globalLoading) {
     return (
@@ -183,7 +180,7 @@ export default function DashboardContent() {
             {roleHero.title}
           </p>
           <h1 className="font-heading text-2xl md:text-3xl font-bold mb-2">
-            Здравствуйте, {greeting}
+            {t('greeting', { name: greeting })}
           </h1>
           <p className="text-primary-100 max-w-2xl text-sm md:text-base">
             {roleHero.subtitle}
@@ -195,14 +192,14 @@ export default function DashboardContent() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPICard
           icon={Truck}
-          label="Активных машин"
+          label={t('kpi_active_machines')}
           value={dataLoading ? '…' : machines.length}
           accent="primary"
           href="/app/machines"
         />
         <KPICard
           icon={Wrench}
-          label="ТО на горизонте"
+          label={t('kpi_upcoming_maintenance')}
           value={dataLoading ? '…' : upcomingMaintenance.length}
           accent="warning"
           href="/app/maintenance"
@@ -211,10 +208,10 @@ export default function DashboardContent() {
           icon={ShoppingCart}
           label={
             isProjectManager
-              ? 'На рассмотрении'
+              ? t('kpi_pending_review')
               : isPlatformAdmin
-              ? 'В очереди НПГМ'
-              : 'Заявок на запчасти'
+              ? t('kpi_queue_npgm')
+              : t('kpi_parts_requests')
           }
           value={dataLoading ? '…' : activeRequestsCount ?? 0}
           accent="success"
@@ -222,7 +219,7 @@ export default function DashboardContent() {
         />
         <KPICard
           icon={MessageSquareText}
-          label="Открытых тикетов"
+          label={t('kpi_open_tickets')}
           value={dataLoading ? '…' : openTicketsCount ?? 0}
           accent="destructive"
           href="/app/tickets"
@@ -235,11 +232,11 @@ export default function DashboardContent() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading text-lg font-semibold text-secondary-900 flex items-center gap-2">
               <Activity className="w-4 h-4 text-emerald-600" />
-              Сейчас в работе
+              {t('section_active_shifts')}
             </h2>
             <Button asChild variant="outline" size="sm">
               <Link href="/app/shifts">
-                Все смены
+                {t('all_shifts')}
                 <ChevronRight className="w-4 h-4" />
               </Link>
             </Button>
@@ -272,11 +269,13 @@ export default function DashboardContent() {
                       </p>
                       <p className="text-xs text-secondary-600">
                         {blocked
-                          ? 'Заблокирована — критичный fail'
+                          ? t('shift_blocked')
                           : s.status === 'in_progress'
-                          ? 'Смена идёт'
-                          : 'Запланирована'}
-                        {s.plan_tons ? ` · план ${Number(s.plan_tons).toLocaleString('ru-RU')} т` : ''}
+                          ? t('shift_in_progress')
+                          : t('shift_planned')}
+                        {s.plan_tons
+                          ? t('shift_plan_suffix', { tons: Number(s.plan_tons).toLocaleString('ru-RU') })
+                          : ''}
                       </p>
                     </div>
                   </div>
@@ -292,11 +291,11 @@ export default function DashboardContent() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-heading text-lg font-semibold text-secondary-900">
-            Ближайшие работы
+            {t('section_upcoming_work')}
           </h2>
           <Button asChild variant="outline" size="sm">
             <Link href="/app/maintenance">
-              Все машины
+              {t('all_machines')}
               <ChevronRight className="w-4 h-4" />
             </Link>
           </Button>
@@ -304,15 +303,15 @@ export default function DashboardContent() {
 
         {dataLoading ? (
           <Card className="p-6">
-            <p className="text-sm text-secondary-500">Загружаем прогноз ТО…</p>
+            <p className="text-sm text-secondary-500">{t('loading_forecast')}</p>
           </Card>
         ) : upcomingMaintenance.length === 0 ? (
           <Card className="p-6 text-center">
             <Truck className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
             <p className="text-secondary-600 text-sm">
-              Нет активных машин с настроенным регламентом ТО.{' '}
+              {t('no_active_machines')}{' '}
               <Link href="/app/machines/new" className="text-primary-600 hover:underline">
-                Добавить машину →
+                {t('add_machine_link')}
               </Link>
             </p>
           </Card>
@@ -346,11 +345,11 @@ export default function DashboardContent() {
                           <Badge variant="outline">{machine.machine_type}</Badge>
                         </div>
                         <p className="text-sm text-secondary-600 mt-0.5">
-                          <strong>{KIND_LABELS[forecast.next_kind]}</strong> через{' '}
+                          <strong>{kindLabel(forecast.next_kind)}</strong> {t('kind_through')}{' '}
                           <strong className="tabular-nums">
-                            {Number(tonsRem).toLocaleString('ru-RU')} тонн
+                            {Number(tonsRem).toLocaleString('ru-RU')} {t('tons_unit')}
                           </strong>
-                          {days < 365 && <> · ≈ {days} дн</>}
+                          {days < 365 && <> · {t('days_approx', { days })}</>}
                         </p>
                       </div>
                     </div>
@@ -358,7 +357,7 @@ export default function DashboardContent() {
                       <Link
                         href={`/app/maintenance/new?machine=${machine.id}&schedule=${forecast.schedule_id}`}
                       >
-                        Подать заявку
+                        {t('submit_request')}
                       </Link>
                     </Button>
                   </div>
@@ -372,44 +371,44 @@ export default function DashboardContent() {
       {/* Quick links */}
       <section>
         <h2 className="font-heading text-lg font-semibold text-secondary-900 mb-3">
-          Быстрый доступ
+          {t('section_quick_access')}
         </h2>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           <QuickLinkCard
             href="/app/machines"
             icon={Truck}
-            title="Парк техники"
-            description="Карточки СЗМ и буровых, наработка, история ТО"
+            title={t('quick_machines_title')}
+            description={t('quick_machines_desc')}
           />
           <QuickLinkCard
             href="/app/tickets"
             icon={MessageSquareText}
-            title="Тикеты"
-            description="Связь оператор ↔ сервисный инженер с фото"
+            title={t('quick_tickets_title')}
+            description={t('quick_tickets_desc')}
           />
           <QuickLinkCard
             href="/app/maintenance"
             icon={Wrench}
-            title="ТО"
-            description="Прогноз ТО по машинам и заявки на обслуживание"
+            title={t('quick_maintenance_title')}
+            description={t('quick_maintenance_desc')}
           />
           <QuickLinkCard
             href="/app/parts"
             icon={Box}
-            title="Гараж"
-            description="Склад запчастей, остатки и заявки на закупку"
+            title={t('quick_parts_title')}
+            description={t('quick_parts_desc')}
           />
           <QuickLinkCard
             href="/app/parts/request"
             icon={ShoppingCart}
-            title="Заказать запчасти"
-            description="Заявка вне ТО — просто нужны запчасти"
+            title={t('quick_order_parts_title')}
+            description={t('quick_order_parts_desc')}
           />
           <QuickLinkCard
             href="/app/shifts"
             icon={ClipboardCheck}
-            title="Смены и чек-листы"
-            description="План зарядки, предсменные осмотры, авто-учёт тонн"
+            title={t('quick_shifts_title')}
+            description={t('quick_shifts_desc')}
           />
         </div>
       </section>
@@ -417,53 +416,39 @@ export default function DashboardContent() {
       {/* What's already working */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading text-base">Что уже работает</CardTitle>
-          <CardDescription>Технический фундамент платформы</CardDescription>
+          <CardTitle className="font-heading text-base">{t('platform_status_title')}</CardTitle>
+          <CardDescription>{t('platform_status_desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-secondary-700">
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Multi-tenant регистрация компаний с изоляцией данных через Postgres RLS
-              </span>
+              <span>{t('feature_multi_tenant')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Парк машин с двойной наработкой (моточасы + тонны прокачки)
-              </span>
+              <span>{t('feature_dual_mileage')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Тикеты с фото, real-time чат оператор ↔ Tier 2, привязка к машине
-              </span>
+              <span>{t('feature_tickets')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Прогноз ТО по тоннам прокачки + заявка с автозаполненным комплектом запчастей
-              </span>
+              <span>{t('feature_forecast')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Гараж: каталог + кастомные запчасти + фото + остатки с порогом пополнения
-              </span>
+              <span>{t('feature_garage')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 mt-1">●</span>
-              <span>
-                Смены и предсменные чек-листы: критичный fail блокирует старт, фактические тонны
-                автоматически учитываются в наработке машины
-              </span>
+              <span>{t('feature_shifts')}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-accent-600 mt-1">●</span>
               <span>
-                <strong>Скоро:</strong> поиск по руководствам, AI-консультант с эскалацией к инженеру,
-                offline-режим для оператора в карьере
+                <strong>{t('feature_soon')}</strong> {t('feature_soon_desc')}
               </span>
             </li>
           </ul>
@@ -523,6 +508,7 @@ function QuickLinkCard({
   description: string;
   soon?: boolean;
 }) {
+  const t = useTranslations('dashboard');
   return (
     <Link
       href={href}
@@ -536,7 +522,7 @@ function QuickLinkCard({
           <h3 className="font-medium text-secondary-900">{title}</h3>
           {soon && (
             <span className="text-[10px] uppercase tracking-wider font-semibold text-secondary-400">
-              скоро
+              {t('soon')}
             </span>
           )}
         </div>
