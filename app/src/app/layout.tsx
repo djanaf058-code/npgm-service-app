@@ -3,6 +3,8 @@ import { Inter, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
 import { GoogleAnalytics } from '@next/third-parties/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 // Cookie consent banner from Razikus removed in Sprint 1.7 — we don't drop
 // non-essential cookies during the pilot phase (only Supabase auth session
 // cookies, which are strictly necessary and don't require consent under
@@ -35,17 +37,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const theme = process.env.NEXT_PUBLIC_THEME || "theme-npgm";
   const gaID = process.env.NEXT_PUBLIC_GOOGLE_TAG;
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="ru" className={`${inter.variable} ${ibmPlex.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${ibmPlex.variable}`}>
       <body className={`${theme} font-sans antialiased`}>
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <Analytics />
         {gaID && <GoogleAnalytics gaId={gaID} />}
       </body>
