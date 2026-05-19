@@ -366,6 +366,23 @@
     "no_machine": "machine not specified · ",
     "operator_label": "operator: {name}"
   },
+  "ai": {
+    "ask_button": "Ask",
+    "drawer_title": "Chat about {model}",
+    "placeholder": "Describe the issue…",
+    "send": "Send",
+    "attach_photo": "Attach photo",
+    "confidence": "Confidence {value}%",
+    "thinking": "AI thinking…",
+    "no_messages": "Ask a question — AI will answer based on your machine's manual.",
+    "escalate_button": "Didn't help — forward to engineer",
+    "escalated_message": "Forwarded to engineer. They will get back to you shortly.",
+    "view_ticket": "Open ticket",
+    "close": "Close",
+    "init_failed": "Could not open chat",
+    "send_failed": "Could not send message",
+    "upload_failed": "Could not upload photo"
+  },
   "admin": {
     "companies_title": "All companies",
     "companies_subtitle": "Platform clients. Click a card to see machines, tickets, requests.",
