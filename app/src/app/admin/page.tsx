@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Building2,
   Truck,
@@ -40,6 +41,7 @@ interface Row extends CompanyRow {
 }
 
 export default function AdminCompaniesPage() {
+  const t = useTranslations('admin');
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,15 +107,15 @@ export default function AdminCompaniesPage() {
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-            Все компании
+            {t('companies_title')}
           </h1>
           <p className="text-secondary-600 text-sm mt-1">
-            Клиенты платформы. Кликните на карточку — увидите машины, тикеты, заявки.
+            {t('companies_subtitle')}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="w-4 h-4" />
-          Создать компанию
+          {t('create_company')}
         </Button>
       </div>
 
@@ -126,17 +128,17 @@ export default function AdminCompaniesPage() {
       {loading ? (
         <div className="flex items-center text-secondary-500 py-10">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Загружаем компании…
+          {t('loading_companies')}
         </div>
       ) : rows.length === 0 ? (
         <Card className="p-10 text-center">
           <Building2 className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
           <p className="text-sm text-secondary-600 mb-4">
-            Пока нет ни одной зарегистрированной компании.
+            {t('no_companies')}
           </p>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="w-4 h-4" />
-            Создать первую
+            {t('create_first')}
           </Button>
         </Card>
       ) : (
@@ -158,15 +160,15 @@ export default function AdminCompaniesPage() {
                   </div>
                 </Link>
                 <div className="flex items-center gap-5 text-xs text-secondary-600">
-                  <span title="Машин в парке">
+                  <span title={t('fleet_machines_count')}>
                     <Truck className="w-3 h-3 inline mr-1" />
                     {r.machines_count}
                   </span>
-                  <span title="Открытых тикетов">
+                  <span title={t('tickets_count')}>
                     <MessageSquareText className="w-3 h-3 inline mr-1" />
                     {r.open_tickets}
                   </span>
-                  <span title="Активных заявок (forwarded/quoted/approved/ordered)">
+                  <span title={t('active_requests_count')}>
                     <ShoppingCart className="w-3 h-3 inline mr-1" />
                     {r.active_parts_requests}
                   </span>
@@ -174,7 +176,7 @@ export default function AdminCompaniesPage() {
                     href={`/admin/companies/${r.id}`}
                     className="text-primary-600 hover:underline text-xs"
                   >
-                    открыть →
+                    {t('open_link')}
                   </Link>
                   <Button
                     variant="outline"
@@ -225,6 +227,8 @@ function CreateCompanyDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
 }) {
+  const t = useTranslations('admin');
+  const tCommon = useTranslations('common');
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
@@ -248,7 +252,7 @@ function CreateCompanyDialog({
         body: JSON.stringify({ name, country: country || undefined }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось создать');
+      if (!resp.ok) throw new Error(json.error ?? t('create_failed'));
       onCreated(json.company.id);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -261,15 +265,14 @@ function CreateCompanyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Новая компания</DialogTitle>
+          <DialogTitle>{t('create_dialog_title')}</DialogTitle>
           <DialogDescription>
-            После создания вы попадёте на страницу компании, где сразу можно добавить
-            проектного менеджера и парк техники.
+            {t('create_dialog_desc')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="cname">Название *</Label>
+            <Label htmlFor="cname">{t('field_name')}</Label>
             <Input
               id="cname"
               value={name}
@@ -279,7 +282,7 @@ function CreateCompanyDialog({
             />
           </div>
           <div>
-            <Label htmlFor="ccountry">Страна</Label>
+            <Label htmlFor="ccountry">{t('field_country')}</Label>
             <Input
               id="ccountry"
               value={country}
@@ -287,8 +290,7 @@ function CreateCompanyDialog({
               placeholder="Saudi Arabia"
             />
             <p className="text-xs text-secondary-500 mt-1">
-              По умолчанию Saudi Arabia. Часовой пояс и язык можно поменять позже на странице
-              компании.
+              {t('country_default_hint')}
             </p>
           </div>
           {err && (
@@ -299,11 +301,11 @@ function CreateCompanyDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {tCommon('cancel')}
           </Button>
           <Button onClick={submit} disabled={busy || name.trim().length < 2}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Создать
+            {tCommon('create')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -324,6 +326,8 @@ function DeleteCompanyDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const t = useTranslations('admin');
+  const tCommon = useTranslations('common');
   const [confirmText, setConfirmText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -346,7 +350,7 @@ function DeleteCompanyDialog({
         body: JSON.stringify({ company_id: company.id, confirm_name: confirmText }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      if (!resp.ok) throw new Error(json.error ?? t('delete_failed'));
       onDeleted();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -359,16 +363,17 @@ function DeleteCompanyDialog({
     <Dialog open={!!company} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-accent-700">Удалить компанию навсегда</DialogTitle>
+          <DialogTitle className="text-accent-700">{t('delete_dialog_title')}</DialogTitle>
           <DialogDescription>
-            Удалятся все сотрудники, машины, смены, тикеты, заявки этой компании. Действие
-            необратимо.
+            {t('delete_dialog_desc')}
           </DialogDescription>
         </DialogHeader>
         {company && (
           <div className="space-y-3">
             <p className="text-sm text-secondary-700">
-              Введите <strong className="font-mono">{company.name}</strong> для подтверждения:
+              {t('delete_confirm_prompt_part1')}{' '}
+              <strong className="font-mono">{company.name}</strong>{' '}
+              {t('delete_confirm_prompt_part2')}
             </p>
             <Input
               value={confirmText}
@@ -385,7 +390,7 @@ function DeleteCompanyDialog({
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>
-            Отмена
+            {tCommon('cancel')}
           </Button>
           <Button
             onClick={submit}
@@ -393,7 +398,7 @@ function DeleteCompanyDialog({
             className="bg-accent-600 hover:bg-accent-700 text-white"
           >
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Удалить навсегда
+            {t('delete_forever')}
           </Button>
         </DialogFooter>
       </DialogContent>

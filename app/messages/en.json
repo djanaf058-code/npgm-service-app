@@ -365,5 +365,29 @@
     "no_title_placeholder": "no subject",
     "no_machine": "machine not specified · ",
     "operator_label": "operator: {name}"
+  },
+  "admin": {
+    "companies_title": "All companies",
+    "companies_subtitle": "Platform clients. Click a card to see machines, tickets, requests.",
+    "create_company": "Create company",
+    "no_companies": "No companies registered yet.",
+    "create_first": "Create the first one",
+    "loading_companies": "Loading companies…",
+    "fleet_machines_count": "Machines in fleet",
+    "tickets_count": "Open tickets",
+    "active_requests_count": "Active requests",
+    "open_link": "open →",
+    "create_dialog_title": "New company",
+    "create_dialog_desc": "After creation you'll land on the company page, where you can immediately add a project manager and fleet.",
+    "field_name": "Name *",
+    "field_country": "Country",
+    "country_default_hint": "Defaults to Saudi Arabia. Time zone and language can be changed later on the company page.",
+    "create_failed": "Could not create",
+    "delete_dialog_title": "Delete company permanently",
+    "delete_dialog_desc": "All employees, machines, shifts, tickets, requests of this company will be deleted. This action cannot be undone.",
+    "delete_confirm_prompt_part1": "Enter",
+    "delete_confirm_prompt_part2": "to confirm:",
+    "delete_failed": "Could not delete",
+    "delete_forever": "Delete permanently"
   }
 }

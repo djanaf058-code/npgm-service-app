@@ -365,5 +365,29 @@
     "no_title_placeholder": "без темы",
     "no_machine": "машина не указана · ",
     "operator_label": "оператор: {name}"
+  },
+  "admin": {
+    "companies_title": "Все компании",
+    "companies_subtitle": "Клиенты платформы. Кликните на карточку — увидите машины, тикеты, заявки.",
+    "create_company": "Создать компанию",
+    "no_companies": "Пока нет ни одной зарегистрированной компании.",
+    "create_first": "Создать первую",
+    "loading_companies": "Загружаем компании…",
+    "fleet_machines_count": "Машин в парке",
+    "tickets_count": "Открытых тикетов",
+    "active_requests_count": "Активных заявок",
+    "open_link": "открыть →",
+    "create_dialog_title": "Новая компания",
+    "create_dialog_desc": "После создания вы попадёте на страницу компании, где сразу можно добавить проектного менеджера и парк техники.",
+    "field_name": "Название *",
+    "field_country": "Страна",
+    "country_default_hint": "По умолчанию Saudi Arabia. Часовой пояс и язык можно поменять позже на странице компании.",
+    "create_failed": "Не удалось создать",
+    "delete_dialog_title": "Удалить компанию навсегда",
+    "delete_dialog_desc": "Удалятся все сотрудники, машины, смены, тикеты, заявки этой компании. Действие необратимо.",
+    "delete_confirm_prompt_part1": "Введите",
+    "delete_confirm_prompt_part2": "для подтверждения:",
+    "delete_failed": "Не удалось удалить",
+    "delete_forever": "Удалить навсегда"
   }
 }
