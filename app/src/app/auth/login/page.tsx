@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
+import { useTranslations } from 'next-intl';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showMFAPrompt, setShowMFAPrompt] = useState(false);
   const router = useRouter();
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +42,7 @@ export default function LoginPage() {
         return;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла неизвестная ошибка');
+      setError(err instanceof Error ? err.message : tCommon('unknown_error'));
     } finally {
       setLoading(false);
     }
@@ -57,8 +60,8 @@ export default function LoginPage() {
         <LocaleSwitcher />
       </div>
       <div className="text-center mb-6">
-        <h2 className="font-heading text-2xl font-semibold text-secondary-900">Вход в аккаунт</h2>
-        <p className="text-sm text-secondary-500 mt-1">Введите email и пароль</p>
+        <h2 className="font-heading text-2xl font-semibold text-secondary-900">{t('login_title')}</h2>
+        <p className="text-sm text-secondary-500 mt-1">{t('login_subtitle')}</p>
       </div>
 
       {error && (
@@ -70,7 +73,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-secondary-700">
-            Email
+            {t('email')}
           </label>
           <input
             id="email"
@@ -87,13 +90,13 @@ export default function LoginPage() {
         <div>
           <div className="flex items-baseline justify-between">
             <label htmlFor="password" className="block text-sm font-medium text-secondary-700">
-              Пароль
+              {t('password')}
             </label>
             <Link
               href="/auth/forgot-password"
               className="text-xs font-medium text-primary-600 hover:text-primary-700"
             >
-              Забыли пароль?
+              {t('forgot_password')}
             </Link>
           </div>
           <input
@@ -114,14 +117,14 @@ export default function LoginPage() {
           className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Вход...' : 'Войти'}
+          {loading ? t('logging_in') : t('login_button')}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm">
-        <span className="text-secondary-600">Нет аккаунта? </span>
+        <span className="text-secondary-600">{t('no_account')}</span>
         <Link href="/auth/register" className="font-medium text-primary-600 hover:text-primary-700">
-          Зарегистрироваться
+          {t('register_link')}
         </Link>
       </div>
     </div>

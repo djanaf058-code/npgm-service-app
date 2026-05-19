@@ -13,14 +13,15 @@ import {
 import { GlobalProvider, useGlobal, useRole } from '@/lib/context/GlobalContext';
 import Logo from '@/components/Logo';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
+import { useTranslations } from 'next-intl';
 
 // Admin route tree (/admin/*) is for platform_admin only — НПГМ side. The
 // regular customer-facing app lives at /app/* with its own AppLayout.
 const adminNav = [
-  { name: 'Все компании', href: '/admin', icon: Building2 },
-  { name: 'Очередь заявок', href: '/admin/queue/parts', icon: ShoppingCart },
-  { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, external: true },
-  { name: 'Профиль', href: '/app/user-settings', icon: UserIcon, external: true },
+  { nameKey: 'admin_companies', href: '/admin', icon: Building2 },
+  { nameKey: 'admin_queue', href: '/admin/queue/parts', icon: ShoppingCart },
+  { nameKey: 'tickets', href: '/app/tickets', icon: MessageSquareText, external: true },
+  { nameKey: 'profile', href: '/app/user-settings', icon: UserIcon, external: true },
 ];
 
 // Wraps the admin tree in its own GlobalProvider — same as /app does — so
@@ -38,6 +39,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { isPlatformAdmin } = useRole();
   const router = useRouter();
   const pathname = usePathname();
+  const tNav = useTranslations('nav');
+  const tCommon = useTranslations('common');
 
   // Bounce non-admins back to the customer app. Has to live in an effect:
   // calling router.replace during render triggers a setState on the Router
@@ -52,7 +55,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {tCommon('loading')}
       </div>
     );
   }
@@ -91,7 +94,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <item.icon className="w-4 h-4" />
-                {item.name}
+                {tNav(item.nameKey)}
                 {item.external && (
                   <span className="ml-auto text-[10px] text-secondary-400">↗</span>
                 )}
@@ -108,7 +111,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             href="/app"
             className="text-xs text-primary-600 hover:underline mt-1 inline-block"
           >
-            ← к /app
+            {tNav('back_to_app')}
           </Link>
         </div>
       </aside>

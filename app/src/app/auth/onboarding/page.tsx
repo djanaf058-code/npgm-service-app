@@ -4,25 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
 
-const COUNTRIES = [
-  { code: 'RU', name_ru: 'Россия' },
-  { code: 'KZ', name_ru: 'Казахстан' },
-  { code: 'KG', name_ru: 'Кыргызстан' },
-  { code: 'BY', name_ru: 'Беларусь' },
-  { code: 'SA', name_ru: 'Саудовская Аравия' },
-  { code: 'AE', name_ru: 'ОАЭ' },
-  { code: 'OM', name_ru: 'Оман' },
-  { code: 'QA', name_ru: 'Катар' },
-  { code: 'KW', name_ru: 'Кувейт' },
-  { code: 'BH', name_ru: 'Бахрейн' },
-  { code: 'IQ', name_ru: 'Ирак' },
-  { code: 'EG', name_ru: 'Египет' },
-  { code: 'JO', name_ru: 'Иордания' },
-  { code: 'OTHER', name_ru: 'Другая' },
-];
+const COUNTRY_CODES = [
+  'RU', 'KZ', 'KG', 'BY', 'SA', 'AE', 'OM', 'QA',
+  'KW', 'BH', 'IQ', 'EG', 'JO', 'OTHER',
+] as const;
 
 const LANGUAGES = [
   { code: 'ru', name: 'Русский' },
@@ -31,6 +20,8 @@ const LANGUAGES = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const t = useTranslations('auth');
+  const tCountries = useTranslations('countries');
   const [companyName, setCompanyName] = useState('');
   const [fullName, setFullName] = useState('');
   const [country, setCountry] = useState('');
@@ -60,7 +51,7 @@ export default function OnboardingPage() {
         if (cancelled) return;
         if (rpcErr) {
           // Show the form so the user can fall back to creating a company.
-          setError(`Не удалось принять приглашение: ${rpcErr.message}`);
+          setError(`${t('invite_accept_failed')}: ${rpcErr.message}`);
           setRedeemingInvite(false);
           return;
         }
@@ -94,11 +85,11 @@ export default function OnboardingPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Не удалось создать компанию');
+        throw new Error(data.error || t('create_company_failed'));
       }
       router.push(data.redirect ?? '/app');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      setError(err instanceof Error ? err.message : t('create_company_failed'));
     } finally {
       setLoading(false);
     }
@@ -108,7 +99,7 @@ export default function OnboardingPage() {
     return (
       <div className="bg-white py-12 px-4 shadow sm:rounded-lg sm:px-10 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-primary-600 mx-auto mb-3" />
-        <p className="text-sm text-secondary-600">Принимаем приглашение…</p>
+        <p className="text-sm text-secondary-600">{t('redeeming_invite')}</p>
       </div>
     );
   }
@@ -119,9 +110,9 @@ export default function OnboardingPage() {
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-50 mb-3">
           <Building2 className="w-6 h-6 text-primary-600" />
         </div>
-        <h2 className="text-xl font-semibold text-slate-900">Создание компании</h2>
+        <h2 className="text-xl font-semibold text-slate-900">{t('onboarding_title')}</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Зарегистрируйте свою организацию, чтобы начать работу
+          {t('onboarding_subtitle')}
         </p>
       </div>
 
@@ -134,7 +125,7 @@ export default function OnboardingPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="companyName" className="block text-sm font-medium text-slate-700">
-            Название компании
+            {t('company_name')}
           </label>
           <input
             id="companyName"
@@ -150,7 +141,7 @@ export default function OnboardingPage() {
 
         <div>
           <label htmlFor="fullName" className="block text-sm font-medium text-slate-700">
-            Ваше имя
+            {t('your_name')}
           </label>
           <input
             id="fullName"
@@ -159,17 +150,17 @@ export default function OnboardingPage() {
             minLength={2}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Иван Иванов"
+            placeholder={t('your_name_placeholder')}
             className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
           />
           <p className="mt-1 text-xs text-slate-500">
-            Будете администратором компании. Других сотрудников добавите позже.
+            {t('your_name_hint')}
           </p>
         </div>
 
         <div>
           <label htmlFor="country" className="block text-sm font-medium text-slate-700">
-            Страна
+            {t('country')}
           </label>
           <select
             id="country"
@@ -178,10 +169,10 @@ export default function OnboardingPage() {
             onChange={(e) => setCountry(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
           >
-            <option value="">Выберите страну</option>
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name_ru}
+            <option value="">{t('choose_country')}</option>
+            {COUNTRY_CODES.map((code) => (
+              <option key={code} value={code}>
+                {tCountries(code)}
               </option>
             ))}
           </select>
@@ -189,7 +180,7 @@ export default function OnboardingPage() {
 
         <div>
           <label htmlFor="language" className="block text-sm font-medium text-slate-700">
-            Язык интерфейса
+            {t('interface_language')}
           </label>
           <select
             id="language"
@@ -211,13 +202,12 @@ export default function OnboardingPage() {
           className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Создание...' : 'Создать компанию и продолжить'}
+          {loading ? t('creating') : t('create_company_button')}
         </button>
 
         {country === 'OTHER' && (
           <p className="text-xs text-amber-700">
-            Свяжитесь с нами для регистрации компании в вашей стране — на текущий момент
-            мы поддерживаем только список выше.
+            {t('country_unsupported')}
           </p>
         )}
       </form>

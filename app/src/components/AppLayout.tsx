@@ -22,12 +22,16 @@ import { useGlobal, useRole } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 import { LocaleSwitcher } from "@/components/i18n/LocaleSwitcher";
+import { useTranslations } from 'next-intl';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isUserDropdownOpen, setUserDropdownOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+    const tNav = useTranslations('nav');
+    const tRoles = useTranslations('roles');
+    const tMenu = useTranslations('user_menu');
 
 
     const { user, loading: globalLoading } = useGlobal();
@@ -72,31 +76,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // company admins get the full company-wide management surface, and Tier 2
     // (НПГМ side) gets the cross-tenant view.
     const baseNav = [
-        { name: 'Главная', href: '/app', icon: Home, roles: ['all'] },
-        { name: 'Парк техники', href: '/app/machines', icon: Truck, roles: ['all'] },
-        { name: 'Смены', href: '/app/shifts', icon: ClipboardCheck,
+        { nameKey: 'home', href: '/app', icon: Home, roles: ['all'] },
+        { nameKey: 'machines', href: '/app/machines', icon: Truck, roles: ['all'] },
+        { nameKey: 'shifts', href: '/app/shifts', icon: ClipboardCheck,
           roles: ['operator', 'service_engineer', 'project_manager'] },
-        { name: 'Тикеты', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
-        { name: 'ТО', href: '/app/maintenance', icon: Wrench,
+        { nameKey: 'tickets', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
+        { nameKey: 'maintenance', href: '/app/maintenance', icon: Wrench,
           roles: ['service_engineer', 'project_manager', 'platform_admin'] },
-        { name: 'Гараж', href: '/app/parts', icon: Box,
+        { nameKey: 'parts', href: '/app/parts', icon: Box,
           roles: ['operator', 'service_engineer', 'project_manager'] },
-        { name: 'Команда', href: '/app/team', icon: Users, roles: ['project_manager', 'service_engineer'] },
-        { name: 'Админ-панель', href: '/admin', icon: Shield, roles: ['platform_admin'] },
-        { name: 'Профиль', href: '/app/user-settings', icon: User, roles: ['all'] },
+        { nameKey: 'team', href: '/app/team', icon: Users, roles: ['project_manager', 'service_engineer'] },
+        { nameKey: 'admin_panel', href: '/admin', icon: Shield, roles: ['platform_admin'] },
+        { nameKey: 'profile', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
     const navigation = baseNav.filter(
         (n) => n.roles.includes('all') || (role !== null && n.roles.includes(role))
     );
 
     const roleBadge = isProjectManager
-        ? { label: 'Проектный менеджер', tone: 'bg-primary-50 text-primary-700' }
+        ? { label: tRoles('project_manager'), tone: 'bg-primary-50 text-primary-700' }
         : isServiceEngineer
-        ? { label: 'Сервисный инженер', tone: 'bg-primary-50 text-primary-700' }
+        ? { label: tRoles('service_engineer'), tone: 'bg-primary-50 text-primary-700' }
         : isPlatformAdmin
-        ? { label: 'НПГМ — Платформа', tone: 'bg-accent-50 text-accent-700' }
+        ? { label: tRoles('platform_admin'), tone: 'bg-accent-50 text-accent-700' }
         : isOperator
-        ? { label: 'Оператор', tone: 'bg-emerald-50 text-emerald-700' }
+        ? { label: tRoles('operator'), tone: 'bg-emerald-50 text-emerald-700' }
         : null;
 
     const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
@@ -133,7 +137,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 : pathname.startsWith(item.href);
                         return (
                             <Link
-                                key={item.name}
+                                key={item.nameKey}
                                 href={item.href}
                                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                                     isActive
@@ -148,7 +152,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             : 'text-secondary-400 group-hover:text-secondary-600'
                                     }`}
                                 />
-                                {item.name}
+                                {tNav(item.nameKey)}
                             </Link>
                         );
                     })}
@@ -178,14 +182,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     {user ? getInitials(user.email) : '??'}
                                 </span>
                             </div>
-                            <span>{user?.email || 'Loading...'}</span>
+                            <span>{user?.email || tMenu('loading')}</span>
                             <ChevronDown className="h-4 w-4"/>
                         </button>
 
                         {isUserDropdownOpen && (
                             <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg border border-secondary-200">
                                 <div className="p-3 border-b border-secondary-100">
-                                    <p className="text-xs text-secondary-500">Вошли как</p>
+                                    <p className="text-xs text-secondary-500">{tMenu('signed_in_as')}</p>
                                     <p className="text-sm font-medium text-secondary-900 truncate">
                                         {user?.full_name || user?.email}
                                     </p>
@@ -204,7 +208,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                         className="w-full flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50"
                                     >
                                         <Key className="mr-3 h-4 w-4 text-secondary-400"/>
-                                        Сменить пароль
+                                        {tMenu('change_password')}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -214,7 +218,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                         className="w-full flex items-center px-4 py-2 text-sm text-accent-700 hover:bg-accent-50"
                                     >
                                         <LogOut className="mr-3 h-4 w-4 text-accent-400"/>
-                                        Выйти
+                                        {tMenu('logout')}
                                     </button>
                                 </div>
                             </div>

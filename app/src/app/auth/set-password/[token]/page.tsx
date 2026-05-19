@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import type { UserRole } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
 interface Preview {
   role: UserRole;
@@ -22,15 +23,6 @@ interface Preview {
   accepted: boolean;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  operator: 'Оператор',
-  service_engineer: 'Сервисный инженер',
-  project_manager: 'Проектный менеджер',
-  company_admin: 'Руководитель сервисной службы',
-  tier2_engineer: 'НПГМ Tier 2',
-  platform_admin: 'Платформа',
-};
-
 // Activation page for pre-registered invites. The manager already created
 // the auth user; we only collect a password, set it via the admin API, then
 // sign the user in to land them inside /app.
@@ -38,6 +30,8 @@ export default function SetPasswordPage() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
   const token = params.token;
+  const t = useTranslations('auth');
+  const tRoles = useTranslations('roles');
 
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +48,7 @@ export default function SetPasswordPage() {
       try {
         const resp = await fetch(`/api/invites/lookup?token=${encodeURIComponent(token)}`);
         const json = await resp.json();
-        if (!resp.ok) throw new Error(json.error ?? 'Не удалось загрузить приглашение');
+        if (!resp.ok) throw new Error(json.error ?? t('invite_load_failed'));
         if (!cancelled) setPreview(json as Preview);
         // If this is actually an anonymous link, send the user to the right page.
         if (!cancelled && json && !json.is_preregistered) {
@@ -74,11 +68,11 @@ export default function SetPasswordPage() {
   const submit = async () => {
     setError(null);
     if (password.length < 8) {
-      setError('Пароль должен быть не короче 8 символов');
+      setError(t('password_too_short'));
       return;
     }
     if (password !== confirm) {
-      setError('Пароли не совпадают');
+      setError(t('passwords_dont_match'));
       return;
     }
     setSubmitting(true);
@@ -89,7 +83,7 @@ export default function SetPasswordPage() {
         body: JSON.stringify({ token, password }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось установить пароль');
+      if (!resp.ok) throw new Error(json.error ?? t('set_password_failed'));
 
       // Sign in with the freshly-set password so we land a real session.
       if (json.email) {
@@ -113,7 +107,7 @@ export default function SetPasswordPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Проверяем приглашение…
+        {t('checking_invite')}
       </div>
     );
   }
@@ -123,11 +117,11 @@ export default function SetPasswordPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Приглашение недоступно
+          {t('invite_unavailable')}
         </h2>
         <p className="text-sm text-secondary-600 mb-4 whitespace-pre-wrap">{error}</p>
         <Button asChild variant="outline">
-          <Link href="/">На главную</Link>
+          <Link href="/">{t('to_home')}</Link>
         </Button>
       </Card>
     );
@@ -143,13 +137,13 @@ export default function SetPasswordPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Аккаунт уже активирован
+          {t('account_already_activated')}
         </h2>
         <p className="text-sm text-secondary-600 mb-4">
-          Эта ссылка одноразовая — войдите как обычно.
+          {t('single_use_link')}
         </p>
         <Button asChild>
-          <Link href="/auth/login">Войти</Link>
+          <Link href="/auth/login">{t('login_link')}</Link>
         </Button>
       </Card>
     );
@@ -160,10 +154,10 @@ export default function SetPasswordPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Приглашение истекло
+          {t('invite_expired')}
         </h2>
         <p className="text-sm text-secondary-600">
-          Попросите руководителя выпустить новое.
+          {t('ask_manager_new_invite')}
         </p>
       </Card>
     );
@@ -173,8 +167,8 @@ export default function SetPasswordPage() {
     return (
       <Card className="p-8 max-w-md mx-auto text-center">
         <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-        <h2 className="font-heading font-semibold text-secondary-900 mb-2">Готово</h2>
-        <p className="text-sm text-secondary-600">Открываем приложение…</p>
+        <h2 className="font-heading font-semibold text-secondary-900 mb-2">{t('done')}</h2>
+        <p className="text-sm text-secondary-600">{t('opening_app')}</p>
       </Card>
     );
   }
@@ -186,7 +180,7 @@ export default function SetPasswordPage() {
           <KeyRound className="w-6 h-6" />
         </div>
         <h2 className="font-heading text-xl font-semibold text-secondary-900">
-          Активация аккаунта
+          {t('activate_account')}
         </h2>
         {preview.company_name && (
           <p className="text-secondary-700 mt-1 flex items-center justify-center gap-1.5">
@@ -198,12 +192,12 @@ export default function SetPasswordPage() {
           <p className="text-sm text-secondary-900 font-medium mt-1">{preview.full_name}</p>
         )}
         <p className="text-xs text-secondary-500 mt-1">
-          {preview.email} · <strong>{ROLE_LABELS[preview.role]}</strong>
+          {preview.email} · <strong>{tRoles(preview.role)}</strong>
         </p>
       </div>
       <div className="space-y-3">
         <div>
-          <Label htmlFor="pw">Придумайте пароль</Label>
+          <Label htmlFor="pw">{t('create_password')}</Label>
           <Input
             id="pw"
             type="password"
@@ -216,10 +210,10 @@ export default function SetPasswordPage() {
               if (e.key === 'Enter' && password.length >= 8 && password === confirm) submit();
             }}
           />
-          <p className="text-xs text-secondary-500 mt-1">Минимум 8 символов.</p>
+          <p className="text-xs text-secondary-500 mt-1">{t('min_8_chars')}</p>
         </div>
         <div>
-          <Label htmlFor="pw2">Повторите пароль</Label>
+          <Label htmlFor="pw2">{t('repeat_password')}</Label>
           <Input
             id="pw2"
             type="password"
@@ -239,7 +233,7 @@ export default function SetPasswordPage() {
         )}
         <Button onClick={submit} disabled={submitting} className="w-full">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Установить пароль и войти
+          {t('set_password_button')}
         </Button>
       </div>
     </Card>

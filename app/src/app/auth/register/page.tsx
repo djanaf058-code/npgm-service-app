@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
 
@@ -12,20 +13,25 @@ const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
 // the static export step bails. Wrap the form in one.
 export default function RegisterPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center py-20 text-secondary-500">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Загрузка…
-        </div>
-      }
-    >
+    <Suspense fallback={<RegisterFallback />}>
       <RegisterForm />
     </Suspense>
   );
 }
 
+function RegisterFallback() {
+  const tCommon = useTranslations('common');
+  return (
+    <div className="flex items-center justify-center py-20 text-secondary-500">
+      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+      {tCommon('loading')}
+    </div>
+  );
+}
+
 function RegisterForm() {
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
   const inviteEmailHint = searchParams.get('email');
@@ -55,17 +61,17 @@ function RegisterForm() {
     setError('');
 
     if (!acceptedTerms) {
-      setError('Подтвердите согласие с условиями использования и политикой конфиденциальности');
+      setError(t('must_accept_terms'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Пароли не совпадают');
+      setError(t('passwords_dont_match'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Пароль должен быть не короче 8 символов');
+      setError(t('password_too_short'));
       return;
     }
 
@@ -79,7 +85,7 @@ function RegisterForm() {
 
       router.push('/auth/verify-email');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла неизвестная ошибка');
+      setError(err instanceof Error ? err.message : tCommon('unknown_error'));
     } finally {
       setLoading(false);
     }
@@ -89,12 +95,12 @@ function RegisterForm() {
     <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10">
       <div className="text-center mb-6">
         <h2 className="font-heading text-2xl font-semibold text-secondary-900">
-          {inviteToken ? 'Регистрация по приглашению' : 'Регистрация компании'}
+          {inviteToken ? t('register_title_invite') : t('register_title_company')}
         </h2>
         <p className="text-sm text-secondary-500 mt-1">
           {inviteToken
-            ? 'Создайте аккаунт. После подтверждения email вы автоматически попадёте в команду.'
-            : 'Создайте аккаунт администратора. Сотрудников добавите позже.'}
+            ? t('register_subtitle_invite')
+            : t('register_subtitle_company')}
         </p>
       </div>
 
@@ -107,7 +113,7 @@ function RegisterForm() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-secondary-700">
-            Рабочий email
+            {t('work_email')}
           </label>
           <input
             id="email"
@@ -123,7 +129,7 @@ function RegisterForm() {
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-secondary-700">
-            Пароль
+            {t('password')}
           </label>
           <input
             id="password"
@@ -136,12 +142,12 @@ function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             className="mt-1 block w-full rounded-md border border-secondary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <p className="mt-1 text-xs text-secondary-500">Не короче 8 символов</p>
+          <p className="mt-1 text-xs text-secondary-500">{t('password_min_hint')}</p>
         </div>
 
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary-700">
-            Повторите пароль
+            {t('confirm_password')}
           </label>
           <input
             id="confirmPassword"
@@ -164,13 +170,13 @@ function RegisterForm() {
             className="mt-1 h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
           />
           <label htmlFor="terms" className="text-sm text-secondary-600 leading-snug">
-            Я согласен с{' '}
+            {t('terms_agree')}{' '}
             <Link href="/legal/terms" className="font-medium text-primary-600 hover:text-primary-700" target="_blank">
-              условиями использования
+              {t('terms_use')}
             </Link>{' '}
-            и{' '}
+            {t('terms_and')}{' '}
             <Link href="/legal/privacy" className="font-medium text-primary-600 hover:text-primary-700" target="_blank">
-              политикой конфиденциальности
+              {t('terms_privacy')}
             </Link>
           </label>
         </div>
@@ -181,14 +187,14 @@ function RegisterForm() {
           className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Создание аккаунта...' : 'Создать аккаунт'}
+          {loading ? t('creating_account') : t('register_button')}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm">
-        <span className="text-secondary-600">Уже есть аккаунт? </span>
+        <span className="text-secondary-600">{t('have_account')}</span>
         <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-700">
-          Войти
+          {t('login_link')}
         </Link>
       </div>
     </div>
