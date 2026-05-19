@@ -1,0 +1,33 @@
+{
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "loading": "Загрузка…",
+    "error": "Ошибка",
+    "back": "Назад",
+    "open": "Открыть",
+    "add": "Добавить",
+    "create": "Создать",
+    "submit": "Отправить",
+    "search": "Поиск"
+  },
+  "nav": {
+    "home": "Главная",
+    "machines": "Парк техники",
+    "shifts": "Смены",
+    "tickets": "Тикеты",
+    "maintenance": "ТО",
+    "parts": "Гараж",
+    "team": "Команда",
+    "admin_panel": "Админ-панель",
+    "profile": "Профиль"
+  },
+  "roles": {
+    "operator": "Оператор",
+    "service_engineer": "Сервисный инженер",
+    "project_manager": "Проектный менеджер",
+    "platform_admin": "НПГМ — Платформа"
+  }
+}

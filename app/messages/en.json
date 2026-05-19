@@ -1,0 +1,33 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "error": "Error",
+    "back": "Back",
+    "open": "Open",
+    "add": "Add",
+    "create": "Create",
+    "submit": "Submit",
+    "search": "Search"
+  },
+  "nav": {
+    "home": "Home",
+    "machines": "Fleet",
+    "shifts": "Shifts",
+    "tickets": "Tickets",
+    "maintenance": "Maintenance",
+    "parts": "Garage",
+    "team": "Team",
+    "admin_panel": "Admin",
+    "profile": "Profile"
+  },
+  "roles": {
+    "operator": "Operator",
+    "service_engineer": "Service engineer",
+    "project_manager": "Project manager",
+    "platform_admin": "NPGM Platform"
+  }
+}
