@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Loader2,
@@ -100,19 +101,11 @@ interface InviteRow {
   created_at: string;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  operator: 'Оператор',
-  service_engineer: 'Сервисный инженер',
-  project_manager: 'Проектный менеджер',
-  company_admin: 'Руководитель сервисной службы',
-  tier2_engineer: 'НПГМ Tier 2',
-  platform_admin: 'Платформа',
-};
-
 // platform_admin can grant any non-tier-2 role into a tenant.
 const ADMIN_GRANTABLE_ROLES: UserRole[] = ['operator', 'service_engineer', 'project_manager'];
 
 export default function AdminCompanyOverviewPage() {
+  const t = useTranslations('admin_company');
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const companyId = params.id;
@@ -212,7 +205,7 @@ export default function AdminCompanyOverviewPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
@@ -224,10 +217,10 @@ export default function AdminCompanyOverviewPage() {
           href="/admin"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> Все компании
+          <ArrowLeft className="w-4 h-4" /> {t('back_to_companies')}
         </Link>
         <Card className="p-6 text-center">
-          <p className="text-accent-700 whitespace-pre-wrap">{error ?? 'Компания не найдена'}</p>
+          <p className="text-accent-700 whitespace-pre-wrap">{error ?? t('company_not_found')}</p>
         </Card>
       </div>
     );
@@ -247,7 +240,7 @@ export default function AdminCompanyOverviewPage() {
         href="/admin"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" /> Все компании
+        <ArrowLeft className="w-4 h-4" /> {t('back_to_companies')}
       </Link>
 
       {/* Header */}
@@ -273,7 +266,7 @@ export default function AdminCompanyOverviewPage() {
             className="text-accent-700 border-accent-300 hover:bg-accent-50"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Удалить компанию
+            {t('delete_company')}
           </Button>
         </div>
       </Card>
@@ -283,17 +276,17 @@ export default function AdminCompanyOverviewPage() {
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <Users className="w-4 h-4 text-primary-600" />
-            Команда ({members.length})
+            {t('team_section', { n: members.length })}
           </CardTitle>
           <Button size="sm" onClick={() => setInviteOpen(true)}>
             <UserPlus className="w-3.5 h-3.5" />
-            Добавить
+            {t('add_member')}
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           {members.length === 0 ? (
             <p className="text-sm text-secondary-500">
-              В компании пока нет сотрудников — добавьте проектного менеджера, чтобы начать.
+              {t('no_team')}
             </p>
           ) : (
             <ul className="divide-y divide-secondary-100">
@@ -312,7 +305,7 @@ export default function AdminCompanyOverviewPage() {
             <div className="pt-2 border-t border-secondary-100">
               <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold mb-2 flex items-center gap-1">
                 <KeyRound className="w-3 h-3 text-primary-600" />
-                Ожидают активации ({awaitingActivation.length})
+                {t('pending_activation', { n: awaitingActivation.length })}
               </p>
               <ul className="space-y-1.5">
                 {awaitingActivation.map((inv) => (
@@ -332,7 +325,7 @@ export default function AdminCompanyOverviewPage() {
             <div className="pt-2 border-t border-secondary-100">
               <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold mb-2 flex items-center gap-1">
                 <Link2 className="w-3 h-3 text-amber-600" />
-                Открытые ссылки ({pendingLinks.length})
+                {t('open_links', { n: pendingLinks.length })}
               </p>
               <ul className="space-y-1.5">
                 {pendingLinks.map((inv) => (
@@ -355,19 +348,19 @@ export default function AdminCompanyOverviewPage() {
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <Truck className="w-4 h-4 text-primary-600" />
-            Парк техники ({machines.length})
+            {t('fleet_section', { n: machines.length })}
           </CardTitle>
           <Button
             size="sm"
             onClick={() => router.push(`/app/machines/new?company_id=${companyId}`)}
           >
             <Plus className="w-3.5 h-3.5" />
-            Добавить машину
+            {t('add_machine')}
           </Button>
         </CardHeader>
         <CardContent>
           {machines.length === 0 ? (
-            <p className="text-sm text-secondary-500">У компании пока нет машин.</p>
+            <p className="text-sm text-secondary-500">{t('no_machines')}</p>
           ) : (
             <ul className="divide-y divide-secondary-100">
               {machines.map((m) => (
@@ -388,26 +381,26 @@ export default function AdminCompanyOverviewPage() {
         <CardHeader>
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <MessageSquareText className="w-4 h-4 text-primary-600" />
-            Последние тикеты ({tickets.length})
+            {t('tickets_section', { n: tickets.length })}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {tickets.length === 0 ? (
-            <p className="text-sm text-secondary-500">Тикетов пока нет.</p>
+            <p className="text-sm text-secondary-500">{t('no_tickets')}</p>
           ) : (
             <ul className="divide-y divide-secondary-100">
-              {tickets.map((t) => (
-                <li key={t.id} className="py-2 flex items-center justify-between gap-3">
+              {tickets.map((tk) => (
+                <li key={tk.id} className="py-2 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1 truncate text-sm text-secondary-900">
-                    {t.title}
+                    {tk.title}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="outline">{t.status}</Badge>
+                    <Badge variant="outline">{tk.status}</Badge>
                     <Link
-                      href={`/app/tickets/${t.id}`}
+                      href={`/app/tickets/${tk.id}`}
                       className="text-xs text-primary-600 hover:underline"
                     >
-                      открыть →
+                      {t('open_link')}
                     </Link>
                   </div>
                 </li>
@@ -422,12 +415,12 @@ export default function AdminCompanyOverviewPage() {
         <CardHeader>
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <ShoppingCart className="w-4 h-4 text-primary-600" />
-            Сводные заявки ({requests.length})
+            {t('parts_section', { n: requests.length })}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {requests.length === 0 ? (
-            <p className="text-sm text-secondary-500">Сводных заявок пока нет.</p>
+            <p className="text-sm text-secondary-500">{t('no_parts_requests')}</p>
           ) : (
             <ul className="divide-y divide-secondary-100">
               {requests.map((r) => (
@@ -463,7 +456,7 @@ export default function AdminCompanyOverviewPage() {
                       href={`/app/parts/request/${r.id}`}
                       className="text-primary-600 hover:underline"
                     >
-                      открыть →
+                      {t('open_link')}
                     </Link>
                     <ChevronRight className="w-4 h-4 text-secondary-300" />
                   </div>
@@ -509,11 +502,15 @@ function MemberRowItem({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('admin_company');
+  const tRoles = useTranslations('roles');
   const [busy, setBusy] = useState(false);
   const remove = async () => {
     if (
       !confirm(
-        `Удалить ${member.full_name || 'сотрудника'}? Аккаунт будет полностью удалён — войти под этим email после нельзя.`
+        t('delete_member_confirm', {
+          name: member.full_name || t('delete_member_default_name'),
+        })
       )
     )
       return;
@@ -525,7 +522,7 @@ function MemberRowItem({
         body: JSON.stringify({ member_id: member.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      if (!resp.ok) throw new Error(json.error ?? t('delete_member_failed'));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -536,10 +533,10 @@ function MemberRowItem({
   return (
     <li className="py-2 flex items-center justify-between gap-3 flex-wrap">
       <span className="text-sm text-secondary-900 font-medium min-w-0 flex-1 truncate">
-        {member.full_name || '(имя не указано)'}
+        {member.full_name || t('no_name')}
       </span>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <Badge variant="outline">{member.role ? ROLE_LABELS[member.role] : '—'}</Badge>
+        <Badge variant="outline">{member.role ? tRoles(member.role) : '—'}</Badge>
         <Button variant="outline" size="sm" onClick={remove} disabled={busy}>
           <Trash2 className="w-3 h-3" />
         </Button>
@@ -561,12 +558,12 @@ function MachineRowItem({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('admin_company');
+  const tCommon = useTranslations('common');
   const [busy, setBusy] = useState(false);
   const remove = async () => {
     if (
-      !confirm(
-        `Удалить машину ${machine.model_code}? Связанные смены, заявки и история ТО тоже удалятся.`
-      )
+      !confirm(t('delete_machine_confirm', { model: machine.model_code }))
     )
       return;
     setBusy(true);
@@ -593,10 +590,10 @@ function MachineRowItem({
       </div>
       <div className="flex items-center gap-3 text-xs text-secondary-500 flex-shrink-0">
         <span className="tabular-nums">
-          {Number(machine.tons_pumped).toLocaleString('ru-RU')} т
+          {Number(machine.tons_pumped).toLocaleString('ru-RU')} {tCommon('tons_short')}
         </span>
         <Link href={`/app/machines/${machine.id}`} className="text-primary-600 hover:underline">
-          открыть →
+          {t('open_link')}
         </Link>
         <Button variant="outline" size="sm" onClick={remove} disabled={busy}>
           <Trash2 className="w-3 h-3" />
@@ -623,6 +620,8 @@ function DeleteCompanyDialog({
   onDeleted: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('admin_delete_company');
+  const tCommon = useTranslations('common');
   const [confirmText, setConfirmText] = useState('');
   const [busy, setBusy] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
@@ -644,7 +643,7 @@ function DeleteCompanyDialog({
         body: JSON.stringify({ company_id: company.id, confirm_name: confirmText }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось удалить');
+      if (!resp.ok) throw new Error(json.error ?? t('delete_failed'));
       onDeleted();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -659,15 +658,16 @@ function DeleteCompanyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-accent-700">Удалить компанию навсегда</DialogTitle>
+          <DialogTitle className="text-accent-700">{t('title')}</DialogTitle>
           <DialogDescription>
-            Удалятся все сотрудники, машины, смены, тикеты и заявки этой компании. Действие
-            нельзя отменить.
+            {t('desc')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-secondary-700">
-            Введите <strong className="font-mono">{company.name}</strong> для подтверждения:
+            {t('confirm_part1')}{' '}
+            <strong className="font-mono">{company.name}</strong>{' '}
+            {t('confirm_part2')}
           </p>
           <Input
             value={confirmText}
@@ -683,7 +683,7 @@ function DeleteCompanyDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {tCommon('cancel')}
           </Button>
           <Button
             onClick={submit}
@@ -691,7 +691,7 @@ function DeleteCompanyDialog({
             className="bg-accent-600 hover:bg-accent-700 text-white"
           >
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Удалить навсегда
+            {t('delete_forever')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -714,6 +714,8 @@ function AdminInviteRow({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('admin_company');
+  const tRoles = useTranslations('roles');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const path = kind === 'preregister' ? 'set-password' : 'invite';
@@ -728,14 +730,16 @@ function AdminInviteRow({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onError('Не удалось скопировать ссылку');
+      onError(t('copy_link_failed'));
     }
   };
   const remove = async () => {
     const msg =
       kind === 'preregister'
-        ? `Удалить ${invite.full_name || invite.email}? Аккаунт сотрудника будет удалён.`
-        : 'Отменить ссылку?';
+        ? t('delete_preregister_confirm', {
+            label: invite.full_name || invite.email || '',
+          })
+        : t('delete_anonymous_confirm');
     if (!confirm(msg)) return;
     setBusy(true);
     try {
@@ -745,7 +749,7 @@ function AdminInviteRow({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось');
+      if (!resp.ok) throw new Error(json.error ?? t('cancel_invite_failed'));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -759,7 +763,7 @@ function AdminInviteRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap text-sm">
           <Badge variant={kind === 'preregister' ? 'success' : 'warning'}>
-            {ROLE_LABELS[invite.role]}
+            {tRoles(invite.role)}
           </Badge>
           {invite.full_name && (
             <span className="text-secondary-900 font-medium">{invite.full_name}</span>
@@ -799,6 +803,10 @@ function AdminInviteDialog({
   companyName: string;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('admin_invite');
+  const tCommon = useTranslations('common');
+  const tCompany = useTranslations('admin_company');
+  const tRoles = useTranslations('roles');
   const [mode, setMode] = useState<Mode>('preregister');
   const [role, setRole] = useState<UserRole>('project_manager');
   const [email, setEmail] = useState('');
@@ -840,7 +848,7 @@ function AdminInviteDialog({
         body: JSON.stringify(payload),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? 'Не удалось создать');
+      if (!resp.ok) throw new Error(json.error ?? t('creation_failed'));
       setGeneratedUrl(`${window.location.origin}${json.path}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -858,7 +866,7 @@ function AdminInviteDialog({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onError('Не удалось скопировать ссылку');
+      onError(tCompany('copy_link_failed'));
     }
   };
 
@@ -866,9 +874,9 @@ function AdminInviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Добавить в «{companyName}»</DialogTitle>
+          <DialogTitle>{t('dialog_title', { company: companyName })}</DialogTitle>
           <DialogDescription>
-            Сотрудник попадёт в эту компанию с указанной ролью.
+            {t('dialog_desc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -883,7 +891,7 @@ function AdminInviteDialog({
                   : 'text-secondary-600 hover:text-secondary-900'
               }`}
             >
-              Зарегистрировать
+              {t('tab_preregister')}
             </button>
             <button
               type="button"
@@ -894,7 +902,7 @@ function AdminInviteDialog({
                   : 'text-secondary-600 hover:text-secondary-900'
               }`}
             >
-              Анонимная ссылка
+              {t('tab_link')}
             </button>
           </div>
         )}
@@ -902,7 +910,7 @@ function AdminInviteDialog({
         {!generatedUrl ? (
           <div className="space-y-3">
             <div>
-              <Label htmlFor="admin_invite_role">Роль *</Label>
+              <Label htmlFor="admin_invite_role">{t('field_role')}</Label>
               <Select
                 id="admin_invite_role"
                 value={role}
@@ -911,7 +919,7 @@ function AdminInviteDialog({
               >
                 {ADMIN_GRANTABLE_ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
+                    {tRoles(r)}
                   </option>
                 ))}
               </Select>
@@ -920,36 +928,36 @@ function AdminInviteDialog({
             {mode === 'preregister' ? (
               <>
                 <div>
-                  <Label htmlFor="admin_invite_name">ФИО *</Label>
+                  <Label htmlFor="admin_invite_name">{t('field_full_name')}</Label>
                   <Input
                     id="admin_invite_name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Иван Иванов"
+                    placeholder={t('placeholder_full_name')}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="admin_invite_email">Email *</Label>
+                  <Label htmlFor="admin_invite_email">{t('field_email')}</Label>
                   <Input
                     id="admin_invite_email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ivan@company.com"
+                    placeholder={t('placeholder_email')}
                     className="mt-1"
                   />
                 </div>
               </>
             ) : (
               <div>
-                <Label htmlFor="admin_invite_email_opt">Email (опционально)</Label>
+                <Label htmlFor="admin_invite_email_opt">{t('field_email_optional')}</Label>
                 <Input
                   id="admin_invite_email_opt"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ivan@company.com"
+                  placeholder={t('placeholder_email')}
                   className="mt-1"
                 />
               </div>
@@ -966,8 +974,8 @@ function AdminInviteDialog({
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md">
               <p className="text-sm text-emerald-900 font-medium mb-2">
                 {mode === 'preregister'
-                  ? 'Аккаунт создан. Перешлите ссылку:'
-                  : 'Ссылка готова:'}
+                  ? t('preregister_link_ready')
+                  : t('anonymous_link_ready')}
               </p>
               <p className="text-xs text-secondary-700 font-mono break-all bg-white border border-secondary-200 rounded p-2">
                 {generatedUrl}
@@ -980,21 +988,21 @@ function AdminInviteDialog({
           {!generatedUrl ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-                Отмена
+                {tCommon('cancel')}
               </Button>
               <Button onClick={submit} disabled={busy}>
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                {mode === 'preregister' ? 'Создать аккаунт' : 'Создать ссылку'}
+                {mode === 'preregister' ? t('create_account') : t('create_link')}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Закрыть
+                {tCommon('close')}
               </Button>
               <Button onClick={copyUrl}>
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Скопировано' : 'Скопировать'}
+                {copied ? tCommon('copied') : tCommon('copy')}
               </Button>
             </>
           )}
