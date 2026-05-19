@@ -1,6 +1,8 @@
--- 0032 — AI chat with RAG: pgvector + manual_chunks + ai_conversations +
+-- 0032b — AI chat with RAG: pgvector + manual_chunks + ai_conversations +
 -- ai_messages + ai_learning_queue. Extends tickets and ticket_messages
 -- for AI participation.
+--
+-- Apply AFTER 0032a (enum extension).
 --
 -- Idempotent.
 
@@ -78,18 +80,6 @@ alter table tickets
 -- AI messages have no human sender. Drop the NOT NULL on sender_id.
 alter table ticket_messages
   alter column sender_id drop not null;
-
--- Extend the sender_type enum used by ticket_messages.
-do $$ begin
-  if not exists (select 1 from pg_type t join pg_enum e on e.enumtypid=t.oid
-                 where t.typname='message_sender' and e.enumlabel='ai') then
-    alter type message_sender add value 'ai';
-  end if;
-  if not exists (select 1 from pg_type t join pg_enum e on e.enumtypid=t.oid
-                 where t.typname='message_sender' and e.enumlabel='platform_admin') then
-    alter type message_sender add value 'platform_admin';
-  end if;
-end $$;
 
 -- =========================================================================
 -- D. Learning queue + trigger
