@@ -34,7 +34,10 @@ export type TicketStatus =
   | 'resolved'
   | 'closed_self';
 
-export type MessageSender = 'operator' | 'service_engineer' | 'tier2';
+// 'ai' and 'platform_admin' were added by migration 0032a so AI-escalated
+// tickets can attribute the original Claude replies and НПГМ specialist
+// responses correctly.
+export type MessageSender = 'operator' | 'service_engineer' | 'tier2' | 'ai' | 'platform_admin';
 
 export type PartCategory = 'filter' | 'seal' | 'sensor' | 'module' | 'pump_part' | 'consumable';
 

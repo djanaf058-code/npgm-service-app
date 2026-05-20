@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createSPASassClient } from '@/lib/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import type { MessageSender } from '@/lib/types';
 
 interface MessageBubbleProps {
@@ -14,11 +14,23 @@ interface MessageBubbleProps {
   isOwn: boolean;
 }
 
+// Sender labels stay hardcoded RU for now — i18n migration is a separate sweep.
+// AI-escalated tickets surface 'ai' and 'platform_admin' rows which were added
+// in migration 0032a; they MUST have entries here to render correctly.
 const SENDER_LABEL: Record<MessageSender, string> = {
   operator: 'Оператор',
   service_engineer: 'Сервисный инженер',
   tier2: 'Поддержка NPGM',
+  ai: 'AI-ассистент',
+  platform_admin: 'НПГМ — Платформа',
 };
+
+// AI messages from escalations have sender_id = NULL → senderName comes in as '—'.
+// Override so the column reads sensibly.
+function displayName(senderType: MessageSender, raw: string): string {
+  if (senderType === 'ai') return 'AI';
+  return raw;
+}
 
 export function MessageBubble({
   text,
@@ -33,6 +45,13 @@ export function MessageBubble({
 
   useEffect(() => {
     if (!imagePath) return;
+    // AI-escalated tickets carry full Supabase Storage URLs from the
+    // ai-chat-photos public bucket (image_url copied verbatim from
+    // ai_messages). Detect and use directly — no need to sign.
+    if (/^https?:\/\//.test(imagePath)) {
+      setImageUrl(imagePath);
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       setImageLoading(true);
@@ -53,11 +72,19 @@ export function MessageBubble({
     };
   }, [imagePath]);
 
+  const isAI = senderType === 'ai';
+  const bubbleClass = isOwn
+    ? 'bg-primary-600 text-white rounded-br-sm'
+    : isAI
+    ? 'bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-bl-sm'
+    : 'bg-secondary-100 text-secondary-900 rounded-bl-sm';
+
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
         <div className={`text-xs text-secondary-500 px-2 ${isOwn ? 'text-right' : 'text-left'}`}>
-          <span className="font-medium text-secondary-700">{senderName}</span>
+          {isAI && <Sparkles className="inline w-3 h-3 mr-1 text-indigo-500" />}
+          <span className="font-medium text-secondary-700">{displayName(senderType, senderName)}</span>
           <span className="mx-1">·</span>
           <span>{SENDER_LABEL[senderType]}</span>
           <span className="mx-1">·</span>
@@ -70,13 +97,7 @@ export function MessageBubble({
             })}
           </span>
         </div>
-        <div
-          className={`rounded-2xl px-4 py-2.5 ${
-            isOwn
-              ? 'bg-primary-600 text-white rounded-br-sm'
-              : 'bg-secondary-100 text-secondary-900 rounded-bl-sm'
-          }`}
-        >
+        <div className={`rounded-2xl px-4 py-2.5 ${bubbleClass}`}>
           {text && <p className="whitespace-pre-wrap break-words text-sm">{text}</p>}
           {imagePath && (
             <div className={`${text ? 'mt-2' : ''}`}>
