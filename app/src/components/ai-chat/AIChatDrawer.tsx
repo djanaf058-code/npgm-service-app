@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { AIMessageBubble, type AIMessage } from './AIMessageBubble';
+import { EscalationBanner } from './EscalationBanner';
 
 export function AIChatDrawer({
   machineId,
@@ -25,6 +26,7 @@ export function AIChatDrawer({
   const [error, setError] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [escalatedTicketId, setEscalatedTicketId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Open ↦ ensure conversation exists, load history
@@ -71,6 +73,25 @@ export function AIChatDrawer({
       setError(e instanceof Error ? e.message : t('upload_failed'));
     } finally {
       setUploading(false);
+    }
+  };
+
+  const escalate = async (convId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await fetch('/api/ai/escalate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: convId }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? t('send_failed'));
+      setEscalatedTicketId(j.ticket_id as string);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -123,6 +144,15 @@ export function AIChatDrawer({
                 x.id === placeholderId ? { ...x, ai_confidence: evt.confidence } : x
               )
             );
+            // Auto-escalate on low confidence
+            if (
+              typeof evt.confidence === 'number' &&
+              evt.confidence < 60 &&
+              !escalatedTicketId &&
+              conversationId
+            ) {
+              void escalate(conversationId);
+            }
           } else if (evt.error) {
             setError(evt.error);
           }
@@ -160,6 +190,14 @@ export function AIChatDrawer({
       setBusy(false);
     }
   };
+
+  const lastAI = [...messages].reverse().find((m) => m.role === 'assistant');
+  const showEscalateButton =
+    lastAI &&
+    lastAI.ai_confidence !== null &&
+    lastAI.ai_confidence >= 60 &&
+    lastAI.ai_confidence < 80 &&
+    !escalatedTicketId;
 
   return (
     <>
@@ -209,6 +247,24 @@ export function AIChatDrawer({
                 </p>
               )}
             </div>
+
+            {escalatedTicketId && (
+              <div className="px-4 pb-2">
+                <EscalationBanner ticketId={escalatedTicketId} />
+              </div>
+            )}
+            {showEscalateButton && !escalatedTicketId && (
+              <div className="px-4 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => conversationId && escalate(conversationId)}
+                  disabled={busy}
+                >
+                  {t('escalate_button')}
+                </Button>
+              </div>
+            )}
 
             <footer className="border-t border-secondary-200 p-3 space-y-2">
               {pendingImage && (
