@@ -13,6 +13,7 @@ import {
 import { GlobalProvider, useGlobal, useRole } from '@/lib/context/GlobalContext';
 import Logo from '@/components/Logo';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
+import { EscalationsListener } from '@/components/admin/EscalationsListener';
 import { useTranslations } from 'next-intl';
 
 // Admin route tree (/admin/*) is for platform_admin only — НПГМ side. The
@@ -67,6 +68,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-secondary-50 flex">
+      <EscalationsListener />
       <aside className="w-64 bg-white border-r border-secondary-200 p-4 flex-shrink-0">
         <div className="mb-6 flex items-center gap-2">
           <Logo variant="full" width={140} height={28} />
