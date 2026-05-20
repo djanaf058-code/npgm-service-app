@@ -249,13 +249,24 @@ export default function TicketDetailPage() {
     try {
       const client = await createSPASassClient();
       const supabase = client.getSupabaseClient();
-      const update: { status: TicketStatus; resolved_at?: string | null } = { status: newStatus };
+      const update: {
+        status: TicketStatus;
+        resolved_at?: string | null;
+        resolved_by?: string | null;
+      } = { status: newStatus };
       if (newStatus === 'resolved' || newStatus === 'closed_self') {
         update.resolved_at = new Date().toISOString();
       } else {
         update.resolved_at = null;
       }
-      const { error: updateErr } = await supabase.from('tickets').update(update).eq('id', ticketId);
+      if (newStatus === 'resolved') {
+        update.resolved_by = user?.id ?? null;
+      }
+      const { error: updateErr } = await supabase
+        .from('tickets')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update(update as any)
+        .eq('id', ticketId);
       if (updateErr) throw updateErr;
       setTicket({ ...ticket, ...update });
     } catch (err) {

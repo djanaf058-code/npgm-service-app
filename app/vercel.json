@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/ai/learn",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
