@@ -74,6 +74,65 @@ export function AIChatDrawer({
     }
   };
 
+  const askAI = async (convId: string) => {
+    const resp = await fetch('/api/ai/respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: convId }),
+    });
+    if (!resp.ok || !resp.body) {
+      setError(t('send_failed'));
+      return;
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let assistantContent = '';
+    // Optimistically append placeholder
+    const placeholderId = `tmp-${Date.now()}`;
+    setMessages((m) => [
+      ...m,
+      {
+        id: placeholderId,
+        role: 'assistant',
+        content: '',
+        image_url: null,
+        ai_confidence: null,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // SSE events are separated by blank lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const evt = JSON.parse(line.slice(6));
+          if (evt.delta) {
+            assistantContent += evt.delta;
+            setMessages((m) =>
+              m.map((x) => (x.id === placeholderId ? { ...x, content: assistantContent } : x))
+            );
+          } else if (evt.done) {
+            setMessages((m) =>
+              m.map((x) =>
+                x.id === placeholderId ? { ...x, ai_confidence: evt.confidence } : x
+              )
+            );
+          } else if (evt.error) {
+            setError(evt.error);
+          }
+        } catch {
+          /* ignore parse errors on partial chunks */
+        }
+      }
+    }
+  };
+
   const send = async () => {
     if (!conversationId || (!input.trim() && !pendingImage)) return;
     setBusy(true);
@@ -93,7 +152,8 @@ export function AIChatDrawer({
       setMessages((m) => [...m, j.message as AIMessage]);
       setInput('');
       setPendingImage(null);
-      // AI response will be wired in Phase C
+      // Now ask AI to respond
+      await askAI(conversationId);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
