@@ -63,14 +63,32 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       let fullText = '';
       try {
+        const claudeMessages = messages.map(
+          (m: { role: string; content: string; image_url: string | null }) => {
+            if (m.role === 'user' && m.image_url) {
+              return {
+                role: 'user' as const,
+                content: [
+                  {
+                    type: 'image' as const,
+                    source: { type: 'url' as const, url: m.image_url },
+                  },
+                  { type: 'text' as const, text: m.content },
+                ],
+              };
+            }
+            return {
+              role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
+              content: m.content,
+            };
+          }
+        );
+
         const claudeStream = anthropic.messages.stream({
           model: CLAUDE_MODEL,
           max_tokens: 1024,
           system: systemPrompt,
-          messages: messages.map((m: { role: string; content: string }) => ({
-            role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
-            content: m.content,
-          })),
+          messages: claudeMessages,
         });
 
         for await (const event of claudeStream) {
