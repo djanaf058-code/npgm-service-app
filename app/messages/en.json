@@ -50,6 +50,12 @@
     "logout": "Sign out",
     "loading": "Loading..."
   },
+  "machine_types": {
+    "МЗВ": "Emulsion charging machine",
+    "МЗУ": "Universal charging machine (70/30 blend)",
+    "МСЗ": "Mixing-charging machine (ANFO / dry)",
+    "МСЗУ": "Universal mixing-charging machine"
+  },
   "landing": {
     "hero_title": "Your fleet, under control",
     "hero_tagline": "Maintenance, checklists, parts, AI assistant.",

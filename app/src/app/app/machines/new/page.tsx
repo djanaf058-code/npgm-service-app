@@ -51,6 +51,7 @@ export default function NewMachinePage() {
   const { user } = useGlobal();
   const t = useTranslations('machines.new');
   const tShared = useTranslations('machines');
+  const tTypes = useTranslations('machine_types');
 
   const [machineTypes, setMachineTypes] = useState<MachineType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -203,7 +204,7 @@ export default function NewMachinePage() {
                 {machineTypes.length === 0 && <option value="">{t('machine_type_loading')}</option>}
                 {machineTypes.map((mt) => (
                   <option key={mt.id} value={mt.id}>
-                    {mt.id} — {mt.name_ru}
+                    {mt.id} — {tTypes.has(mt.id) ? tTypes(mt.id) : mt.name_ru}
                   </option>
                 ))}
               </Select>
