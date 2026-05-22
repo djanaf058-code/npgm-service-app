@@ -621,7 +621,14 @@
       "section_active": "Активные ({count})",
       "section_history": "История ({count})",
       "operator_label": "оператор: {name}",
-      "plan_label": "план:"
+      "plan_label": "план:",
+      "filter_all_machines": "Все машины",
+      "filter_all_operators": "Все операторы",
+      "filter_all_months": "Все месяцы",
+      "filter_reset": "Сбросить",
+      "no_filter_match": "Нет смен под выбранный фильтр",
+      "summary_shifts": "{count, plural, one {# смена} few {# смены} other {# смен}}",
+      "summary_operators": "{count, plural, one {# оператор} few {# оператора} other {# операторов}}"
     },
     "detail": {
       "back": "К списку смен",

@@ -621,7 +621,14 @@
       "section_active": "Active ({count})",
       "section_history": "History ({count})",
       "operator_label": "operator: {name}",
-      "plan_label": "plan:"
+      "plan_label": "plan:",
+      "filter_all_machines": "All machines",
+      "filter_all_operators": "All operators",
+      "filter_all_months": "All time",
+      "filter_reset": "Reset",
+      "no_filter_match": "No shifts match the filter",
+      "summary_shifts": "{count, plural, one {# shift} other {# shifts}}",
+      "summary_operators": "{count, plural, one {# operator} other {# operators}}"
     },
     "detail": {
       "back": "Back to shifts",
