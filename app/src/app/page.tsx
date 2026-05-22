@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 import AuthAwareButtons from '@/components/AuthAwareButtons';
-import Logo from '@/components/Logo';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 export default async function Home() {
@@ -33,16 +32,14 @@ export default async function Home() {
 
       {/* ---------- Top nav ---------- */}
       <nav className="relative flex items-center justify-between px-5 py-4 sm:px-7">
-        <div className="flex items-center gap-3">
-          <Logo
-            variant="mark"
-            height={38}
-            className="drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-          />
-          <span className="font-heading text-lg font-bold tracking-tight drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:text-xl">
-            NPGM Service
-          </span>
-        </div>
+        <Image
+          src="/logo-white.png"
+          alt="NPGM — Advanced Mining Equipment"
+          width={150}
+          height={40}
+          priority
+          className="h-9 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-10"
+        />
         <LocaleSwitcher theme="dark" />
       </nav>
 
