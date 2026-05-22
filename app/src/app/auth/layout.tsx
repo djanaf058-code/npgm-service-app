@@ -41,20 +41,10 @@ export default async function AuthLayout({
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">{children}</div>
       </div>
 
-      {/* ---------- Right: brand panel with features ---------- */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-700 via-primary-800 to-secondary-900 relative overflow-hidden">
-        {/* subtle grid */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        />
+      {/* ---------- Right: brand panel with features (signature mesh) ---------- */}
+      <div className="hidden lg:flex lg:w-1/2 mesh-hero relative overflow-hidden">
         {/* red accent stripe */}
-        <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600" />
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600 z-10" />
 
         <div className="w-full flex items-center justify-center p-12 relative z-10">
           <div className="space-y-8 max-w-lg">

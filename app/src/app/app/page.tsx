@@ -163,19 +163,10 @@ export default function DashboardContent() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
-      {/* Hero */}
-      <div className="rounded-xl bg-gradient-to-br from-primary-700 via-primary-800 to-secondary-900 text-white p-6 md:p-8 relative overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
-        />
-        <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600" />
-        <div className="relative">
+      {/* Hero — signature mesh-gradient surface */}
+      <div className="rounded-xl mesh-hero text-white p-6 md:p-8 relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600 z-10" />
+        <div className="relative z-10">
           <p className="text-primary-200 text-xs font-semibold uppercase tracking-wider mb-2">
             {roleHero.title}
           </p>

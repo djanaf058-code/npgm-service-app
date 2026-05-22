@@ -108,3 +108,31 @@
         outline-offset: 2px;
     }
 }
+
+/* ============================================================
+   Signature mesh-gradient surface — landing hero, dashboard hero
+   card, auth right-panel. Tokens mirror the NPGM Design System
+   (colors_and_type.css). Apply the `.mesh-hero` class to a relatively
+   positioned container; the ::after layer paints a faint white grid.
+   Keep page content in a `relative z-10` wrapper so it sits above it.
+   ============================================================ */
+.mesh-hero {
+    background-color: #0b1437;
+    background-image:
+        radial-gradient(at 78% 8%, #6366f1 0px, transparent 55%),
+        radial-gradient(at 12% 22%, #1d4ed8 0px, transparent 50%),
+        radial-gradient(at 88% 80%, #a855f7 0px, transparent 50%),
+        radial-gradient(at 18% 88%, #312e81 0px, transparent 55%),
+        radial-gradient(at 50% 50%, #1e3a8a 0px, transparent 60%);
+}
+.mesh-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.6;
+    pointer-events: none;
+}
