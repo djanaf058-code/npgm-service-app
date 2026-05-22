@@ -38,16 +38,9 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
     const ghostCls =
       'inline-flex items-center justify-center min-h-[52px] px-7 rounded-xl font-semibold text-white bg-white/10 hover:bg-white/[0.18] border-[1.5px] border-white/60 backdrop-blur-sm transition-[background-color,transform] active:translate-y-px';
 
-    if (isAuthenticated) {
-      return (
-        <div className="flex w-full max-w-[460px] mx-auto justify-center">
-          <Link href="/app" className={`${primaryCls} px-8`}>
-            {t('cta_dashboard')}
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
-      );
-    }
+    // Landing is a public marketing page — always show Register + Sign in,
+    // even for authenticated visitors (so the page reads the same when shown
+    // to prospects). Logged-in users still have the nav 'Open app' elsewhere.
     return (
       <div className="flex flex-col sm:flex-row gap-3.5 w-full max-w-[460px] mx-auto">
         <Link href="/auth/register" className={`${primaryCls} flex-1`}>

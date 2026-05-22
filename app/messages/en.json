@@ -51,10 +51,10 @@
     "loading": "Loading..."
   },
   "machine_types": {
-    "МЗВ": "Emulsion charging machine",
-    "МЗУ": "Universal charging machine (70/30 blend)",
-    "МСЗ": "Mixing-charging machine (ANFO / dry)",
-    "МСЗУ": "Universal mixing-charging machine"
+    "МЗВ": "100% Emulsion MMU",
+    "МЗУ": "70/30% Blended MMU",
+    "МСЗ": "100% ANFO MMU",
+    "МСЗУ": "Universal MMU"
   },
   "landing": {
     "hero_title": "Your fleet, under control",
