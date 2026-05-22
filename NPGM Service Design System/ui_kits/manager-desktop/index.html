@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NPGM Manager Desktop · UI Kit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    html, body { margin: 0; padding: 0; background: #EAECEE; min-height: 100vh; font-family: 'Inter', system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; align-items: center; padding: 24px 16px 48px; gap: 16px; }
+    .lead { max-width: 720px; text-align: center; }
+    .lead h1 { font-family: 'IBM Plex Sans', sans-serif; font-size: 22px; font-weight: 600; margin: 0; color: #0F172A; }
+    .lead p { font-size: 14px; color: #475569; margin: 6px 0 0; line-height: 1.5; }
+    .tabs { display: flex; gap: 4px; padding: 4px; background: #fff; border: 1px solid #E2E8F0; border-radius: 999px; }
+    .tab { padding: 0 14px; height: 36px; border-radius: 999px; border: none; background: transparent; cursor: pointer; font: 500 13px 'Inter', sans-serif; color: #334155; white-space:nowrap; }
+    .tab.active { background: #1d4ed8; color: white; }
+    .desktop-wrap { width: 100%; max-width: 1440px; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="lead">
+    <h1>Manager Desktop · UI Kit</h1>
+    <p>Service-manager web app — mirrors the production AppLayout. Sidebar (role-filtered) + sticky top bar + content area.</p>
+  </div>
+  <div id="tabs" class="tabs"></div>
+  <div id="root" class="desktop-wrap"></div>
+
+<script type="text/babel" data-presets="react">
+const NPGM_LOGO_FULL = "data:image/png;base64,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";
+const NPGM_LOGO_MARK = "data:image/png;base64,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";
+
+// Atoms + Sidebar + Screens for manager-desktop. Compiled inline.
+// Matches AppLayout.tsx + /app/page.tsx + machine list patterns.
+
+const NPGM = {
+  blue50: '#f0f6ff', blue100: '#dbe9ff', blue200: '#b8d3ff', blue300: '#88b4ff',
+  blue500: '#2563eb', blue600: '#1d4ed8', blue700: '#1e40af',
+  red50: '#fef2f2', red100: '#fee2e2', red200: '#fecaca', red500: '#ef4444',
+  red600: '#dc2626', red700: '#b91c1c',
+  s50: '#f8fafc', s100: '#f1f5f9', s200: '#e2e8f0', s300: '#cbd5e1',
+  s400: '#94a3b8', s500: '#64748b', s600: '#475569', s700: '#334155',
+  s800: '#1e293b', s900: '#0f172a',
+  em50: '#ecfdf5', em200: '#a7f3d0', em500: '#10b981', em600: '#059669', em700: '#047857',
+  am50: '#fffbeb', am200: '#fde68a', am500: '#d97706', am600: '#d97706', am700: '#b45309',
+  fH: "'IBM Plex Sans', system-ui, sans-serif",
+  fB: "'Inter', system-ui, sans-serif",
+  fM: "'IBM Plex Mono', ui-monospace, monospace",
+};
+
+const _I = (paths) => ({ size = 18, color = 'currentColor', sw = 1.75 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const Icons = {
+  Home:       _I(<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>),
+  Truck:      _I(<><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></>),
+  Clipboard:  _I(<><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></>),
+  MsgSquare:  _I(<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>),
+  Wrench:     _I(<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>),
+  Box:        _I(<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>),
+  Cart:       _I(<><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></>),
+  Alert:      _I(<><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></>),
+  Activity:   _I(<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>),
+  Users:      _I(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>),
+  Shield:     _I(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>),
+  User:       _I(<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>),
+  Search:     _I(<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>),
+  Plus:       _I(<><path d="M5 12h14"/><path d="M12 5v14"/></>),
+  ChevronR:   _I(<polyline points="9 18 15 12 9 6"/>),
+  ChevronL:   _I(<polyline points="15 18 9 12 15 6"/>),
+  ChevronD:   _I(<polyline points="6 9 12 15 18 9"/>),
+  Download:   _I(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></>),
+  ArrowLeft:  _I(<><line x1="19" x2="5" y1="12" y2="12"/><polyline points="12 19 5 12 12 5"/></>),
+  Camera:     _I(<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>),
+};
+
+function Badge({ variant = 'default', children, style }) {
+  const v = {
+    default:     { bg: NPGM.blue50, fg: NPGM.blue700, ring: NPGM.blue200 },
+    secondary:   { bg: NPGM.s100,   fg: NPGM.s700,    ring: NPGM.s200 },
+    success:     { bg: NPGM.em50,   fg: NPGM.em700,   ring: NPGM.em200 },
+    warning:     { bg: NPGM.am50,   fg: NPGM.am700,   ring: NPGM.am200 },
+    destructive: { bg: NPGM.red50,  fg: NPGM.red700,  ring: NPGM.red200 },
+    outline:     { bg: 'transparent', fg: NPGM.s700,  ring: NPGM.s300 },
+  }[variant];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', padding: '2px 8px',
+      borderRadius: 6, background: v.bg, color: v.fg,
+      boxShadow: `inset 0 0 0 1px ${v.ring}`,
+      fontFamily: NPGM.fB, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', ...style,
+    }}>{children}</span>
+  );
+}
+
+function Button({ variant = 'default', size = 'default', icon, children, onClick }) {
+  const bg = { default: NPGM.blue600, destructive: NPGM.red600, outline: '#fff', secondary: NPGM.s100, ghost: 'transparent' }[variant];
+  const fg = { default: '#fff', destructive: '#fff', outline: NPGM.s900, secondary: NPGM.s900, ghost: NPGM.s700 }[variant];
+  const bd = { default: 'transparent', destructive: 'transparent', outline: NPGM.s300, secondary: 'transparent', ghost: 'transparent' }[variant];
+  const h = { sm: 32, default: 36, lg: 40 }[size];
+  const pad = { sm: '0 12px', default: '0 14px', lg: '0 24px' }[size];
+  return (
+    <button onClick={onClick} style={{
+      height: h, padding: pad, background: bg, color: fg, border: `1px solid ${bd}`,
+      borderRadius: 6, fontFamily: NPGM.fB, fontWeight: 500, fontSize: 13,
+      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+      whiteSpace: 'nowrap', transition: 'background 150ms',
+    }}>{icon}{children}</button>
+  );
+}
+
+function LocaleSwitcher({ lang, setLang }) {
+  const pill = (code, flag) => (
+    <button key={code} onClick={() => setLang(code)} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '4px 10px', borderRadius: 999,
+      background: lang === code ? NPGM.blue600 : '#fff',
+      color: lang === code ? '#fff' : NPGM.s700,
+      border: `1px solid ${lang === code ? NPGM.blue600 : NPGM.s200}`,
+      fontFamily: NPGM.fB, fontWeight: 500, fontSize: 12, cursor: 'pointer',
+    }}><span style={{ fontSize: 13 }}>{flag}</span>{code}</button>
+  );
+  return <div style={{ display: 'inline-flex', gap: 4 }}>{pill('RU','🇷🇺')}{pill('EN','🇬🇧')}</div>;
+}
+
+// MeshHero — same brand motif
+function MeshHero({ height, radius = 12, children }) {
+  return (
+    <div style={{
+      position: 'relative', height, borderRadius: radius, overflow: 'hidden', flexShrink: 0,
+      backgroundColor: '#0b1437',
+      backgroundImage: [
+        'radial-gradient(at 78% 8%,  #6366f1 0px, transparent 55%)',
+        'radial-gradient(at 12% 22%, #1d4ed8 0px, transparent 50%)',
+        'radial-gradient(at 88% 80%, #a855f7 0px, transparent 50%)',
+        'radial-gradient(at 18% 88%, #312e81 0px, transparent 55%)',
+        'radial-gradient(at 50% 50%, #1e3a8a 0px, transparent 60%)',
+      ].join(','),
+    }}>
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+      }} />
+      <div aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: NPGM.red600 }} />
+      {children}
+    </div>
+  );
+}
+
+// ============================================================
+// Sidebar — mirrors AppLayout.tsx left rail
+// ============================================================
+function Sidebar({ active, setActive, lang, role }) {
+  const t = lang === 'RU' ? {
+    home: 'Главная', machines: 'Парк техники', shifts: 'Смены',
+    tickets: 'Тикеты', maintenance: 'ТО', parts: 'Гараж',
+    team: 'Команда', admin: 'Админ', profile: 'Профиль',
+    roleLabel: role === 'project_manager' ? 'Руководитель проекта' : role === 'service_engineer' ? 'Сервис-инженер' : 'NPGM Tier 2',
+  } : {
+    home: 'Home', machines: 'Fleet', shifts: 'Shifts',
+    tickets: 'Tickets', maintenance: 'Maintenance', parts: 'Garage',
+    team: 'Team', admin: 'Admin', profile: 'Profile',
+    roleLabel: role === 'project_manager' ? 'Project manager' : role === 'service_engineer' ? 'Service engineer' : 'NPGM Tier 2',
+  };
+
+  const items = [
+    { id: 'home',        label: t.home,        icon: Icons.Home,      roles: ['all'] },
+    { id: 'machines',    label: t.machines,    icon: Icons.Truck,     roles: ['all'] },
+    { id: 'shifts',      label: t.shifts,      icon: Icons.Clipboard, roles: ['operator', 'service_engineer', 'project_manager'] },
+    { id: 'tickets',     label: t.tickets,     icon: Icons.MsgSquare, roles: ['all'] },
+    { id: 'maintenance', label: t.maintenance, icon: Icons.Wrench,    roles: ['service_engineer', 'project_manager', 'platform_admin'] },
+    { id: 'parts',       label: t.parts,       icon: Icons.Box,       roles: ['operator', 'service_engineer', 'project_manager'] },
+    { id: 'team',        label: t.team,        icon: Icons.Users,     roles: ['project_manager', 'service_engineer'] },
+    { id: 'admin',       label: t.admin,       icon: Icons.Shield,    roles: ['platform_admin'] },
+    { id: 'profile',     label: t.profile,     icon: Icons.User,      roles: ['all'] },
+  ].filter(it => it.roles.includes('all') || it.roles.includes(role));
+
+  return (
+    <div style={{
+      width: 256, background: '#fff', borderRight: `1px solid ${NPGM.s200}`,
+      display: 'flex', flexDirection: 'column', flexShrink: 0, height: '100%',
+    }}>
+      {/* Logo header — matches AppLayout 16-px logo block */}
+      <div style={{ height: 64, padding: '0 16px', borderBottom: `1px solid ${NPGM.s200}`, display: 'flex', alignItems: 'center' }}>
+        <img src={NPGM_LOGO_FULL} alt="NPGM" style={{ height: 24 }} />
+      </div>
+
+      {/* Nav */}
+      <nav style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+        {items.map(it => {
+          const isActive = active === it.id;
+          const Ic = it.icon;
+          return (
+            <button key={it.id} onClick={() => setActive(it.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '8px 12px', height: 38,
+              background: isActive ? NPGM.blue50 : 'transparent',
+              color: isActive ? NPGM.blue700 : NPGM.s600,
+              border: 'none', borderRadius: 6, cursor: 'pointer',
+              fontFamily: NPGM.fB, fontWeight: isActive ? 600 : 500, fontSize: 14,
+              textAlign: 'left',
+            }}>
+              <Ic size={20} color={isActive ? NPGM.blue600 : NPGM.s400} />
+              <span style={{ whiteSpace: 'nowrap' }}>{it.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Role badge at bottom */}
+      <div style={{ padding: '12px 16px', borderTop: `1px solid ${NPGM.s200}`, background: NPGM.s50 }}>
+        <div style={{ fontFamily: NPGM.fB, fontSize: 10, color: NPGM.s500, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{lang === 'RU' ? 'Текущая роль' : 'Current role'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: NPGM.blue100, color: NPGM.blue700, display: 'grid', placeItems: 'center', fontFamily: NPGM.fH, fontSize: 12, fontWeight: 600 }}>АК</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s900, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>А. Кузнецов</div>
+            <Badge variant="default" style={{ fontSize: 10, padding: '1px 6px' }}>{t.roleLabel}</Badge>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ lang, setLang }) {
+  return (
+    <div style={{
+      height: 64, padding: '0 24px', background: '#fff', borderBottom: `1px solid ${NPGM.s200}`,
+      display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, width: 280, height: 36,
+        padding: '0 12px', background: NPGM.s50, border: `1px solid ${NPGM.s200}`, borderRadius: 6,
+      }}>
+        <Icons.Search size={16} color={NPGM.s400} />
+        <input placeholder={lang === 'RU' ? 'Поиск техники, тикетов, заявок…' : 'Search machines, tickets, requests…'}
+          style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none',
+            fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s900 }} />
+      </div>
+      <div style={{ flex: 1 }} />
+      <LocaleSwitcher lang={lang} setLang={setLang} />
+      <button style={{
+        display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none',
+        cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
+      }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: NPGM.blue100, color: NPGM.blue700, display: 'grid', placeItems: 'center', fontFamily: NPGM.fH, fontWeight: 600, fontSize: 13 }}>АК</div>
+        <span style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s700 }}>{lang === 'RU' ? 'a.kuznetsov@npgm.ru' : 'a.kuznetsov@npgm.ru'}</span>
+        <Icons.ChevronD size={14} color={NPGM.s400} />
+      </button>
+    </div>
+  );
+}
+
+Object.assign(window, { NPGM, Icons, Badge, Button, LocaleSwitcher, MeshHero, Sidebar, TopBar });
+
+
+// Screens.jsx — manager desktop screens.
+// Dashboard · Fleet · Machine detail · Garage.
+
+const MACHINES = [
+  { id: 'm1', model: 'МСЗУ-14-НПВ', type: 'МСЗУ', sn: 'MZB-2024-0142', pit: 'Северный, блок А-2', hours: 1248, tons: 14320, status: 'active', nextKind: 'ТО-1000', tonsRemaining: 380, days: 12 },
+  { id: 'm2', model: 'МЗВ-20-НПН',  type: 'МЗВ',  sn: 'MZB-2023-0098', pit: 'Северный, блок Б-1', hours: 2104, tons: 19620, status: 'active', nextKind: 'ТО-500',  tonsRemaining: 920, days: 34 },
+  { id: 'm3', model: 'МСЗ-10-Н',    type: 'МСЗ',  sn: 'MZB-2024-0210', pit: 'Восточный, блок В-3', hours: 540, tons: 4810,  status: 'active', nextKind: 'ТО-250',  tonsRemaining: 190, days: 7 },
+  { id: 'm4', model: 'МЗУ-16-НПВ',  type: 'МЗУ',  sn: 'MZB-2022-0073', pit: 'Северный, блок А-1', hours: 4502, tons: 38100, status: 'maintenance', nextKind: 'ТО-2000', tonsRemaining: 0, days: 0 },
+  { id: 'm5', model: 'МСЗУ-18-НПН', type: 'МСЗУ', sn: 'MZB-2023-0145', pit: 'Южный, блок Ю-2',    hours: 3940, tons: 28400, status: 'active', nextKind: 'ТО-1000', tonsRemaining: 1600, days: 61 },
+  { id: 'm6', model: 'МЗВ-12-НПВ',  type: 'МЗВ',  sn: 'MZB-2024-0089', pit: 'Северный, блок А-2', hours: 380,  tons: 2100,  status: 'active', nextKind: 'ТО-250',  tonsRemaining: 400, days: 22 },
+  { id: 'm7', model: 'БУ-50',       type: 'BR',   sn: 'BR-2022-0011',  pit: 'Восточный, блок В-1', hours: 6300, tons: null,   status: 'active', nextKind: 'ТО-2000', tonsRemaining: null, days: 3 },
+  { id: 'm8', model: 'МСЗ-14-Н',    type: 'МСЗ',  sn: 'MZB-2024-0234', pit: 'Южный, блок Ю-1',    hours: 210,  tons: 1180,  status: 'active', nextKind: 'ТО-250',  tonsRemaining: 820, days: 95 },
+];
+
+const sectionTitle = (s) => ({
+  fontFamily: NPGM.fH, fontSize: 18, fontWeight: 600, color: NPGM.s900, margin: 0,
+});
+
+// ============================================================
+// Dashboard — mirrors /app/page.tsx
+// ============================================================
+function DashboardScreen({ lang }) {
+  const t = lang === 'RU' ? {
+    eyebrow: 'Сервис-менеджер', greeting: 'Здравствуйте, Андрей',
+    sub: 'Парк, заявки операторов, тикеты, плановое ТО — по вашей компании.',
+    kpis: ['Активная техника', 'ТО впереди', 'На рассмотрении', 'Открытые тикеты'],
+    secActive: 'Идёт сейчас', allShifts: 'Все смены',
+    secUpcoming: 'Предстоящие работы', allMachines: 'Все машины',
+    inProgress: 'Смена идёт', blocked: 'Заблокирована — критический сбой',
+    planSuffix: ' · план {tons} т',
+    submitRequest: 'Подать заявку',
+    kindThrough: 'через', tonsUnit: 'тонн',
+    secQuick: 'Быстрый доступ',
+    quickLinks: [
+      { t: 'Парк техники',   d: 'Карточки СЗМ и буровых, пробег, история ТО', icon: 'Truck' },
+      { t: 'Тикеты',         d: 'Чат оператора ↔ сервис-инженера с фото',     icon: 'MsgSquare' },
+      { t: 'ТО',             d: 'Прогноз ТО по машине и заявки',              icon: 'Wrench' },
+      { t: 'Гараж',          d: 'Запчасти, остатки, заявки на закупку',       icon: 'Box' },
+      { t: 'Заказать запчасти', d: 'Внеплановая заявка — нужны запчасти',     icon: 'Cart' },
+      { t: 'Смены и чек-листы', d: 'План зарядки, осмотр, автоучёт тоннажа',  icon: 'Clipboard' },
+    ],
+  } : {
+    eyebrow: 'Service manager', greeting: 'Hello, Andrey',
+    sub: 'Fleet, operator requests, tickets, scheduled maintenance — across your company.',
+    kpis: ['Active machines', 'Maintenance ahead', 'Pending review', 'Open tickets'],
+    secActive: 'In progress now', allShifts: 'All shifts',
+    secUpcoming: 'Upcoming work', allMachines: 'All machines',
+    inProgress: 'Shift in progress', blocked: 'Blocked — critical fail',
+    planSuffix: ' · plan {tons} t',
+    submitRequest: 'Submit request',
+    kindThrough: 'in', tonsUnit: 'tons',
+    secQuick: 'Quick access',
+    quickLinks: [
+      { t: 'Fleet',         d: 'MMU and drill cards, mileage, maintenance history', icon: 'Truck' },
+      { t: 'Tickets',       d: 'Operator ↔ service engineer chat with photos',      icon: 'MsgSquare' },
+      { t: 'Maintenance',   d: 'Per-machine forecast and service requests',         icon: 'Wrench' },
+      { t: 'Garage',        d: 'Parts inventory, stock levels, purchase requests',  icon: 'Box' },
+      { t: 'Order parts',   d: 'Off-schedule request — you just need parts',        icon: 'Cart' },
+      { t: 'Shifts',        d: 'Loading plan, pre-shift inspection, auto tonnage', icon: 'Clipboard' },
+    ],
+  };
+
+  const kpiData = [
+    { lbl: t.kpis[0], val: 24, icon: Icons.Truck,     tone: 'primary' },
+    { lbl: t.kpis[1], val: 11, icon: Icons.Wrench,    tone: 'warning' },
+    { lbl: t.kpis[2], val: 7,  icon: Icons.Cart,      tone: 'success' },
+    { lbl: t.kpis[3], val: 3,  icon: Icons.MsgSquare, tone: 'destructive' },
+  ];
+  const toneMap = {
+    primary: { bg: NPGM.blue50, fg: NPGM.blue700 },
+    success: { bg: NPGM.em50, fg: NPGM.em700 },
+    warning: { bg: NPGM.am50, fg: NPGM.am700 },
+    destructive: { bg: NPGM.red50, fg: NPGM.red700 },
+  };
+
+  const activeShifts = [
+    { id: 's1', model: 'МСЗУ-14-НПВ', type: 'МСЗУ', status: 'in_progress', plan: 280 },
+    { id: 's2', model: 'МЗВ-20-НПН',  type: 'МЗВ',  status: 'blocked',     plan: 320 },
+  ];
+  const upcoming = MACHINES.filter(m => m.tonsRemaining !== null && m.tonsRemaining < 1000).sort((a,b) => a.tonsRemaining - b.tonsRemaining).slice(0, 3);
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1152, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Hero card */}
+      <MeshHero height={132}>
+        <div style={{ padding: '24px 28px', position: 'relative', zIndex: 2 }}>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: '#dbe9ff', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t.eyebrow}</div>
+          <div style={{ fontFamily: NPGM.fH, fontSize: 26, fontWeight: 700, color: '#fff', marginTop: 4, letterSpacing: '-0.01em' }}>{t.greeting}</div>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 14, color: '#dbe9ff', marginTop: 4, maxWidth: 560 }}>{t.sub}</div>
+        </div>
+      </MeshHero>
+
+      {/* KPI 4-up */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        {kpiData.map(k => {
+          const Ic = k.icon;
+          const tone = toneMap[k.tone];
+          return (
+            <div key={k.lbl} style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 8, background: tone.bg, color: tone.fg, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <Ic size={20} color={tone.fg} />
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontFamily: NPGM.fB, fontSize: 11, color: NPGM.s500, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{k.lbl}</div>
+                <div style={{ fontFamily: NPGM.fH, fontSize: 24, fontWeight: 700, color: NPGM.s900, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, marginTop: 4 }}>{k.val}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Active shifts */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icons.Activity size={16} color={NPGM.em600} />
+            <h2 style={sectionTitle()}>{t.secActive}</h2>
+          </div>
+          <Button variant="outline" size="sm">{t.allShifts}<Icons.ChevronR size={14} color={NPGM.s700} /></Button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {activeShifts.map(s => {
+            const blocked = s.status === 'blocked';
+            return (
+              <div key={s.id} style={{
+                background: blocked ? '#fef2f230' : '#ecfdf530',
+                border: `1px solid ${blocked ? NPGM.red200 : NPGM.em200}`,
+                borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+              }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: blocked ? NPGM.red500 : NPGM.em500,
+                  animation: blocked ? null : 'pulse 1.6s infinite', flexShrink: 0,
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: NPGM.fB, fontSize: 14, color: NPGM.s900, fontWeight: 500 }}>
+                    {s.model} <span style={{ fontSize: 12, color: NPGM.s500 }}>({s.type})</span>
+                  </div>
+                  <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s600, marginTop: 2 }}>
+                    {blocked ? t.blocked : t.inProgress}{t.planSuffix.replace('{tons}', s.plan)}
+                  </div>
+                </div>
+                <Icons.ChevronR size={16} color={NPGM.s400} />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Upcoming maintenance */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={sectionTitle()}>{t.secUpcoming}</h2>
+          <Button variant="outline" size="sm">{t.allMachines}<Icons.ChevronR size={14} color={NPGM.s700} /></Button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {upcoming.map(m => {
+            const isCritical = m.tonsRemaining === 0 || m.days <= 7;
+            const isHigh = m.tonsRemaining < 500 && !isCritical;
+            return (
+              <div key={m.id} style={{
+                background: isCritical ? '#fef2f230' : isHigh ? '#fffbeb30' : '#fff',
+                border: `1px solid ${isCritical ? NPGM.red200 : isHigh ? NPGM.am200 : NPGM.s200}`,
+                borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 16,
+              }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: NPGM.blue50, color: NPGM.blue700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  {isCritical ? <Icons.Alert size={18} color={NPGM.red600} /> : <Icons.Truck size={18} color={NPGM.blue700} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ fontFamily: NPGM.fB, fontSize: 14, color: NPGM.s900, fontWeight: 500 }}>{m.model}</div>
+                    <Badge variant="outline">{m.type}</Badge>
+                  </div>
+                  <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 2 }}>
+                    <strong style={{ color: NPGM.s900 }}>{m.nextKind}</strong> {t.kindThrough}{' '}
+                    <strong style={{ color: isCritical ? NPGM.red700 : NPGM.s900, fontVariantNumeric: 'tabular-nums' }}>
+                      {m.tonsRemaining === 0 ? (lang === 'RU' ? 'сейчас' : 'now') : `${m.tonsRemaining.toLocaleString('ru-RU')} ${t.tonsUnit}`}
+                    </strong>
+                    {m.days > 0 && m.days < 365 && <> · ≈ {m.days} d</>}
+                  </div>
+                </div>
+                <Button variant={isCritical ? 'default' : 'outline'} size="sm">{t.submitRequest}</Button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Quick access */}
+      <section>
+        <h2 style={{ ...sectionTitle(), marginBottom: 12 }}>{t.secQuick}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {t.quickLinks.map(q => {
+            const Ic = Icons[q.icon];
+            return (
+              <button key={q.t} style={{
+                background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, padding: 16,
+                display: 'flex', gap: 16, alignItems: 'flex-start', cursor: 'pointer', textAlign: 'left',
+              }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: NPGM.blue50, color: NPGM.blue700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Ic size={20} color={NPGM.blue700} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: NPGM.fB, fontSize: 14, color: NPGM.s900, fontWeight: 500 }}>{q.t}</div>
+                  <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 2, lineHeight: 1.4 }}>{q.d}</div>
+                </div>
+                <Icons.ChevronR size={16} color={NPGM.s300} />
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ============================================================
+// Fleet — machines list
+// ============================================================
+function FleetScreen({ lang, onOpen }) {
+  const t = lang === 'RU' ? {
+    title: 'Парк техники', sub: 'Карточки СЗМ и буровых с двойным пробегом (моточасы + прокачанные тонны)',
+    addMachine: 'Добавить машину', searchPh: 'Поиск по модели, серийнику, карьеру…',
+    cols: { model: 'Модель', type: 'Тип', sn: 'Серийник', pit: 'Карьер', hours: 'Моточасы', tons: 'Тонны', status: 'Статус' },
+    statusActive: 'В работе', statusMaint: 'На ТО', statusOff: 'Выведена',
+    hUnit: 'ч', tUnit: 'т',
+  } : {
+    title: 'Fleet', sub: 'MMU and drilling rig cards with dual mileage (engine hours + pumped tons)',
+    addMachine: 'Add machine', searchPh: 'Search by model, serial, pit…',
+    cols: { model: 'Model', type: 'Type', sn: 'Serial', pit: 'Pit', hours: 'Engine hours', tons: 'Tons', status: 'Status' },
+    statusActive: 'Active', statusMaint: 'In maintenance', statusOff: 'Decommissioned',
+    hUnit: 'h', tUnit: 't',
+  };
+
+  const statusBadge = (s) => {
+    if (s === 'active') return <Badge variant="success">{t.statusActive}</Badge>;
+    if (s === 'maintenance') return <Badge variant="warning">{t.statusMaint}</Badge>;
+    return <Badge variant="secondary">{t.statusOff}</Badge>;
+  };
+
+  const thStyle = { textAlign: 'left', padding: '10px 16px', fontFamily: NPGM.fB, fontSize: 11, fontWeight: 600, color: NPGM.s500, letterSpacing: '0.04em', textTransform: 'uppercase', borderBottom: `1px solid ${NPGM.s200}`, background: NPGM.s50, whiteSpace: 'nowrap' };
+  const tdStyle = { padding: '12px 16px', fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s700, borderBottom: `1px solid ${NPGM.s100}` };
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1152, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h1 style={{ fontFamily: NPGM.fH, fontSize: 24, fontWeight: 700, margin: 0, color: NPGM.s900, letterSpacing: '-0.01em' }}>{t.title}</h1>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 4 }}>{t.sub}</div>
+        </div>
+        <Button variant="default" icon={<Icons.Plus size={14} color="#fff" />}>{t.addMachine}</Button>
+      </div>
+
+      {/* Search */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 6, maxWidth: 420 }}>
+        <Icons.Search size={16} color={NPGM.s400} />
+        <input placeholder={t.searchPh} style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s900 }} />
+      </div>
+
+      <div style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NPGM.fB, fontSize: 13 }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>{t.cols.model}</th>
+              <th style={thStyle}>{t.cols.type}</th>
+              <th style={thStyle}>{t.cols.sn}</th>
+              <th style={thStyle}>{t.cols.pit}</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>{t.cols.hours}</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>{t.cols.tons}</th>
+              <th style={thStyle}>{t.cols.status}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MACHINES.map(m => (
+              <tr key={m.id} onClick={() => onOpen(m.id)} style={{ cursor: 'pointer' }}>
+                <td style={{ ...tdStyle, color: NPGM.s900, fontWeight: 500 }}>{m.model}</td>
+                <td style={tdStyle}><Badge variant="default">{m.type}</Badge></td>
+                <td style={{ ...tdStyle, fontFamily: NPGM.fM, fontSize: 12, color: NPGM.s600 }}>{m.sn}</td>
+                <td style={tdStyle}>{m.pit}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: NPGM.fM, color: NPGM.s900, fontVariantNumeric: 'tabular-nums' }}>{m.hours.toLocaleString('ru-RU')} {t.hUnit}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: NPGM.fM, color: NPGM.s900, fontVariantNumeric: 'tabular-nums' }}>{m.tons === null ? '—' : `${m.tons.toLocaleString('ru-RU')} ${t.tUnit}`}</td>
+                <td style={tdStyle}>{statusBadge(m.status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Machine detail — passport + dual mileage + maintenance forecast
+// ============================================================
+function MachineScreen({ lang, machineId, onBack }) {
+  const m = MACHINES.find(x => x.id === machineId) || MACHINES[0];
+  const t = lang === 'RU' ? {
+    back: 'Парк техники',
+    typeLabel: 'Тип', model: 'Модель', sn: 'Серийник', pit: 'Карьер', tonnage: 'Тоннаж',
+    auger: 'Шнек', augerVal: 'Верхний (ВП)', ggd: 'Газгенератор', ggdVal: 'СН (нитрит натрия)',
+    inSvc: 'В работе с',
+    statHours: 'Моточасы (двигатель, гидравлика)',
+    statTons: 'Прокачано тонн (насосы, шланги, насадки)',
+    passportTitle: 'Паспорт машины', passportDesc: 'Технические характеристики и место работы',
+    nextTitle: 'Ближайшее ТО', nextThrough: 'через', tonsUnit: 'тонн', approx: 'Приблизительно', days: 'дн.',
+    currentOutput: 'Текущая наработка: {tons} тонн · регламент — каждые 2000 прокачанных тонн',
+    submitRequest: 'Подать заявку',
+    historyTitle: 'История технических обслуживаний',
+    history: [
+      { date: '2026-03-12', kind: 'ТО-1000', by: 'НИПИГОРМАШ', parts: '4 поз.', cost: '₽142 000', notes: 'Топливный фильтр, шланг ВД, гидротест' },
+      { date: '2025-12-08', kind: 'ТО-500',  by: 'Внутренний', parts: '2 поз.', cost: '₽38 200',  notes: 'Замена масла, фильтр' },
+      { date: '2025-09-04', kind: 'ТО-250',  by: 'Внутренний', parts: '1 поз.', cost: '₽9 800',   notes: 'Замена топливного фильтра' },
+    ],
+    historyCols: ['Дата', 'Тип', 'Кем', 'Запчасти', 'Стоимость', 'Заметки'],
+  } : {
+    back: 'Fleet',
+    typeLabel: 'Type', model: 'Model', sn: 'Serial', pit: 'Pit', tonnage: 'Tonnage',
+    auger: 'Auger', augerVal: 'Upper (UP)', ggd: 'GGD', ggdVal: 'SN (sodium nitrite)',
+    inSvc: 'In service since',
+    statHours: 'Engine hours (engine, hydraulics)',
+    statTons: 'Pumped tons (pumps, hoses, nozzles)',
+    passportTitle: 'Machine passport', passportDesc: 'Technical specifications and work location',
+    nextTitle: 'Next maintenance', nextThrough: 'in', tonsUnit: 'tons', approx: 'Approx.', days: 'd',
+    currentOutput: 'Current output: {tons} tons · schedule — every 2000 pumped tons',
+    submitRequest: 'Submit request',
+    historyTitle: 'Service history',
+    history: [
+      { date: '2026-03-12', kind: 'TO-1000', by: 'NIPIGORMASH', parts: '4 items', cost: '₽142 000', notes: 'Fuel filter, HP hose, hydro test' },
+      { date: '2025-12-08', kind: 'TO-500',  by: 'In-house',    parts: '2 items', cost: '₽38 200',  notes: 'Oil & filter change' },
+      { date: '2025-09-04', kind: 'TO-250',  by: 'In-house',    parts: '1 item',  cost: '₽9 800',   notes: 'Fuel filter' },
+    ],
+    historyCols: ['Date', 'Kind', 'By', 'Parts', 'Cost', 'Notes'],
+  };
+
+  const statBox = (title, value, sub) => (
+    <div style={{ flex: 1, padding: 16, background: NPGM.s50, borderRadius: 8 }}>
+      <div style={{ fontFamily: NPGM.fB, fontSize: 11, color: NPGM.s500, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{title}</div>
+      <div style={{ fontFamily: NPGM.fH, fontSize: 24, fontWeight: 700, color: NPGM.s900, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {sub && <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s500, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+
+  const rowStyle = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: `1px solid ${NPGM.s100}`, fontFamily: NPGM.fB, fontSize: 13, alignItems: 'baseline' };
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1152, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <button onClick={onBack} style={{ background: 'transparent', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, color: NPGM.s600, fontFamily: NPGM.fB, fontSize: 13, cursor: 'pointer', padding: 0, alignSelf: 'flex-start' }}>
+        <Icons.ArrowLeft size={16} color={NPGM.s600} /> {t.back}
+      </button>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 style={{ fontFamily: NPGM.fH, fontSize: 28, fontWeight: 700, margin: 0, color: NPGM.s900, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>{m.model}</h1>
+            <Badge variant="default" style={{ fontSize: 14, padding: '4px 12px', fontWeight: 600 }}>{m.type}</Badge>
+            {m.status === 'active' ? <Badge variant="success">{lang === 'RU' ? 'В работе' : 'Active'}</Badge> : <Badge variant="warning">{lang === 'RU' ? 'На ТО' : 'In maintenance'}</Badge>}
+          </div>
+          <div style={{ fontFamily: NPGM.fM, fontSize: 13, color: NPGM.s500, marginTop: 8 }}>SN {m.sn} · {m.pit}</div>
+        </div>
+        <Button variant="default" icon={<Icons.Wrench size={14} color="#fff" />}>{t.submitRequest}</Button>
+      </div>
+
+      {/* Dual mileage */}
+      <div style={{ display: 'flex', gap: 12 }}>
+        {statBox(t.statHours, `${m.hours.toLocaleString('ru-RU')} ${lang === 'RU' ? 'ч' : 'h'}`, null)}
+        {statBox(t.statTons, m.tons === null ? '—' : `${m.tons.toLocaleString('ru-RU')} ${lang === 'RU' ? 'т' : 't'}`, null)}
+      </div>
+
+      {/* Two columns: passport · next service */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, padding: 20 }}>
+          <h3 style={{ ...sectionTitle(), fontSize: 16, marginBottom: 4 }}>{t.passportTitle}</h3>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s500, marginBottom: 12 }}>{t.passportDesc}</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.typeLabel}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>{m.type}</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.model}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>{m.model}</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.tonnage}</span><span style={{ color: NPGM.s900, fontWeight: 500, fontFamily: NPGM.fM, fontVariantNumeric: 'tabular-nums' }}>14 т</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.sn}</span><span style={{ color: NPGM.s900, fontWeight: 500, fontFamily: NPGM.fM }}>{m.sn}</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.inSvc}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>2024-08-12</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.pit}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>{m.pit}</span></div>
+            <div style={rowStyle}><span style={{ color: NPGM.s500 }}>{t.auger}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>{t.augerVal}</span></div>
+            <div style={{ ...rowStyle, borderBottom: 'none' }}><span style={{ color: NPGM.s500 }}>{t.ggd}</span><span style={{ color: NPGM.s900, fontWeight: 500 }}>{t.ggdVal}</span></div>
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', border: `1px solid ${m.tonsRemaining !== null && m.tonsRemaining < 500 ? NPGM.am200 : NPGM.s200}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <h3 style={{ ...sectionTitle(), fontSize: 16 }}>{t.nextTitle}</h3>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <Badge variant="default" style={{ fontSize: 14, padding: '4px 12px', fontWeight: 600 }}>{m.nextKind}</Badge>
+            <div style={{ fontFamily: NPGM.fB, fontSize: 14, color: NPGM.s600 }}>{t.nextThrough}</div>
+            <div style={{ fontFamily: NPGM.fH, fontSize: 28, fontWeight: 700, color: m.tonsRemaining < 500 ? NPGM.am700 : NPGM.s900, fontVariantNumeric: 'tabular-nums' }}>
+              {m.tonsRemaining === null ? '—' : `${m.tonsRemaining.toLocaleString('ru-RU')} ${t.tonsUnit}`}
+            </div>
+          </div>
+          {m.days > 0 && m.days < 365 && (
+            <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s500 }}>{t.approx} {m.days} {t.days}</div>
+          )}
+          {m.tons !== null && (
+            <div style={{ padding: 12, background: NPGM.s50, borderRadius: 6, fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s600 }}>
+              {t.currentOutput.replace('{tons}', m.tons.toLocaleString('ru-RU'))}
+            </div>
+          )}
+          <Button variant="default" size="default" icon={<Icons.Wrench size={14} color="#fff" />}>{t.submitRequest}</Button>
+        </div>
+      </div>
+
+      {/* Service history */}
+      <div style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${NPGM.s200}` }}>
+          <h3 style={{ ...sectionTitle(), fontSize: 16 }}>{t.historyTitle}</h3>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NPGM.fB, fontSize: 13 }}>
+          <thead>
+            <tr>
+              {t.historyCols.map((c, i) => (
+                <th key={i} style={{ textAlign: i >= 4 ? 'left' : 'left', padding: '10px 20px', fontFamily: NPGM.fB, fontSize: 11, fontWeight: 600, color: NPGM.s500, letterSpacing: '0.04em', textTransform: 'uppercase', background: NPGM.s50, borderBottom: `1px solid ${NPGM.s200}` }}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {t.history.map((h, i) => (
+              <tr key={i} style={{ borderBottom: i < t.history.length - 1 ? `1px solid ${NPGM.s100}` : 'none' }}>
+                <td style={{ padding: '12px 20px', fontFamily: NPGM.fM, color: NPGM.s900 }}>{h.date}</td>
+                <td style={{ padding: '12px 20px' }}><Badge variant={h.kind.includes('1000') || h.kind.includes('2000') ? 'default' : 'secondary'}>{h.kind}</Badge></td>
+                <td style={{ padding: '12px 20px', color: NPGM.s700 }}>{h.by}</td>
+                <td style={{ padding: '12px 20px', color: NPGM.s600, fontFamily: NPGM.fM }}>{h.parts}</td>
+                <td style={{ padding: '12px 20px', color: NPGM.s900, fontFamily: NPGM.fM, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{h.cost}</td>
+                <td style={{ padding: '12px 20px', color: NPGM.s600 }}>{h.notes}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Garage — parts pipeline
+// ============================================================
+function GarageScreen({ lang }) {
+  const t = lang === 'RU' ? {
+    title: 'Гараж', sub: 'Входящие от операторов, ваши консолидированные заявки и склад компании.',
+    createConsolidated: 'Создать консолидированную', addStock: 'Пополнить склад',
+    secIncoming: 'Входящие от операторов', incomingDesc: 'Объедините несколько заявок в одну консолидированную — нажмите «Создать консолидированную».',
+    secMyActive: 'Мои консолидированные', myActiveDesc: 'В пути к НПГМ или от НПГМ.',
+    secStock: 'Склад',
+    urgency: { normal: 'Норм.', urgent: 'Срочно', critical: 'Критично' },
+    itemsCount: 'позиций',
+    cols: { part: 'Запчасть', cat: 'Категория', use: 'Применение', qty: 'На складе', actions: '' },
+    parts: [
+      { sku: 'NPGM-FLT-001-2024', name: 'Топливный фильтр',          cat: 'Фильтры',     use: 'МСЗУ, МЗВ', qty: 12, status: 'ok' },
+      { sku: 'NPGM-HSE-014-2023', name: 'Шланг ВД эмульсии 20 м',    cat: 'Шланги',     use: 'МСЗУ-14',   qty: 2,  status: 'low' },
+      { sku: 'NPGM-PMP-009-2024', name: 'Насос ВД дозатор',          cat: 'Насосы',     use: 'Все СЗМ',   qty: 0,  status: 'zero' },
+      { sku: 'NPGM-OIL-002-2023', name: 'Масло гидравлическое 20 л', cat: 'ГСМ',        use: 'Все буровые', qty: 28, status: 'ok' },
+    ],
+    statusOk: 'OK', statusLow: 'Мало', statusZero: 'Закончилось',
+  } : {
+    title: 'Garage', sub: "Incoming operator requests, your consolidated requests, and company stock.",
+    createConsolidated: 'Create consolidated', addStock: 'Add to stock',
+    secIncoming: 'Incoming from operators', incomingDesc: "Merge multiple requests into one consolidated — click 'Create consolidated'.",
+    secMyActive: 'My consolidated in progress', myActiveDesc: 'In flight to or from NPGM.',
+    secStock: 'Stock',
+    urgency: { normal: 'Normal', urgent: 'Urgent', critical: 'Critical' },
+    itemsCount: 'items',
+    cols: { part: 'Part', cat: 'Category', use: 'Application', qty: 'In stock', actions: '' },
+    parts: [
+      { sku: 'NPGM-FLT-001-2024', name: 'Fuel filter',           cat: 'Filters', use: 'MSZU, MZB', qty: 12, status: 'ok' },
+      { sku: 'NPGM-HSE-014-2023', name: 'HP emulsion hose 20 m', cat: 'Hoses',  use: 'MSZU-14',   qty: 2,  status: 'low' },
+      { sku: 'NPGM-PMP-009-2024', name: 'HP metering pump',      cat: 'Pumps',  use: 'All MMU',   qty: 0,  status: 'zero' },
+      { sku: 'NPGM-OIL-002-2023', name: 'Hydraulic oil 20 L',    cat: 'Fluids', use: 'All drills', qty: 28, status: 'ok' },
+    ],
+    statusOk: 'OK', statusLow: 'Low', statusZero: 'Out',
+  };
+
+  const incoming = [
+    { id: 'r-411', machine: 'МСЗУ-14-НПВ',  by: 'И. Соколов', urgency: 'critical', items: 2, when: lang === 'RU' ? '2 ч назад'  : '2 h ago' },
+    { id: 'r-410', machine: 'МЗВ-20-НПН',   by: 'А. Петров',  urgency: 'urgent',   items: 3, when: lang === 'RU' ? '5 ч назад'  : '5 h ago' },
+    { id: 'r-408', machine: 'МСЗ-10-Н',     by: 'В. Никитин', urgency: 'normal',   items: 1, when: lang === 'RU' ? 'вчера'      : 'yesterday' },
+  ];
+  const myActive = [
+    { id: 'c-148', items: 12, urgency: 'urgent',   stage: lang === 'RU' ? 'Согласована — отправлена в НПГМ' : 'Approved — sent to NPGM', when: lang === 'RU' ? '2 дн.' : '2 d' },
+    { id: 'c-146', items: 8,  urgency: 'normal',   stage: lang === 'RU' ? 'Получена смета — на согласовании ПМ' : 'Quoted — pending PM approval', when: lang === 'RU' ? '4 дн.' : '4 d' },
+  ];
+
+  const urgencyTone = { critical: 'destructive', urgent: 'warning', normal: 'default' };
+  const stockTone = { ok: 'success', low: 'warning', zero: 'destructive' };
+  const stockLabel = { ok: t.statusOk, low: t.statusLow, zero: t.statusZero };
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1152, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h1 style={{ fontFamily: NPGM.fH, fontSize: 24, fontWeight: 700, margin: 0, color: NPGM.s900, letterSpacing: '-0.01em' }}>{t.title}</h1>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 4 }}>{t.sub}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="outline" icon={<Icons.Plus size={14} color={NPGM.s700} />}>{t.addStock}</Button>
+          <Button variant="default" icon={<Icons.Box size={14} color="#fff" />}>{t.createConsolidated}</Button>
+        </div>
+      </div>
+
+      {/* Incoming */}
+      <section>
+        <div style={{ marginBottom: 4 }}>
+          <h2 style={sectionTitle()}>{t.secIncoming} <span style={{ fontWeight: 500, color: NPGM.s500 }}>({incoming.length})</span></h2>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 4 }}>{t.incomingDesc}</div>
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {incoming.map(r => (
+            <div key={r.id} style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: NPGM.blue50, color: NPGM.blue700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <Icons.Cart size={18} color={NPGM.blue700} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: NPGM.fM, fontSize: 13, color: NPGM.s900, fontWeight: 500 }}>{r.id}</span>
+                  <Badge variant={urgencyTone[r.urgency]}>{t.urgency[r.urgency]}</Badge>
+                  <span style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s700 }}>{r.machine} · {r.items} {t.itemsCount}</span>
+                </div>
+                <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s500, marginTop: 2 }}>{r.by} · {r.when}</div>
+              </div>
+              <Button variant="outline" size="sm">{lang === 'RU' ? 'Открыть' : 'Open'}</Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* My active consolidated */}
+      <section>
+        <div style={{ marginBottom: 4 }}>
+          <h2 style={sectionTitle()}>{t.secMyActive} <span style={{ fontWeight: 500, color: NPGM.s500 }}>({myActive.length})</span></h2>
+          <div style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s600, marginTop: 4 }}>{t.myActiveDesc}</div>
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {myActive.map(c => (
+            <div key={c.id} style={{ background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: NPGM.blue50, color: NPGM.blue700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <Icons.Box size={18} color={NPGM.blue700} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: NPGM.fM, fontSize: 13, color: NPGM.s900, fontWeight: 500 }}>{c.id}</span>
+                  <Badge variant={urgencyTone[c.urgency]}>{t.urgency[c.urgency]}</Badge>
+                  <span style={{ fontFamily: NPGM.fB, fontSize: 13, color: NPGM.s700 }}>{c.items} {t.itemsCount}</span>
+                </div>
+                <div style={{ fontFamily: NPGM.fB, fontSize: 12, color: NPGM.s500, marginTop: 2 }}>{c.stage} · {c.when}</div>
+              </div>
+              <Button variant="outline" size="sm">{lang === 'RU' ? 'Открыть' : 'Open'}</Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Stock */}
+      <section>
+        <h2 style={sectionTitle()}>{t.secStock}</h2>
+        <div style={{ marginTop: 12, background: '#fff', border: `1px solid ${NPGM.s200}`, borderRadius: 12, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NPGM.fB, fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['SKU', t.cols.part, t.cols.cat, t.cols.use, t.cols.qty, ''].map((c, i) => (
+                  <th key={i} style={{ textAlign: i === 4 ? 'right' : 'left', padding: '10px 16px', fontFamily: NPGM.fB, fontSize: 11, fontWeight: 600, color: NPGM.s500, letterSpacing: '0.04em', textTransform: 'uppercase', background: NPGM.s50, borderBottom: `1px solid ${NPGM.s200}` }}>{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {t.parts.map(p => (
+                <tr key={p.sku} style={{ borderBottom: `1px solid ${NPGM.s100}` }}>
+                  <td style={{ padding: '12px 16px', fontFamily: NPGM.fM, fontSize: 12, color: NPGM.s700 }}>{p.sku}</td>
+                  <td style={{ padding: '12px 16px', color: NPGM.s900, fontWeight: 500 }}>{p.name}</td>
+                  <td style={{ padding: '12px 16px', color: NPGM.s600 }}>{p.cat}</td>
+                  <td style={{ padding: '12px 16px', color: NPGM.s600 }}>{p.use}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: NPGM.fM, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: p.status === 'zero' ? NPGM.red700 : p.status === 'low' ? NPGM.am700 : NPGM.s900 }}>{p.qty}</td>
+                  <td style={{ padding: '12px 16px' }}><Badge variant={stockTone[p.status]}>{stockLabel[p.status]}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+Object.assign(window, { DashboardScreen, FleetScreen, MachineScreen, GarageScreen });
+
+
+// Browser window chrome
+function BrowserChrome({ url, children }) {
+  return (
+    <div style={{
+      width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden',
+      border: '1px solid #CBD5E1', boxShadow: '0 30px 80px rgba(15,23,42,0.15)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{ height: 36, background: '#F1F5F9', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F57' }} />
+          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FEBC2E' }} />
+          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 6, padding: '4px 14px',
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#64748B', maxWidth: 440, minWidth: 240, textAlign: 'center' }}>{url}</div>
+        </div>
+        <div style={{ width: 56 }} />
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+function TabsBar({ screen, setScreen, screens }) {
+  const node = document.getElementById('tabs');
+  return ReactDOM.createPortal(
+    <>{Object.entries(screens).map(([id, s]) => (
+      <button key={id} className={'tab' + (screen === id ? ' active' : '')} onClick={() => setScreen(id)}>{s.label}</button>
+    ))}</>, node
+  );
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('home');
+  const [lang, setLang] = React.useState('RU');
+  const [selectedMachine, setSelectedMachine] = React.useState(null);
+
+  const screens = {
+    home:     { label: 'Dashboard', url: '/app' },
+    machines: { label: 'Fleet',     url: '/app/machines' },
+    machine:  { label: 'Machine',   url: '/app/machines/m1' },
+    parts:    { label: 'Garage',    url: '/app/parts' },
+  };
+
+  // Sidebar id ↔ screen
+  const sidebarId = ({ home: 'home', machines: 'machines', machine: 'machines', parts: 'parts' })[screen];
+  const setSidebar = (id) => {
+    if (id === 'home' || id === 'machines' || id === 'parts') setScreen(id);
+  };
+
+  let content;
+  if (screen === 'home') content = <DashboardScreen lang={lang} />;
+  else if (screen === 'machines') content = <FleetScreen lang={lang} onOpen={(id) => { setSelectedMachine(id); setScreen('machine'); }} />;
+  else if (screen === 'machine') content = <MachineScreen lang={lang} machineId={selectedMachine || 'm1'} onBack={() => setScreen('machines')} />;
+  else if (screen === 'parts') content = <GarageScreen lang={lang} />;
+
+  return (
+    <>
+      <TabsBar screen={screen} setScreen={setScreen} screens={screens} />
+      <BrowserChrome url={'app.npgm.ru' + screens[screen].url}>
+        <div style={{ display: 'flex', height: 820, background: NPGM.s50 }}>
+          <Sidebar active={sidebarId} setActive={setSidebar} lang={lang} role="project_manager" />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <TopBar lang={lang} setLang={setLang} />
+            <div style={{ flex: 1, overflowY: 'auto', background: NPGM.s50 }}>
+              {content}
+            </div>
+          </div>
+        </div>
+      </BrowserChrome>
+    </>
+  );
+}
+
+const need = ['DashboardScreen','FleetScreen','MachineScreen','GarageScreen','Sidebar','TopBar'];
+let _t = 0;
+const _w = (cb) => {
+  if (need.every(n => window[n])) return cb();
+  if (++_t > 200) { console.error('timed out, missing:', need.filter(n => !window[n])); return; }
+  setTimeout(() => _w(cb), 30);
+};
+_w(() => ReactDOM.createRoot(document.getElementById('root')).render(<App />));
+</script>
+</body>
+</html>

@@ -53,8 +53,10 @@
   "landing": {
     "hero_title": "Your fleet, under control",
     "hero_tagline": "Maintenance, checklists, parts, AI assistant.",
+    "hero_subtitle": "Maintenance and service for your mining fleet — in one app",
     "cta_register": "Register",
     "cta_login": "Sign in",
+    "cta_dashboard": "Open app",
     "footer": "NPGM · Fleet service platform"
   },
   "auth": {

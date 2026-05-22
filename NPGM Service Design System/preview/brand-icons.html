@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+body { padding:24px; }
+.row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+.ic { width:48px; height:48px; border:1px solid var(--border-1); border-radius:8px; display:flex; align-items:center; justify-content:center; background:white; }
+.ic svg { stroke:#1d4ed8; }
+.lbl { font-family:var(--font-mono); font-size:10px; color:var(--fg-3); text-align:center; }
+.tile { display:flex; flex-direction:column; gap:4px; align-items:center; width:56px; }
+.note { font-family:var(--font-body); font-size:12px; color:var(--fg-3); }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Iconography — lucide-react · stroke 1.5–2 · 24px · currentColor</div>
+  <div class="row">
+    <!-- MMU tanker truck (custom — cab, long tank body, rear hose reel, 3 axles) -->
+    <div class="tile"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17 L2 11 Q2 10 3 10 L5.5 10 L7 8 L8 8 L8 17 Z"/><rect x="8" y="7" width="11" height="10" rx="1"/><line x1="10.5" y1="9" x2="12" y2="9"/><line x1="14" y1="9" x2="15.5" y2="9"/><rect x="19" y="10" width="3.2" height="7" rx="0.4"/><circle cx="20.6" cy="13.5" r="1.2"/><line x1="2" y1="18.5" x2="22.5" y2="18.5"/><circle cx="4.5" cy="19.5" r="1.7"/><circle cx="13.5" cy="19.5" r="1.7"/><circle cx="16.5" cy="19.5" r="1.7"/></svg></div><div class="lbl">MMU truck</div></div>
+    <!-- wrench -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="lbl">wrench</div></div>
+    <!-- clipboard-check -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div class="lbl">checklist</div></div>
+    <!-- camera -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div><div class="lbl">camera</div></div>
+    <!-- bot -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div><div class="lbl">ai bot</div></div>
+    <!-- alert -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e01848" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div><div class="lbl">alert</div></div>
+    <!-- calendar with date "22" -->
+    <div class="tile"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><text x="12" y="18.5" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" font-weight="700" fill="#1d4ed8" stroke="none">22</text></svg></div><div class="lbl">calendar</div></div>
+    <!-- chart -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16V8"/><path d="M12 16v-4"/><path d="M17 16V6"/></svg></div><div class="lbl">analytics</div></div>
+    <!-- package -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div><div class="lbl">parts</div></div>
+    <!-- users -->
+    <div class="tile"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="lbl">users</div></div>
+  </div>
+  <div class="note">From lucide-react (stroke 1.5, currentColor). <strong>MMU truck</strong> is a custom NPGM icon — cab + long tank + rear hose reel + 3 axles, matching the actual machine silhouette. <strong>Calendar</strong> gets a real date "22" to read at a glance.</div>
+</div>
+</body></html>

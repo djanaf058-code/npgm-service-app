@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+body { padding: 24px; }
+.row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.btn { font-family:var(--font-body); font-weight:500; font-size:14px; border-radius:6px; border:1px solid transparent; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: background 150ms; box-sizing:border-box; }
+.btn.lg { height:44px; padding:0 32px; }
+.btn.md { height:40px; padding:0 16px; }
+.btn.sm { height:36px; padding:0 12px; font-size:13px; }
+.btn.primary { background:#1d4ed8; color:white; }
+.btn.primary:hover { background: rgba(29,78,216,0.9); }
+.btn.destructive { background:#dc2626; color:white; }
+.btn.outline { background:white; color:var(--fg-1); border-color:#e2e8f0; }
+.btn.outline:hover { background:#f1f5f9; }
+.btn.secondary { background:#f1f5f9; color:#0f172a; }
+.btn.ghost { background:transparent; color:#1d4ed8; }
+.btn.link { background:transparent; color:#1d4ed8; padding:0; height:auto; }
+.btn.link:hover { text-decoration: underline; }
+.btn.disabled { background:#1d4ed8; color:white; opacity:0.5; cursor:not-allowed; }
+.note { font-family:var(--font-mono); font-size:11px; color:var(--fg-3); width:100%; margin-top:6px; }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Buttons — shadcn variants · size md (h-10)</div>
+  <div class="row">
+    <button class="btn primary md">Submit</button>
+    <button class="btn outline md">Cancel</button>
+    <button class="btn secondary md">Secondary</button>
+    <button class="btn destructive md">Delete</button>
+    <button class="btn ghost md">Ghost</button>
+    <button class="btn link">Link</button>
+    <button class="btn primary md disabled">Loading…</button>
+  </div>
+  <div class="note">All radii 6 px (--radius-md). Inline svg icons size-4 by default. Loading uses opacity-50, not solid-fill.</div>
+</div>
+</body></html>

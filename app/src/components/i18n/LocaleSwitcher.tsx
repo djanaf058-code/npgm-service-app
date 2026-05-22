@@ -13,10 +13,21 @@ const LOCALES = [
 //   - NEXT_LOCALE cookie (read by app/src/i18n.ts server-side)
 //   - /api/profile/locale call (writes to profiles.language for logged-in users)
 // Anonymous visitors only get the cookie; that's fine for the login page.
-export function LocaleSwitcher() {
+export function LocaleSwitcher({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const currentLocale = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  const isDark = theme === 'dark';
+  const containerCls = isDark
+    ? 'bg-white/12 border border-white/25 backdrop-blur-md'
+    : 'bg-secondary-100';
+  const activeCls = isDark
+    ? 'bg-white text-[#383080] shadow-sm'
+    : 'bg-white text-secondary-900 shadow-sm';
+  const inactiveCls = isDark
+    ? 'text-white/85 hover:text-white'
+    : 'text-secondary-600 hover:text-secondary-900';
 
   const setLocale = (next: string) => {
     if (next === currentLocale) return;
@@ -34,7 +45,7 @@ export function LocaleSwitcher() {
   };
 
   return (
-    <div className="inline-flex items-center gap-0.5 text-xs font-medium bg-secondary-100 rounded-md p-0.5">
+    <div className={`inline-flex items-center gap-0.5 text-xs font-medium rounded-md p-0.5 ${containerCls}`}>
       {LOCALES.map((l) => (
         <button
           key={l.code}
@@ -42,9 +53,7 @@ export function LocaleSwitcher() {
           onClick={() => setLocale(l.code)}
           disabled={isPending}
           className={`px-2 py-1 rounded transition-colors ${
-            currentLocale === l.code
-              ? 'bg-white text-secondary-900 shadow-sm'
-              : 'text-secondary-600 hover:text-secondary-900'
+            currentLocale === l.code ? activeCls : inactiveCls
           }`}
         >
           <span className="mr-1">{l.flag}</span>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+body { padding:24px; }
+.row { display:flex; gap:12px; flex-wrap:wrap; }
+.card-ex { flex:1; min-width:280px; background:white; border:1px solid #e2e8f0; border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+.card-ex.warn { background:#fffbeb33; border-color:#fde68a; }
+.eb { font-family:var(--font-body); font-size:11px; font-weight:500; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; }
+.t { font-family:var(--font-heading); font-size:18px; font-weight:600; color:#0f172a; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.b { display:inline-flex; align-items:center; padding:2px 8px; border-radius:6px; font-family:var(--font-body); font-size:12px; font-weight:500; }
+.b-default { background:#f0f6ff; color:#1e40af; box-shadow: inset 0 0 0 1px #b8d3ff; }
+.b-warning { background:#fffbeb; color:#b45309; box-shadow: inset 0 0 0 1px #fde68a; }
+.s { font-family:var(--font-body); font-size:14px; color:#475569; line-height:1.45; }
+.s strong { color:#0f172a; font-weight:600; font-variant-numeric: tabular-nums; }
+.row-stats { display:flex; gap:16px; padding-top:6px; }
+.stat { font-family:var(--font-body); font-size:13px; }
+.stat .lbl { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
+.stat .val { font-family: 'IBM Plex Mono', monospace; font-size:15px; color:#0f172a; font-weight:500; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Cards — fleet item, upcoming maintenance</div>
+  <div class="row">
+    <div class="card-ex">
+      <div class="t">МСЗУ-14-НПВ <span class="b b-default">МСЗУ</span></div>
+      <div class="row-stats">
+        <div class="stat"><div class="lbl">Engine hours</div><div class="val">1 248 ч</div></div>
+        <div class="stat"><div class="lbl">Tons pumped</div><div class="val">14 320 т</div></div>
+      </div>
+      <div class="s">Карьер: <strong>Северный, блок А-2</strong> · SN MZB-2024-0142</div>
+    </div>
+    <div class="card-ex warn">
+      <div class="t">МЗВ-20-НПН <span class="b b-warning">ТО через 380 т</span></div>
+      <div class="s"><strong>ТО-1000</strong> через <strong>380 тонн</strong> · ≈ 12 d</div>
+      <div class="s" style="font-size:12px; color:#64748b">Current output: 19 620 т · maintenance at 20 000 т</div>
+    </div>
+  </div>
+</div>
+</body></html>

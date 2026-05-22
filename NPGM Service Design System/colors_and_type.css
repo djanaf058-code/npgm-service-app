@@ -1,0 +1,265 @@
+/* ============================================================
+   NPGM Service Design System — colors_and_type.css
+   Mirrors app/src/app/globals.css from the production codebase.
+   Import this first. Then layer Tailwind / app styles on top.
+   ============================================================ */
+
+/* Webfonts — Inter (body) + IBM Plex Sans (headings).
+   Both ship full Cyrillic coverage. The app uses `var(--font-inter)` and
+   `var(--font-ibm-plex)`; these match the next/font wiring. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ============================================================
+     Primary — corporate BLUE. 500 is the brand blue; 600 is the
+     default for buttons/links (passes WCAG AA on white).
+     ============================================================ */
+  --color-primary-50:  #f0f6ff;
+  --color-primary-100: #dbe9ff;
+  --color-primary-200: #b8d3ff;
+  --color-primary-300: #88b4ff;
+  --color-primary-400: #5189fa;
+  --color-primary-500: #2563eb;   /* brand blue */
+  --color-primary-600: #1d4ed8;   /* default button / link */
+  --color-primary-700: #1e40af;
+  --color-primary-800: #1e3a8a;
+  --color-primary-900: #172554;
+
+  /* ============================================================
+     Secondary — neutral slate scale (also the "neutrals")
+     ============================================================ */
+  --color-secondary-50:  #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+
+  /* ============================================================
+     Accent — corporate RED. 600 is the brand red.
+     ============================================================ */
+  --color-accent-50:  #fef2f2;
+  --color-accent-100: #fee2e2;
+  --color-accent-200: #fecaca;
+  --color-accent-300: #fca5a5;
+  --color-accent-400: #f87171;
+  --color-accent-500: #ef4444;
+  --color-accent-600: #dc2626;   /* brand red */
+  --color-accent-700: #b91c1c;
+  --color-accent-800: #991b1b;
+  --color-accent-900: #7f1d1d;
+
+  /* ============================================================
+     Tailwind semantic tokens used by `success` and `warning` badge
+     variants — pulled from Tailwind defaults (the app uses them
+     by name from globals).
+     ============================================================ */
+  --color-emerald-50:  #ecfdf5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-amber-50:    #fffbeb;
+  --color-amber-200:   #fde68a;
+  --color-amber-600:   #d97706;
+  --color-amber-700:   #b45309;
+
+  /* ============================================================
+     shadcn/ui semantic — used by Button, Card, Dialog, etc.
+     Values match the app's globals.css.
+     ============================================================ */
+  --background: 0 0% 100%;
+  --foreground: 215 35% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 215 35% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 35% 12%;
+  --primary: 221 83% 53%;            /* = #2563eb */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 215 35% 12%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 0 84% 47%;               /* = #dc2626 */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 20% 88%;
+  --input: 215 20% 88%;
+  --ring: 221 83% 53%;
+  --chart-1: 221 83% 53%;            /* primary blue */
+  --chart-2: 0 84% 47%;              /* accent red */
+  --chart-3: 215 35% 25%;            /* slate-800 */
+  --chart-4: 210 60% 60%;            /* light blue */
+  --chart-5: 0 60% 65%;              /* light red */
+  --radius: 0.5rem;                  /* 8 px — base shadcn radius */
+
+  /* ============================================================
+     Convenience aliases for component code
+     ============================================================ */
+  --fg-1: var(--color-secondary-900);   /* primary text */
+  --fg-2: var(--color-secondary-700);   /* body text */
+  --fg-3: var(--color-secondary-500);   /* secondary / captions */
+  --fg-4: var(--color-secondary-400);   /* placeholder / disabled */
+  --fg-on-brand: #ffffff;
+  --fg-link: var(--color-primary-600);
+
+  --bg-page: var(--color-secondary-50);
+  --bg-surface: #ffffff;
+  --bg-sunken: var(--color-secondary-50);
+  --bg-brand: var(--color-primary-600);
+  --bg-brand-subtle: var(--color-primary-50);
+
+  --border-1: var(--color-secondary-200);
+  --border-2: var(--color-secondary-300);
+  --border-focus: var(--color-primary-500);
+
+  /* ============================================================
+     Type families — match Tailwind's `font-sans`, `font-heading`, `font-mono`
+     ============================================================ */
+  --font-heading: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body:    'Inter',         system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Type scale (matches Tailwind text-* defaults used in the app) */
+  --fs-display: 60px;   /* hero — text-7xl on landing */
+  --fs-h1: 30px;        /* text-3xl */
+  --fs-h2: 24px;        /* text-2xl */
+  --fs-h3: 20px;        /* text-xl */
+  --fs-h4: 18px;        /* text-lg */
+  --fs-body: 16px;      /* text-base */
+  --fs-body-sm: 14px;   /* text-sm */
+  --fs-caption: 13px;
+  --fs-micro: 12px;     /* text-xs */
+  --fs-eyebrow: 10px;   /* text-[10px] uppercase tracking-wider */
+
+  --lh-tight:  1.15;
+  --lh-snug:   1.3;
+  --lh-normal: 1.5;
+  --lh-loose:  1.65;
+
+  /* ============================================================
+     Radii — shadcn convention: --radius (8), -2 (6), -4 (4)
+     ============================================================ */
+  --radius-sm: 4px;    /* tiny chips */
+  --radius-md: 6px;    /* buttons, inputs (shadcn default-2) */
+  --radius-lg: 8px;    /* cards (--radius itself) */
+  --radius-xl: 12px;   /* hero gradient cards */
+  --radius-pill: 999px;
+
+  /* Shadows — restrained, two tiers */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.15);  /* landing/auth modal */
+  --shadow-brand: 0 8px 24px rgba(29, 78, 216, 0.30); /* primary-900/30 — landing CTA */
+
+  /* Spacing (4-px base, matches Tailwind defaults) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Tap targets */
+  --tap-mobile: 44px;
+  --tap-desktop: 36px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 250ms;
+
+  /* ============================================================
+     Signature mesh gradient — used on landing hero, dashboard hero
+     card, auth-side brand panel. Reuse exactly; do not improvise.
+     ============================================================ */
+  --mesh-base: #0b1437;
+  --mesh-stops:
+    radial-gradient(at 78% 8%,  #6366f1 0px, transparent 55%),
+    radial-gradient(at 12% 22%, #1d4ed8 0px, transparent 50%),
+    radial-gradient(at 88% 80%, #a855f7 0px, transparent 50%),
+    radial-gradient(at 18% 88%, #312e81 0px, transparent 55%),
+    radial-gradient(at 50% 50%, #1e3a8a 0px, transparent 60%);
+  --mesh-grid:
+    linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+}
+
+/* ============================================================
+   Base elements — semantic defaults
+   ============================================================ */
+html {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--fg-1);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body { margin: 0; line-height: var(--lh-normal); font-feature-settings: "ss01", "cv11"; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg-1);
+  margin: 0;
+  line-height: var(--lh-tight);
+  font-feature-settings: "ss01";
+}
+
+h1 { font-size: var(--fs-h1); font-weight: 700; }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); }
+h4 { font-size: var(--fs-h4); font-weight: 600; }
+
+p { margin: 0; line-height: var(--lh-normal); color: var(--fg-2); }
+small { font-size: var(--fs-body-sm); color: var(--fg-3); }
+
+code, kbd, samp, pre { font-family: var(--font-mono); font-size: 0.92em; }
+
+a { color: var(--fg-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Eyebrow used in dashboard hero — uppercase, tracking-wider, primary-200 on dark */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Mesh-gradient hero — reusable, matches landing and dashboard
+   ============================================================ */
+.mesh-hero {
+  background-color: var(--mesh-base);
+  background-image: var(--mesh-stops);
+  position: relative;
+}
+.mesh-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--mesh-grid);
+  background-size: 40px 40px;
+  opacity: 0.6;
+  pointer-events: none;
+}

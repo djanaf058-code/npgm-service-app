@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+body { padding:24px; }
+.row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+.pill { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px; border:1px solid var(--border-1); background:white; font-family:var(--font-body); font-size:14px; font-weight:500; cursor:pointer; }
+.pill.active { background:#383080; color:white; border-color:#383080; }
+.flag { font-size:18px; }
+.note { font-family:var(--font-body); font-size:12px; color:var(--fg-3); }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Language switcher</div>
+  <div class="row">
+    <button class="pill active"><span class="flag">🇷🇺</span> RU</button>
+    <button class="pill"><span class="flag">🇬🇧</span> EN</button>
+  </div>
+  <div class="row" style="gap:8px">
+    <button class="pill" style="padding:4px 10px; gap:6px;"><span class="flag" style="font-size:14px">🇷🇺</span> RU</button>
+    <button class="pill" style="padding:4px 10px; gap:6px;"><span class="flag" style="font-size:14px">🇬🇧</span> EN</button>
+    <span class="note" style="margin-left:8px">Compact (mobile top-right)</span>
+  </div>
+  <div class="note">Flag emoji is the only emoji in the entire system. Required on every screen.</div>
+</div>
+</body></html>

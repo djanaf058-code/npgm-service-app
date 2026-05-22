@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.row { display:flex; gap:16px; flex-wrap:wrap; }
+.tile { display:flex; flex-direction:column; gap:6px; min-width:120px; }
+.b { display:inline-flex; align-items:center; padding:4px 12px; border-radius:6px; font-family:var(--font-body); font-size:14px; font-weight:600; align-self:flex-start;
+  background:#f0f6ff; color:#1e40af; box-shadow: inset 0 0 0 1px #b8d3ff; }
+.desc { font-family:var(--font-body); font-size:12px; color:#64748b; }
+.note { font-family:var(--font-body); font-size:12px; color:var(--fg-3); margin-top:4px; }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Machine type badges — NIPIGORMASH catalog</div>
+  <div class="row">
+    <div class="tile"><span class="b">МЗВ</span><span class="desc">100% emulsion</span></div>
+    <div class="tile"><span class="b">МСЗ</span><span class="desc">100% ANFO</span></div>
+    <div class="tile"><span class="b">МСЗУ</span><span class="desc">Universal</span></div>
+    <div class="tile"><span class="b">МЗУ</span><span class="desc">Blend 70/30</span></div>
+  </div>
+  <div class="note">Type stays as Cyrillic abbreviation in EN and RU — these are catalog designators, not translated. The description (hover/sub-line) clarifies.</div>
+</div>
+</body></html>

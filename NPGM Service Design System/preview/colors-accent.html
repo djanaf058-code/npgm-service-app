@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.swatch { display:flex; flex-direction:column; gap:6px; flex:1; min-width:120px; }
+.chip { height:88px; border-radius:8px; border:1px solid var(--border-1); display:flex; align-items:flex-end; padding:10px; color:white; font-family:var(--font-mono); font-size:12px; }
+.chip.dark-text { color: var(--color-secondary-900); }
+.meta { display:flex; justify-content:space-between; font-size:12px; color:var(--fg-3); font-family:var(--font-mono); }
+.meta b { font-family:var(--font-body); font-weight:600; color:var(--fg-1); font-size:13px; }
+.note { font-size:12px; color:var(--fg-3); margin-top:-4px; }
+</style></head>
+<body>
+<div class="card">
+  <div class="note">Brand red. Used <strong style="color:var(--fg-1)">sparingly</strong> — destructive, P1, blocked shifts, the auth-panel edge stripe. <strong style="color:var(--fg-1)">Not</strong> a CTA color.</div>
+  <div class="card-row">
+    <div class="swatch">
+      <div class="chip" style="background:#dc2626">#dc2626</div>
+      <div class="meta"><b>accent-600</b><span>brand red</span></div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#b91c1c">#b91c1c</div>
+      <div class="meta"><b>accent-700</b><span>badge text</span></div>
+    </div>
+    <div class="swatch">
+      <div class="chip dark-text" style="background:#fecaca">#fecaca</div>
+      <div class="meta"><b>accent-200</b><span>badge ring</span></div>
+    </div>
+    <div class="swatch">
+      <div class="chip dark-text" style="background:#fef2f2">#fef2f2</div>
+      <div class="meta"><b>accent-50</b><span>badge bg</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

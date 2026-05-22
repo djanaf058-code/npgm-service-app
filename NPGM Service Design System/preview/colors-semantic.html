@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.sem { display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
+.bar { height:64px; border-radius:8px; display:flex; align-items:center; padding:0 14px; font-family:var(--font-heading); font-weight:600; font-size:14px; gap:10px; }
+.dot { width:8px; height:8px; border-radius:50%; }
+.meta { display:flex; justify-content:space-between; font-size:11px; color:var(--fg-3); font-family:var(--font-mono); }
+.meta b { font-family:var(--font-body); font-weight:600; color:var(--fg-1); font-size:13px; }
+</style></head>
+<body>
+<div class="card">
+  <div class="label-xs">Status semantics — match shadcn Badge variants</div>
+  <div class="card-row">
+    <div class="sem">
+      <div class="bar" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0">
+        <span class="dot" style="background:#10b981"></span>success
+      </div>
+      <div class="meta"><b>emerald</b><span>completed · active</span></div>
+    </div>
+    <div class="sem">
+      <div class="bar" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a">
+        <span class="dot" style="background:#d97706"></span>warning
+      </div>
+      <div class="meta"><b>amber</b><span>in progress · soon</span></div>
+    </div>
+    <div class="sem">
+      <div class="bar" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca">
+        <span class="dot" style="background:#dc2626"></span>destructive
+      </div>
+      <div class="meta"><b>accent</b><span>blocked · P1</span></div>
+    </div>
+    <div class="sem">
+      <div class="bar" style="background:#f0f6ff; color:#1e40af; border:1px solid #b8d3ff">
+        <span class="dot" style="background:#2563eb"></span>default
+      </div>
+      <div class="meta"><b>primary</b><span>planned · type</span></div>
+    </div>
+  </div>
+</div>
+</body></html>
