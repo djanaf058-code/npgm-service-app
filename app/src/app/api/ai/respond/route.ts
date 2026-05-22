@@ -12,7 +12,7 @@ import { createSSRClient } from '@/lib/supabase/server';
 import { createServerAdminClient } from '@/lib/supabase/serverAdminClient';
 import { anthropic, CLAUDE_MODEL } from '@/lib/ai/anthropic';
 import { loadMachineContext } from '@/lib/ai/context-loader';
-import { buildSystemPrompt, parseConfidence } from '@/lib/ai/prompt-builder';
+import { buildSystemPrompt, parseConfidence, detectLang } from '@/lib/ai/prompt-builder';
 import { retrieve } from '@/lib/ai/retrieval';
 
 export const runtime = 'nodejs';        // pgvector needs node runtime
@@ -36,10 +36,6 @@ export async function POST(request: NextRequest) {
     return new Response('Forbidden', { status: 403 });
   }
 
-  const { data: profile } = await sb
-    .from('profiles').select('language').eq('id', user.id).single();
-  const lang: 'ru' | 'en' = profile?.language === 'en' ? 'en' : 'ru';
-
   // Get all messages so far (history)
   const { data: messages } = await sb
     .from('ai_messages')
@@ -50,6 +46,14 @@ export async function POST(request: NextRequest) {
 
   const lastUser = [...messages].reverse().find((m: { role: string }) => m.role === 'user');
   if (!lastUser) return new Response('No user message', { status: 400 });
+
+  // Language follows what the operator actually wrote, not their profile.
+  // Falls back to profile only if the message is empty (e.g. photo-only).
+  const { data: profile } = await sb
+    .from('profiles').select('language').eq('id', user.id).single();
+  const lang: 'ru' | 'en' = lastUser.content
+    ? detectLang(lastUser.content)
+    : profile?.language === 'en' ? 'en' : 'ru';
 
   const ctx = await loadMachineContext(conv.machine_id);
   if (!ctx) return new Response('Machine not found', { status: 404 });

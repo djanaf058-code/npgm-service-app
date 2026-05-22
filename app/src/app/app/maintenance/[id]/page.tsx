@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   ArrowLeft,
   Loader2,
@@ -48,24 +49,30 @@ interface EventDetail {
   requester: { full_name: string } | null;
 }
 
-const STATUS_LABELS: Record<MaintenanceStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  forecast: { ru: 'Прогноз', variant: 'outline' },
-  requested: { ru: 'Заявка подана', variant: 'warning' },
-  planned: { ru: 'Запланировано', variant: 'default' },
-  in_progress: { ru: 'В работе', variant: 'default' },
-  completed: { ru: 'Выполнено', variant: 'success' },
-  cancelled: { ru: 'Отменено', variant: 'secondary' },
+const STATUS_VARIANTS: Record<MaintenanceStatus, React.ComponentProps<typeof Badge>['variant']> = {
+  forecast: 'outline',
+  requested: 'warning',
+  planned: 'default',
+  in_progress: 'default',
+  completed: 'success',
+  cancelled: 'secondary',
 };
 
-const KIND_LABELS: Record<MaintenanceKind, string> = {
-  TO: 'ТО',
-  'TO-1': 'ТО-1',
-  'TO-2': 'ТО-2',
-  annual: 'Годовое ТО',
-  unscheduled: 'Внеплановое',
-};
+const STATUS_KEYS: MaintenanceStatus[] = [
+  'forecast',
+  'requested',
+  'planned',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
 
 export default function MaintenanceEventPage() {
+  const t = useTranslations('maintenance');
+  const tKind = useTranslations('kind_labels');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useGlobal();
@@ -91,12 +98,12 @@ export default function MaintenanceEventPage() {
         .maybeSingle();
       if (err) throw err;
       if (!data) {
-        setError('Заявка не найдена или у вас нет к ней доступа');
+        setError(t('detail.not_found'));
       } else {
         setEvent(data as unknown as EventDetail);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : t('detail.load_error'));
     } finally {
       setLoading(false);
     }
@@ -126,7 +133,7 @@ export default function MaintenanceEventPage() {
       if (err) throw err;
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось изменить статус');
+      setError(err instanceof Error ? err.message : t('detail.status_change_failed'));
     } finally {
       setUpdatingStatus(false);
     }
@@ -136,7 +143,7 @@ export default function MaintenanceEventPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('detail.loading')}
       </div>
     );
   }
@@ -148,11 +155,11 @@ export default function MaintenanceEventPage() {
           href="/app/maintenance"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К списку ТО
+          <ArrowLeft className="w-4 h-4" /> {t('detail.back')}
         </Link>
         <Card className="p-6 text-center">
           <AlertCircle className="w-6 h-6 text-accent-600 mx-auto mb-3" />
-          <p className="text-accent-700 whitespace-pre-wrap">{error ?? 'Заявка не найдена'}</p>
+          <p className="text-accent-700 whitespace-pre-wrap">{error ?? t('detail.not_found')}</p>
         </Card>
       </div>
     );
@@ -166,7 +173,8 @@ export default function MaintenanceEventPage() {
         href="/app/maintenance"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку ТО
+        <ArrowLeft className="w-4 h-4" />
+        {t('detail.back')}
       </Link>
 
       {/* Header */}
@@ -178,13 +186,13 @@ export default function MaintenanceEventPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <Badge variant={STATUS_LABELS[event.status].variant}>
-                  {STATUS_LABELS[event.status].ru}
+                <Badge variant={STATUS_VARIANTS[event.status]}>
+                  {t(`status.${event.status}`)}
                 </Badge>
-                <Badge variant="outline">{KIND_LABELS[event.kind]}</Badge>
+                <Badge variant="outline">{tKind(event.kind)}</Badge>
               </div>
               <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
-                {KIND_LABELS[event.kind]} —{' '}
+                {tKind(event.kind)} —{' '}
                 {event.machine ? (
                   <Link
                     href={`/app/machines/${event.machine.id}`}
@@ -197,8 +205,8 @@ export default function MaintenanceEventPage() {
                 )}
               </h1>
               <p className="text-sm text-secondary-600 mt-1">
-                Создал: <strong>{event.requester?.full_name ?? '—'}</strong> ·{' '}
-                {new Date(event.created_at).toLocaleString('ru-RU', {
+                {t('detail.created_by')}: <strong>{event.requester?.full_name ?? '—'}</strong> ·{' '}
+                {new Date(event.created_at).toLocaleString(dateLocale, {
                   day: '2-digit',
                   month: 'short',
                   hour: '2-digit',
@@ -207,8 +215,8 @@ export default function MaintenanceEventPage() {
                 {event.planned_date && (
                   <>
                     {' · '}
-                    <Calendar className="inline w-3 h-3" /> план:{' '}
-                    {new Date(event.planned_date).toLocaleDateString('ru-RU')}
+                    <Calendar className="inline w-3 h-3" /> {t('detail.plan_prefix')}{' '}
+                    {new Date(event.planned_date).toLocaleDateString(dateLocale)}
                   </>
                 )}
               </p>
@@ -223,9 +231,9 @@ export default function MaintenanceEventPage() {
                 disabled={updatingStatus}
                 className="max-w-[200px]"
               >
-                {(Object.keys(STATUS_LABELS) as MaintenanceStatus[]).map((s) => (
+                {STATUS_KEYS.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABELS[s].ru}
+                    {t(`status.${s}`)}
                   </option>
                 ))}
               </Select>
@@ -240,7 +248,7 @@ export default function MaintenanceEventPage() {
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
-                Закрыть
+                {t('detail.close')}
               </Button>
             </div>
           )}
@@ -253,27 +261,27 @@ export default function MaintenanceEventPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold">
-                Тонн при создании
+                {t('detail.tons_at_creation')}
               </p>
               <p className="font-bold text-secondary-900 tabular-nums">
                 {event.tons_at_creation !== null
-                  ? Number(event.tons_at_creation).toLocaleString('ru-RU')
+                  ? Number(event.tons_at_creation).toLocaleString(dateLocale)
                   : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold">
-                Прогноз ТО при
+                {t('detail.forecast_tons_at')}
               </p>
               <p className="font-bold text-secondary-900 tabular-nums">
                 {event.forecast_tons !== null
-                  ? `${Number(event.forecast_tons).toLocaleString('ru-RU')} т`
+                  ? `${Number(event.forecast_tons).toLocaleString(dateLocale)} ${t('detail.tons_short')}`
                   : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-secondary-500 font-semibold">
-                Машина
+                {t('detail.machine')}
               </p>
               <p className="font-bold text-secondary-900">
                 {event.machine?.machine_type ?? '—'}
@@ -287,18 +295,20 @@ export default function MaintenanceEventPage() {
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-base flex items-center gap-2">
-            <Truck className="w-4 h-4" /> Запрошенные запчасти
+            <Truck className="w-4 h-4" /> {t('detail.parts_requested_title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {event.parts_requested.length === 0 ? (
-            <p className="text-sm text-secondary-500 italic">Запчасти не указаны</p>
+            <p className="text-sm text-secondary-500 italic">{t('detail.parts_requested_empty')}</p>
           ) : (
             <ul className="divide-y divide-secondary-100">
               {event.parts_requested.map((p, idx) => (
                 <li key={idx} className="py-2.5 flex items-center justify-between text-sm">
                   <span className="text-secondary-900">{p.display_name_ru}</span>
-                  <span className="text-secondary-700 tabular-nums">{p.quantity} шт</span>
+                  <span className="text-secondary-700 tabular-nums">
+                    {p.quantity} {t('detail.qty_short')}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -310,7 +320,7 @@ export default function MaintenanceEventPage() {
       {event.parts_freeform.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-base">Дополнительные запчасти</CardTitle>
+            <CardTitle className="font-heading text-base">{t('detail.freeform_title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -321,7 +331,7 @@ export default function MaintenanceEventPage() {
                   </p>
                   {item.quantity_estimate != null && (
                     <p className="text-xs text-secondary-500 mt-1">
-                      кол-во ≈ {item.quantity_estimate}
+                      {t('detail.freeform_qty_estimate', { qty: item.quantity_estimate })}
                     </p>
                   )}
                 </li>
@@ -336,10 +346,10 @@ export default function MaintenanceEventPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-base">
-              Перечень работ ({event.schedule.work_items.length})
+              {t('detail.work_items_title', { count: event.schedule.work_items.length })}
               {event.schedule.total_hours_norm && (
                 <span className="ml-2 text-secondary-500 font-normal text-sm">
-                  · {event.schedule.total_hours_norm} н/ч суммарно
+                  {t('detail.work_items_total_hours', { hours: event.schedule.total_hours_norm })}
                 </span>
               )}
             </CardTitle>
@@ -351,7 +361,7 @@ export default function MaintenanceEventPage() {
                   <span className="flex-1">{w.name_ru}</span>
                   {w.hours_norm && (
                     <span className="text-xs text-secondary-500 tabular-nums">
-                      {w.hours_norm} н/ч
+                      {t('detail.work_item_hours', { hours: w.hours_norm })}
                     </span>
                   )}
                 </li>
@@ -365,7 +375,7 @@ export default function MaintenanceEventPage() {
       {event.notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-base">Примечания</CardTitle>
+            <CardTitle className="font-heading text-base">{t('detail.notes_title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-secondary-700 whitespace-pre-wrap">{event.notes}</p>
@@ -381,7 +391,7 @@ export default function MaintenanceEventPage() {
             disabled={updatingStatus}
           >
             <XCircle className="w-4 h-4" />
-            Отменить заявку
+            {t('detail.cancel_request')}
           </Button>
         </div>
       )}

@@ -15,13 +15,14 @@ import Logo from '@/components/Logo';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 import { EscalationsListener } from '@/components/admin/EscalationsListener';
 import { useTranslations } from 'next-intl';
+import { Toaster } from 'sonner';
 
 // Admin route tree (/admin/*) is for platform_admin only — НПГМ side. The
 // regular customer-facing app lives at /app/* with its own AppLayout.
 const adminNav = [
   { nameKey: 'admin_companies', href: '/admin', icon: Building2 },
   { nameKey: 'admin_queue', href: '/admin/queue/parts', icon: ShoppingCart },
-  { nameKey: 'tickets', href: '/app/tickets', icon: MessageSquareText, external: true },
+  { nameKey: 'admin_tickets', href: '/admin/tickets', icon: MessageSquareText },
   { nameKey: 'profile', href: '/app/user-settings', icon: UserIcon, external: true },
 ];
 
@@ -69,6 +70,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-secondary-50 flex">
       <EscalationsListener />
+      <Toaster position="top-right" richColors closeButton />
       <aside className="w-64 bg-white border-r border-secondary-200 p-4 flex-shrink-0">
         <div className="mb-6 flex items-center gap-2">
           <Logo variant="full" width={140} height={28} />

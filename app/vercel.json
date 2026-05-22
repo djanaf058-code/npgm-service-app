@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/ai/learn",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }

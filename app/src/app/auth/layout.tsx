@@ -1,33 +1,21 @@
 import Link from 'next/link';
 import { ArrowLeft, Truck, Wrench, ClipboardCheck, Shield } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import Logo from '@/components/Logo';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations('auth');
+
   const features = [
-    {
-      icon: Truck,
-      title: 'Парк техники',
-      text: 'Карточки СЗМ и буровых с историей ТО, наработкой и расходом запчастей.',
-    },
-    {
-      icon: ClipboardCheck,
-      title: 'Чек-листы и план зарядки',
-      text: 'Ежедневный осмотр перед сменой и план зарядки с автопрогнозом нагрузки.',
-    },
-    {
-      icon: Wrench,
-      title: 'Плановое ТО',
-      text: 'Регламент по типу машины + автозаявка к НИПИГОРМАШу за 30 дней до ТО.',
-    },
-    {
-      icon: Shield,
-      title: 'Изоляция данных',
-      text: 'Каждая компания — отдельный tenant с Postgres Row-Level Security.',
-    },
+    { icon: Truck, title: t('feature_fleet'), text: t('feature_fleet_desc') },
+    { icon: ClipboardCheck, title: t('feature_checklists'), text: t('feature_checklists_desc') },
+    { icon: Wrench, title: t('feature_maintenance'), text: t('feature_maintenance_desc') },
+    { icon: Shield, title: t('feature_security'), text: t('feature_security_desc') },
   ];
 
   return (
@@ -39,8 +27,12 @@ export default function AuthLayout({
           className="absolute left-8 top-8 flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          На главную
+          {t('back_home')}
         </Link>
+
+        <div className="absolute right-8 top-8">
+          <LocaleSwitcher />
+        </div>
 
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
           <Logo variant="full" href={false} className="mx-auto mb-2" />
@@ -68,13 +60,10 @@ export default function AuthLayout({
           <div className="space-y-8 max-w-lg">
             <div>
               <h3 className="font-heading text-white text-3xl font-bold leading-tight mb-3">
-                Один контур
-                <br />
-                для всего парка техники
+                {t('layout_panel_title')}
               </h3>
               <p className="text-primary-100 text-base leading-relaxed">
-                От ежедневного чек-листа оператора до годового бюджета на запчасти.
-                Разрабатывается в партнёрстве с НИПИГОРМАШем.
+                {t('layout_panel_desc')}
               </p>
             </div>
 

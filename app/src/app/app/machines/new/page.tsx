@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import type { Database } from '@/lib/types';
@@ -22,20 +23,14 @@ interface MachineType {
 }
 
 /**
- * The machine record on the wire still has all 11 fields (auger_position,
- * has_drum, component_count, ggd_type, ...) — they're just sensible defaults
- * derived per machine type, not asked from the user. Mapping below.
+ * Technical defaults inferred per machine type — not asked from the user.
+ * Saved alongside the user-entered fields when the row is inserted.
  *
- *   МЗВ  — 100% эмульсия. Барабан. Шнек не используется (none).
- *   МСЗ  — 100% ANFO (сухогруз). Барабана нет. Шнек в одном из двух
- *          положений (ВП/НП) — обязательный выбор.
- *   МСЗУ — Универсал. Барабан. Шнек не нужен (рецепты ANFO/смесь/эмульсия
- *          подаются через насосную группу).
- *   МЗУ  — Смесевой 70/30. Барабан. Шнек не используется (none).
- *
- * Components (component_count) and GGD type are not asked here — they're
- * inferred from the modification (4К etc.) which the user encodes into
- * model_code (e.g. "МЗУ-16-4К") and parses out later if/when needed.
+ *   МЗВ  — drum, no auger, 2 components.
+ *   МСЗ  — no drum, auger (VP/NP), 2 components. Auger position is the
+ *          single derived field the user actually picks.
+ *   МСЗУ — drum, no auger, 3 components.
+ *   МЗУ  — drum, no auger, 2 components.
  */
 const TYPE_DEFAULTS: Record<
   string,
@@ -54,6 +49,8 @@ const TYPE_DEFAULTS: Record<
 export default function NewMachinePage() {
   const router = useRouter();
   const { user } = useGlobal();
+  const t = useTranslations('machines.new');
+  const tShared = useTranslations('machines');
 
   const [machineTypes, setMachineTypes] = useState<MachineType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,6 +61,7 @@ export default function NewMachinePage() {
   const [tonnage, setTonnage] = useState('');
   const [augerPosition, setAugerPosition] = useState<'upper' | 'lower'>('lower');
   const [serialNumber, setSerialNumber] = useState('');
+  const [internalName, setInternalName] = useState('');
   const [inServiceSince, setInServiceSince] = useState('');
   const [pitLocation, setPitLocation] = useState('');
   const [notes, setNotes] = useState('');
@@ -83,7 +81,7 @@ export default function NewMachinePage() {
           setMachineType((data[0] as MachineType).id);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить справочник типов');
+        setError(err instanceof Error ? err.message : t('error_load_types'));
       }
     };
     fetchTypes();
@@ -96,13 +94,13 @@ export default function NewMachinePage() {
     e.preventDefault();
     setError(null);
 
-    if (!machineType) return setError('Выберите тип машины');
-    if (!modelCode.trim()) return setError('Введите модель (например, МСЗУ-14-НПБ)');
+    if (!machineType) return setError(t('error_pick_type'));
+    if (!modelCode.trim()) return setError(t('error_pick_model'));
     const tonnageNum = parseFloat(tonnage);
     if (!Number.isFinite(tonnageNum) || tonnageNum <= 0) {
-      return setError('Введите корректный тоннаж');
+      return setError(t('error_pick_tonnage'));
     }
-    if (!defaults) return setError('Неизвестный тип машины');
+    if (!defaults) return setError(t('error_unknown_type'));
 
     setLoading(true);
     try {
@@ -114,7 +112,7 @@ export default function NewMachinePage() {
         .select('company_id, role')
         .eq('id', user!.id)
         .single();
-      if (profileErr || !profile) throw profileErr ?? new Error('Профиль не найден');
+      if (profileErr || !profile) throw profileErr ?? new Error(t('error_no_company'));
       const callerProfile = profile as { company_id: string | null; role: string };
 
       // Platform admin can pass ?company_id=<uuid> to create the machine in
@@ -125,7 +123,7 @@ export default function NewMachinePage() {
         callerProfile.role === 'platform_admin' && queryCompanyId
           ? queryCompanyId
           : callerProfile.company_id;
-      if (!companyId) throw new Error('Не удалось определить компанию');
+      if (!companyId) throw new Error(t('error_no_company'));
 
       const insertPayload: Database['public']['Tables']['machines']['Insert'] = {
         company_id: companyId,
@@ -137,6 +135,7 @@ export default function NewMachinePage() {
         component_count: defaults.component_count,
         ggd_type: null,
         serial_number: serialNumber.trim() || null,
+        internal_name: internalName.trim() || null,
         in_service_since: inServiceSince || null,
         pit_location: pitLocation.trim() || null,
         notes: notes.trim() || null,
@@ -152,7 +151,7 @@ export default function NewMachinePage() {
       router.push(`/app/machines/${(inserted as { id: string }).id}`);
     } catch (err) {
       // Surface the actual Postgres / Supabase error so the user can tell us
-      // what's broken instead of getting a generic "не удалось создать машину".
+      // what's broken instead of getting a generic message.
       let msg: string;
       if (err instanceof Error) {
         msg = err.message;
@@ -161,7 +160,7 @@ export default function NewMachinePage() {
       } else {
         msg = JSON.stringify(err);
       }
-      setError(`Не удалось создать машину: ${msg}`);
+      setError(t('error_create_prefix', { msg }));
       setLoading(false);
     }
   };
@@ -172,17 +171,15 @@ export default function NewMachinePage() {
         href="/app/machines"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку машин
+        <ArrowLeft className="w-4 h-4" />
+        {t('back_to_list')}
       </Link>
 
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Новая машина
+          {t('title')}
         </h1>
-        <p className="text-secondary-600 text-sm mt-1">
-          Введите паспорт машины. Технические особенности (барабан, число компонентов, ГГД)
-          выводятся автоматически из типа и модификации.
-        </p>
+        <p className="text-secondary-600 text-sm mt-1">{t('subtitle')}</p>
       </div>
 
       {error && (
@@ -195,7 +192,7 @@ export default function NewMachinePage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid md:grid-cols-2 gap-5">
             <div>
-              <Label htmlFor="machineType">Тип машины *</Label>
+              <Label htmlFor="machineType">{t('machine_type_required')}</Label>
               <Select
                 id="machineType"
                 value={machineType}
@@ -203,34 +200,44 @@ export default function NewMachinePage() {
                 required
                 className="mt-1"
               >
-                {machineTypes.length === 0 && <option value="">Загружаем…</option>}
-                {machineTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.id} — {t.name_ru}
+                {machineTypes.length === 0 && <option value="">{t('machine_type_loading')}</option>}
+                {machineTypes.map((mt) => (
+                  <option key={mt.id} value={mt.id}>
+                    {mt.id} — {mt.name_ru}
                   </option>
                 ))}
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="modelCode">Модель *</Label>
+              <Label htmlFor="modelCode">{t('model_required')}</Label>
               <Input
                 id="modelCode"
                 value={modelCode}
                 onChange={(e) => setModelCode(e.target.value)}
-                placeholder="МСЗУ-14-НПБ"
+                placeholder={t('model_placeholder')}
                 required
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-secondary-500">
-                Полная маркировка с тоннажем и исполнением
-              </p>
+              <p className="mt-1 text-xs text-secondary-500">{t('model_hint')}</p>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="internalName">{tShared('internal_name')}</Label>
+            <Input
+              id="internalName"
+              value={internalName}
+              onChange={(e) => setInternalName(e.target.value)}
+              placeholder={tShared('internal_name_placeholder')}
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-secondary-500">{tShared('internal_name_hint')}</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
             <div>
-              <Label htmlFor="tonnage">Грузоподъёмность, т *</Label>
+              <Label htmlFor="tonnage">{t('tonnage_required')}</Label>
               <Input
                 id="tonnage"
                 type="number"
@@ -239,46 +246,44 @@ export default function NewMachinePage() {
                 max="50"
                 value={tonnage}
                 onChange={(e) => setTonnage(e.target.value)}
-                placeholder="14"
+                placeholder={t('tonnage_placeholder')}
                 required
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="serialNumber">Серийный номер</Label>
+              <Label htmlFor="serialNumber">{t('serial')}</Label>
               <Input
                 id="serialNumber"
                 value={serialNumber}
                 onChange={(e) => setSerialNumber(e.target.value)}
-                placeholder="MZB-2024-0142"
+                placeholder={t('serial_placeholder')}
                 className="mt-1 font-mono"
               />
+              <p className="mt-1 text-xs text-secondary-500">{t('serial_hint')}</p>
             </div>
           </div>
 
-          {/* МСЗ — единственный тип, где положение шнека реально различается */}
           {defaults?.needs_auger && (
             <div>
-              <Label htmlFor="augerPosition">Положение шнека (для МСЗ)</Label>
+              <Label htmlFor="augerPosition">{t('auger_position')}</Label>
               <Select
                 id="augerPosition"
                 value={augerPosition}
                 onChange={(e) => setAugerPosition(e.target.value as 'upper' | 'lower')}
                 className="mt-1"
               >
-                <option value="upper">Верхний (ВП)</option>
-                <option value="lower">Нижний (НП)</option>
+                <option value="upper">{t('auger_upper')}</option>
+                <option value="lower">{t('auger_lower')}</option>
               </Select>
-              <p className="mt-1 text-xs text-secondary-500">
-                ВП / НП в маркировке зависит от исполнения корпуса
-              </p>
+              <p className="mt-1 text-xs text-secondary-500">{t('auger_hint')}</p>
             </div>
           )}
 
           <div className="grid md:grid-cols-2 gap-5">
             <div>
-              <Label htmlFor="inServiceSince">В эксплуатации с</Label>
+              <Label htmlFor="inServiceSince">{t('in_service_since')}</Label>
               <DatePicker
                 id="inServiceSince"
                 value={inServiceSince}
@@ -289,24 +294,24 @@ export default function NewMachinePage() {
             </div>
 
             <div>
-              <Label htmlFor="pitLocation">Текущий карьер</Label>
+              <Label htmlFor="pitLocation">{t('pit_location')}</Label>
               <Input
                 id="pitLocation"
                 value={pitLocation}
                 onChange={(e) => setPitLocation(e.target.value)}
-                placeholder="Block A, Pit 2"
+                placeholder={t('pit_location_placeholder')}
                 className="mt-1"
               />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="notes">Заметки</Label>
+            <Label htmlFor="notes">{t('notes')}</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Особенности эксплуатации, привязка к контракту, известные дефекты…"
+              placeholder={t('notes_placeholder')}
               rows={3}
               className="mt-1"
             />
@@ -314,29 +319,15 @@ export default function NewMachinePage() {
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-secondary-100">
             <Button asChild variant="outline" type="button">
-              <Link href="/app/machines">Отмена</Link>
+              <Link href="/app/machines">{t('cancel')}</Link>
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {loading ? 'Сохранение…' : 'Создать машину'}
+              {loading ? t('submitting') : t('submit')}
             </Button>
           </div>
         </form>
       </Card>
-
-      {defaults && (
-        <Card className="p-4 bg-secondary-50/60 border-dashed">
-          <p className="text-xs uppercase tracking-wider font-semibold text-secondary-500 mb-2">
-            Поля, которые подставятся автоматически для типа {machineType}
-          </p>
-          <ul className="text-xs text-secondary-600 space-y-1">
-            <li>· Барабан: <strong>{defaults.has_drum ? 'есть' : 'нет'}</strong></li>
-            <li>· Положение шнека: <strong>{defaults.needs_auger ? `выбираете выше (${augerPosition === 'upper' ? 'ВП' : 'НП'})` : 'не используется'}</strong></li>
-            <li>· Кол-во компонентов: <strong>{defaults.component_count}</strong></li>
-            <li>· ГГД: <strong>не используется</strong> (будет добавлено позже, если потребуется)</li>
-          </ul>
-        </Card>
-      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { ArrowLeft, Loader2, Send, Plus, X } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
@@ -37,15 +38,13 @@ interface ScheduleRow {
   total_hours_norm: number | null;
 }
 
-const KIND_LABELS: Record<MaintenanceKind, string> = {
-  TO: 'ТО',
-  'TO-1': 'ТО-1',
-  'TO-2': 'ТО-2',
-  annual: 'Годовое ТО',
-  unscheduled: 'Внеплановое',
-};
-
 function NewMaintenanceRequestInner() {
+  const t = useTranslations('maintenance');
+  const tKind = useTranslations('kind_labels');
+  // locale is wired for future date formatting hooks within this form
+  const _locale = useLocale();
+  void _locale;
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useGlobal();
@@ -73,7 +72,7 @@ function NewMaintenanceRequestInner() {
     const load = async () => {
       try {
         if (!machineIdParam || !scheduleIdParam) {
-          throw new Error('В URL не указаны машина и/или регламент.');
+          throw new Error(t('new.url_missing_params'));
         }
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
@@ -93,23 +92,23 @@ function NewMaintenanceRequestInner() {
         ]);
 
         const cid = (profileResp.data as { company_id: string } | null)?.company_id;
-        if (!cid) throw new Error('Профиль не привязан к компании');
+        if (!cid) throw new Error(t('new.profile_no_company'));
         setCompanyId(cid);
 
-        if (!machineResp.data) throw new Error('Машина не найдена');
-        if (!scheduleResp.data) throw new Error('Регламент не найден');
+        if (!machineResp.data) throw new Error(t('new.machine_not_found'));
+        if (!scheduleResp.data) throw new Error(t('new.schedule_not_found'));
 
         setMachine(machineResp.data as MachineRow);
         setSchedule(scheduleResp.data as ScheduleRow);
         setParts(((scheduleResp.data as ScheduleRow).parts_required ?? []).slice());
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setError(err instanceof Error ? err.message : t('new.load_error'));
       } finally {
         setLoading(false);
       }
     };
     if (user) load();
-  }, [user, machineIdParam, scheduleIdParam]);
+  }, [user, machineIdParam, scheduleIdParam, t]);
 
   const updatePartQty = (index: number, qty: number) => {
     setParts((prev) => prev.map((p, i) => (i === index ? { ...p, quantity: qty } : p)));
@@ -137,11 +136,11 @@ function NewMaintenanceRequestInner() {
     setError(null);
 
     if (parts.some((p) => !Number.isFinite(p.quantity) || p.quantity <= 0)) {
-      setError('Все количества должны быть положительными числами');
+      setError(t('new.err_qty_invalid'));
       return;
     }
     if (freeform.some((f) => f.description.trim().length < 3)) {
-      setError('Опишите дополнительные запчасти (минимум 3 символа)');
+      setError(t('new.err_freeform_too_short'));
       return;
     }
 
@@ -172,7 +171,7 @@ function NewMaintenanceRequestInner() {
         })
         .select('id')
         .single();
-      if (insertErr || !event) throw insertErr ?? new Error('Не удалось создать заявку');
+      if (insertErr || !event) throw insertErr ?? new Error(t('new.err_create_failed'));
 
       router.push(`/app/maintenance/${(event as { id: string }).id}`);
     } catch (err) {
@@ -180,7 +179,7 @@ function NewMaintenanceRequestInner() {
       if (err instanceof Error) msg = err.message;
       else if (err && typeof err === 'object' && 'message' in err) msg = String((err as { message: unknown }).message);
       else msg = JSON.stringify(err);
-      setError(`Не удалось отправить заявку: ${msg}`);
+      setError(t('new.err_submit_prefix', { msg }));
       setSubmitting(false);
     }
   };
@@ -189,7 +188,7 @@ function NewMaintenanceRequestInner() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('new.loading')}
       </div>
     );
   }
@@ -201,10 +200,10 @@ function NewMaintenanceRequestInner() {
           href="/app/maintenance"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К списку ТО
+          <ArrowLeft className="w-4 h-4" /> {t('new.back')}
         </Link>
         <Card className="p-6 text-center">
-          <p className="text-accent-700 whitespace-pre-wrap">{error ?? 'Не удалось загрузить'}</p>
+          <p className="text-accent-700 whitespace-pre-wrap">{error ?? t('new.load_failed')}</p>
         </Card>
       </div>
     );
@@ -216,17 +215,16 @@ function NewMaintenanceRequestInner() {
         href="/app/maintenance"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку ТО
+        <ArrowLeft className="w-4 h-4" />
+        {t('new.back')}
       </Link>
 
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Заявка на {KIND_LABELS[schedule.kind]} — {machine.model_code}
+          {t('new.title', { kind: tKind(schedule.kind), model: machine.model_code })}
         </h1>
         <p className="text-secondary-600 text-sm mt-1">
-          Запчасти ниже взяты из регламента ТО автоматически. Уберите, что не нужно,
-          поправьте количество, или добавьте «дополнительную запчасть» если нужно
-          ещё что-то.
+          {t('new.subtitle')}
         </p>
       </div>
 
@@ -240,12 +238,11 @@ function NewMaintenanceRequestInner() {
         {/* Predefined parts */}
         <Card className="p-5">
           <h2 className="font-heading font-semibold text-secondary-900 mb-3">
-            Запчасти к {KIND_LABELS[schedule.kind]}
+            {t('new.parts_section_title', { kind: tKind(schedule.kind) })}
           </h2>
           {parts.length === 0 ? (
             <p className="text-sm text-secondary-500 italic">
-              Список запчастей пуст. Добавьте «дополнительную запчасть» ниже или
-              обратитесь к сервисному инженеру.
+              {t('new.parts_empty')}
             </p>
           ) : (
             <ul className="divide-y divide-secondary-100">
@@ -262,13 +259,13 @@ function NewMaintenanceRequestInner() {
                     onChange={(e) => updatePartQty(idx, parseFloat(e.target.value) || 0)}
                     className="w-20 text-right tabular-nums"
                   />
-                  <span className="text-xs text-secondary-500 w-8">шт</span>
+                  <span className="text-xs text-secondary-500 w-8">{t('new.qty_short')}</span>
                   <button
                     type="button"
                     onClick={() => removePart(idx)}
                     className="text-secondary-400 hover:text-accent-600 p-1"
-                    aria-label="Убрать"
-                    title="Убрать из заявки"
+                    aria-label={t('new.remove_aria')}
+                    title={t('new.remove_tooltip')}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -282,17 +279,16 @@ function NewMaintenanceRequestInner() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading font-semibold text-secondary-900">
-              Дополнительные запчасти
+              {t('new.freeform_title')}
             </h2>
             <Button type="button" variant="outline" size="sm" onClick={addFreeformItem}>
               <Plus className="w-4 h-4" />
-              Добавить
+              {t('new.freeform_add')}
             </Button>
           </div>
           {freeform.length === 0 ? (
             <p className="text-sm text-secondary-500">
-              Если нужна запчасть, которой нет в стандартном комплекте —
-              опишите её своими словами и приложите фото.
+              {t('new.freeform_hint')}
             </p>
           ) : (
             <ul className="space-y-3">
@@ -300,7 +296,7 @@ function NewMaintenanceRequestInner() {
                 <li key={idx} className="border border-secondary-200 rounded-lg p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <Textarea
-                      placeholder="Например: статор насоса NETZSCH, который чёрный, на 3-м насосе слева"
+                      placeholder={t('new.freeform_placeholder')}
                       value={item.description}
                       onChange={(e) => updateFreeformItem(idx, { description: e.target.value })}
                       rows={2}
@@ -310,14 +306,14 @@ function NewMaintenanceRequestInner() {
                       type="button"
                       onClick={() => removeFreeformItem(idx)}
                       className="text-secondary-400 hover:text-accent-600 p-1 mt-1"
-                      aria-label="Убрать"
+                      aria-label={t('new.remove_aria')}
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-secondary-500">Кол-во:</Label>
+                      <Label className="text-xs text-secondary-500">{t('new.freeform_qty_label')}</Label>
                       <Input
                         type="number"
                         step="1"
@@ -347,14 +343,14 @@ function NewMaintenanceRequestInner() {
             </ul>
           )}
           <p className="mt-3 text-xs text-secondary-500">
-            Артикул и точное название мы определим со своей стороны и подтвердим перед заказом.
+            {t('new.freeform_disclaimer')}
           </p>
         </Card>
 
         {/* Meta */}
         <Card className="p-5 space-y-4">
           <div>
-            <Label htmlFor="plannedDate">Желаемая дата проведения ТО</Label>
+            <Label htmlFor="plannedDate">{t('new.planned_date_label')}</Label>
             <DatePicker
               id="plannedDate"
               value={plannedDate}
@@ -363,10 +359,10 @@ function NewMaintenanceRequestInner() {
             />
           </div>
           <div>
-            <Label htmlFor="notes">Примечания</Label>
+            <Label htmlFor="notes">{t('new.notes_label')}</Label>
             <Textarea
               id="notes"
-              placeholder="Особенности, дополнительные пожелания…"
+              placeholder={t('new.notes_placeholder')}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -377,21 +373,22 @@ function NewMaintenanceRequestInner() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="text-sm text-secondary-600">
-            Регламент: <strong>{schedule.work_items.length} операций</strong>
+            {t('new.schedule_summary_prefix')}{' '}
+            <strong>{t('new.schedule_operations_count', { n: schedule.work_items.length })}</strong>
             {schedule.total_hours_norm && (
               <>
-                , суммарная трудоёмкость{' '}
-                <strong>{schedule.total_hours_norm} н/ч</strong>
+                {t('new.schedule_total_hours_prefix')}{' '}
+                <strong>{t('new.schedule_total_hours_value', { hours: schedule.total_hours_norm })}</strong>
               </>
             )}
           </div>
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" type="button">
-              <Link href="/app/maintenance">Отмена</Link>
+              <Link href="/app/maintenance">{t('new.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {submitting ? 'Отправка…' : 'Подать заявку'}
+              {submitting ? t('new.submitting') : t('new.submit')}
             </Button>
           </div>
         </div>
@@ -401,8 +398,9 @@ function NewMaintenanceRequestInner() {
 }
 
 export default function NewMaintenanceRequestPage() {
+  const t = useTranslations('maintenance');
   return (
-    <Suspense fallback={<div className="p-6 text-secondary-500">Загрузка…</div>}>
+    <Suspense fallback={<div className="p-6 text-secondary-500">{t('new.loading')}</div>}>
       <NewMaintenanceRequestInner />
     </Suspense>
   );

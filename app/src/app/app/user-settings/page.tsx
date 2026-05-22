@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useGlobal } from '@/lib/context/GlobalContext';
@@ -8,6 +9,7 @@ import { Key, User, CheckCircle } from 'lucide-react';
 import { MFASetup } from '@/components/MFASetup';
 
 export default function UserSettingsPage() {
+    const t = useTranslations('user_settings');
     const { user } = useGlobal();
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +22,7 @@ export default function UserSettingsPage() {
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            setError("New passwords don't match");
+            setError(t('passwords_mismatch'));
             return;
         }
 
@@ -38,7 +40,7 @@ export default function UserSettingsPage() {
 
             if (error) throw error;
 
-            setSuccess('Password updated successfully');
+            setSuccess(t('password_updated'));
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: Error | unknown) {
@@ -47,7 +49,7 @@ export default function UserSettingsPage() {
                 setError(err.message);
             } else {
                 console.error('Error updating password:', err);
-                setError('Failed to update password');
+                setError(t('password_update_failed'));
             }
         } finally {
             setLoading(false);
@@ -59,9 +61,9 @@ export default function UserSettingsPage() {
     return (
         <div className="space-y-6 p-6">
             <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">User Settings</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
                 <p className="text-muted-foreground">
-                    Manage your account settings and preferences
+                    {t('subtitle')}
                 </p>
             </div>
 
@@ -84,17 +86,17 @@ export default function UserSettingsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <User className="h-5 w-5" />
-                                User Details
+                                {t('user_details_title')}
                             </CardTitle>
-                            <CardDescription>Your account information</CardDescription>
+                            <CardDescription>{t('user_details_desc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <label className="text-sm font-medium text-gray-500">User ID</label>
+                                <label className="text-sm font-medium text-gray-500">{t('field_user_id')}</label>
                                 <p className="mt-1 text-sm">{user?.id}</p>
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-gray-500">Email</label>
+                                <label className="text-sm font-medium text-gray-500">{t('field_email')}</label>
                                 <p className="mt-1 text-sm">{user?.email}</p>
                             </div>
                         </CardContent>
@@ -104,15 +106,15 @@ export default function UserSettingsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Key className="h-5 w-5" />
-                                Change Password
+                                {t('change_password_title')}
                             </CardTitle>
-                            <CardDescription>Update your account password</CardDescription>
+                            <CardDescription>{t('change_password_desc')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handlePasswordChange} className="space-y-4">
                                 <div>
                                     <label htmlFor="new-password" className="block text-sm font-medium text-gray-700">
-                                        New Password
+                                        {t('new_password_label')}
                                     </label>
                                     <input
                                         type="password"
@@ -125,7 +127,7 @@ export default function UserSettingsPage() {
                                 </div>
                                 <div>
                                     <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
-                                        Confirm New Password
+                                        {t('confirm_password_label')}
                                     </label>
                                     <input
                                         type="password"
@@ -141,7 +143,7 @@ export default function UserSettingsPage() {
                                     disabled={loading}
                                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                                 >
-                                    {loading ? 'Updating...' : 'Update Password'}
+                                    {loading ? t('updating') : t('update_password_button')}
                                 </button>
                             </form>
                         </CardContent>
@@ -149,7 +151,7 @@ export default function UserSettingsPage() {
 
                     <MFASetup
                         onStatusChange={() => {
-                            setSuccess('Two-factor authentication settings updated successfully');
+                            setSuccess(t('mfa_updated'));
                         }}
                     />
                 </div>

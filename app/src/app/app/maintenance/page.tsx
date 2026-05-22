@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { Wrench, Truck, Loader2, AlertCircle, Clock, ChevronRight, Plus } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -33,24 +34,21 @@ interface EventRow {
   machine: { model_code: string } | null;
 }
 
-const STATUS_LABELS: Record<MaintenanceStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  forecast: { ru: 'Прогноз', variant: 'outline' },
-  requested: { ru: 'Заявка подана', variant: 'warning' },
-  planned: { ru: 'Запланировано', variant: 'default' },
-  in_progress: { ru: 'В работе', variant: 'default' },
-  completed: { ru: 'Выполнено', variant: 'success' },
-  cancelled: { ru: 'Отменено', variant: 'secondary' },
-};
-
-const KIND_LABELS: Record<MaintenanceKind, string> = {
-  TO: 'ТО',
-  'TO-1': 'ТО-1',
-  'TO-2': 'ТО-2',
-  annual: 'Годовое ТО',
-  unscheduled: 'Внеплановое',
+const STATUS_VARIANTS: Record<MaintenanceStatus, React.ComponentProps<typeof Badge>['variant']> = {
+  forecast: 'outline',
+  requested: 'warning',
+  planned: 'default',
+  in_progress: 'default',
+  completed: 'success',
+  cancelled: 'secondary',
 };
 
 export default function MaintenancePage() {
+  const t = useTranslations('maintenance');
+  const tKind = useTranslations('kind_labels');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
   const [activeEvents, setActiveEvents] = useState<EventRow[]>([]);
@@ -89,13 +87,13 @@ export default function MaintenancePage() {
         setSchedules((schedulesResp.data ?? []) as ScheduleSummary[]);
         setActiveEvents((eventsResp.data ?? []) as unknown as EventRow[]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить ТО');
+        setError(err instanceof Error ? err.message : t('list.load_failed'));
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, []);
+  }, [t]);
 
   /**
    * For each active machine, compute the next maintenance forecast
@@ -130,17 +128,17 @@ export default function MaintenancePage() {
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          ТО и обслуживание
+          {t('list.title')}
         </h1>
         <p className="text-secondary-600 text-sm mt-1">
-          Прогноз ближайших работ по каждой машине + подача заявок с предзаполненными запчастями.
+          {t('list.subtitle')}
         </p>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-secondary-500">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Загрузка…
+          {t('list.loading')}
         </div>
       ) : error ? (
         <Card className="p-6 text-center">
@@ -152,15 +150,15 @@ export default function MaintenancePage() {
           {/* Forecast for each machine */}
           <section>
             <h2 className="font-heading text-lg font-semibold text-secondary-900 mb-3">
-              Ближайшие работы
+              {t('list.section_upcoming')}
             </h2>
             {forecasts.length === 0 ? (
               <Card className="p-12 text-center">
                 <Truck className="w-8 h-8 text-secondary-400 mx-auto mb-3" />
                 <p className="text-secondary-600">
-                  Нет активных машин в парке.{' '}
+                  {t('list.no_active_machines')}{' '}
                   <Link href="/app/machines/new" className="text-primary-600 hover:underline">
-                    Добавить машину →
+                    {t('list.add_machine_link')}
                   </Link>
                 </p>
               </Card>
@@ -182,7 +180,7 @@ export default function MaintenancePage() {
           {activeEvents.length > 0 && (
             <section>
               <h2 className="font-heading text-lg font-semibold text-secondary-900 mb-3">
-                Активные заявки и события
+                {t('list.section_active_events')}
               </h2>
               <div className="space-y-2">
                 {activeEvents.map((ev) => (
@@ -196,14 +194,14 @@ export default function MaintenancePage() {
                         <Wrench className="w-5 h-5 text-primary-600" />
                         <div>
                           <p className="font-medium text-secondary-900">
-                            {KIND_LABELS[ev.kind]} ·{' '}
+                            {tKind(ev.kind)} ·{' '}
                             <span className="text-primary-700">
                               {ev.machine?.model_code ?? '—'}
                             </span>
                           </p>
                           <p className="text-xs text-secondary-500">
-                            создано:{' '}
-                            {new Date(ev.created_at).toLocaleString('ru-RU', {
+                            {t('list.created_label')}{' '}
+                            {new Date(ev.created_at).toLocaleString(dateLocale, {
                               day: '2-digit',
                               month: 'short',
                               hour: '2-digit',
@@ -211,16 +209,17 @@ export default function MaintenancePage() {
                             })}
                             {ev.planned_date && (
                               <>
-                                {' · план: '}
-                                {new Date(ev.planned_date).toLocaleDateString('ru-RU')}
+                                {' · '}
+                                {t('list.plan_label')}{' '}
+                                {new Date(ev.planned_date).toLocaleDateString(dateLocale)}
                               </>
                             )}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={STATUS_LABELS[ev.status].variant}>
-                          {STATUS_LABELS[ev.status].ru}
+                        <Badge variant={STATUS_VARIANTS[ev.status]}>
+                          {t(`status.${ev.status}`)}
                         </Badge>
                         <ChevronRight className="w-4 h-4 text-secondary-300" />
                       </div>
@@ -245,6 +244,11 @@ function ForecastCard({
   forecast: ReturnType<typeof forecastNextMaintenance>;
   blockingEvent: EventRow | null | undefined;
 }) {
+  const t = useTranslations('maintenance');
+  const tKind = useTranslations('kind_labels');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+
   if (!forecast) {
     return (
       <Card className="p-4 border-dashed">
@@ -253,7 +257,7 @@ function ForecastCard({
           <div>
             <p className="font-medium text-secondary-900">{machine.model_code}</p>
             <p className="text-sm text-secondary-500">
-              Регламент ТО для типа «{machine.machine_type}» не настроен
+              {t('list.no_schedule_for_type', { type: machine.machine_type })}
             </p>
           </div>
         </div>
@@ -292,38 +296,40 @@ function ForecastCard({
               <Badge variant="outline">{machine.machine_type}</Badge>
               {blockingEvent && (
                 <Badge variant="warning">
-                  заявка уже подана
+                  {t('list.request_already_submitted')}
                 </Badge>
               )}
             </div>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
               <div>
                 <p className="text-xs text-secondary-500 uppercase tracking-wider">
-                  Следующее
+                  {t('list.next')}
                 </p>
                 <p className="font-semibold text-secondary-900">
-                  {KIND_LABELS[forecast.next_kind]}
+                  {tKind(forecast.next_kind)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-secondary-500 uppercase tracking-wider">Через</p>
+                <p className="text-xs text-secondary-500 uppercase tracking-wider">{t('list.through')}</p>
                 <p className="font-semibold text-secondary-900 tabular-nums">
-                  {Number(forecast.tons_remaining).toLocaleString('ru-RU')} тонн
+                  {Number(forecast.tons_remaining).toLocaleString(dateLocale)} {t('list.tons_unit')}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-secondary-500 uppercase tracking-wider flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  Примерно
+                  {t('list.approx')}
                 </p>
                 <p className="font-semibold text-secondary-900 tabular-nums">
-                  {days < 365 ? `${days} дн` : '≥ года'}
+                  {days < 365 ? t('list.approx_days', { days }) : t('list.approx_year_plus')}
                 </p>
               </div>
             </div>
             <p className="mt-2 text-xs text-secondary-500">
-              Текущая выработка: {Number(machine.tons_pumped).toLocaleString('ru-RU')} тонн ·
-              следующее ТО при {Number(forecast.next_at_tons).toLocaleString('ru-RU')} тонн
+              {t('list.current_output', {
+                current: Number(machine.tons_pumped).toLocaleString(dateLocale),
+                next: Number(forecast.next_at_tons).toLocaleString(dateLocale),
+              })}
             </p>
           </div>
         </div>
@@ -331,7 +337,7 @@ function ForecastCard({
           {blockingEvent ? (
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/maintenance/${blockingEvent.id}`}>
-                Открыть заявку
+                {t('list.open_request')}
                 <ChevronRight className="w-4 h-4" />
               </Link>
             </Button>
@@ -341,7 +347,7 @@ function ForecastCard({
                 href={`/app/maintenance/new?machine=${machine.id}&kind=${forecast.next_kind}&schedule=${forecast.schedule_id}`}
               >
                 <Plus className="w-4 h-4" />
-                Подать заявку
+                {t('list.submit_request')}
               </Link>
             </Button>
           )}

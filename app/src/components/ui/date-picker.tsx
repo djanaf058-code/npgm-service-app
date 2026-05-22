@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { DayPicker } from "react-day-picker";
-import { ru } from "date-fns/locale";
+import { ru, enUS } from "date-fns/locale";
 import { format, parse } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { useLocale } from "next-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,7 @@ interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Выберите дату",
+  placeholder,
   disabled = false,
   className,
   id,
@@ -37,6 +38,10 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
+  const appLocale = useLocale();
+  const dfLocale = appLocale === "en" ? enUS : ru;
+  const fallbackPlaceholder = appLocale === "en" ? "Pick a date" : "Выберите дату";
+  const dateFormat = appLocale === "en" ? "MMMM d, yyyy" : "d MMMM yyyy";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,7 +59,9 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="w-4 h-4 text-secondary-400 flex-shrink-0" />
-          {selected ? format(selected, "d MMMM yyyy", { locale: ru }) : placeholder}
+          {selected
+            ? format(selected, dateFormat, { locale: dfLocale })
+            : placeholder ?? fallbackPlaceholder}
         </button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
@@ -70,7 +77,7 @@ export function DatePicker({
           captionLayout="dropdown"
           startMonth={new Date(fromYear, 0)}
           endMonth={new Date(toYear, 11)}
-          locale={ru}
+          locale={dfLocale}
           showOutsideDays
           weekStartsOn={1}
           className="p-3"

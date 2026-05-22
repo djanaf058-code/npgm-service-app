@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Loader2,
@@ -15,6 +15,7 @@ import {
   Check,
   X as XIcon,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -36,6 +37,8 @@ interface ShiftDetail {
   started_at: string | null;
   completed_at: string | null;
   plan_recipe: ChargingRecipe | null;
+  plan_recipe_b: ChargingRecipe | null;
+  plan_recipe_b_holes: number | null;
   plan_tons: number | null;
   plan_emulsion_tons: number | null;
   plan_an_tons: number | null;
@@ -49,7 +52,7 @@ interface ShiftDetail {
   actual_diesel_tons: number | null;
   actual_engine_hours: number | null;
   actual_notes: string | null;
-  machine: { id: string; model_code: string; machine_type: string; tons_pumped: number; engine_hours: number } | null;
+  machine: { id: string; model_code: string; machine_type: string; internal_name: string | null; tons_pumped: number; engine_hours: number } | null;
   operator: { full_name: string } | null;
 }
 
@@ -64,18 +67,14 @@ interface ChecklistRow {
   completed_at: string;
 }
 
-const RECIPE_LABELS: Record<ChargingRecipe, string> = {
-  ANFO: 'ANFO (100%)',
-  EMULSION: '100% эмульсия',
-  BLEND_70_30: 'Смесевой 70/30',
-  BLEND_30_70: 'Смесевой 30/70',
-  OTHER: 'Другой',
-};
-
 export default function ShiftDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const shiftId = params.id;
+  const t = useTranslations('shifts.detail');
+  const tRecipe = useTranslations('shifts.recipe');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
 
   const [shift, setShift] = useState<ShiftDetail | null>(null);
   const [checklists, setChecklists] = useState<ChecklistRow[]>([]);
@@ -86,7 +85,6 @@ export default function ShiftDetailPage() {
   const [actualValue, setActualValue] = useState<ChargingPlanValue | null>(null);
   const [actualNotes, setActualNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  void router;
 
   const reload = async () => {
     setLoading(true);
@@ -97,7 +95,7 @@ export default function ShiftDetailPage() {
         supabase
           .from('shifts')
           .select(
-            'id, status, planned_for, started_at, completed_at, plan_recipe, plan_tons, plan_emulsion_tons, plan_an_tons, plan_diesel_tons, plan_holes, plan_pit_location, plan_notes, actual_tons, actual_emulsion_tons, actual_an_tons, actual_diesel_tons, actual_engine_hours, actual_notes, machine:machines(id, model_code, machine_type, tons_pumped, engine_hours), operator:profiles!shifts_operator_id_fkey(full_name)'
+            'id, status, planned_for, started_at, completed_at, plan_recipe, plan_recipe_b, plan_recipe_b_holes, plan_tons, plan_emulsion_tons, plan_an_tons, plan_diesel_tons, plan_holes, plan_pit_location, plan_notes, actual_tons, actual_emulsion_tons, actual_an_tons, actual_diesel_tons, actual_engine_hours, actual_notes, machine:machines(id, model_code, machine_type, internal_name, tons_pumped, engine_hours), operator:profiles!shifts_operator_id_fkey(full_name)'
           )
           .eq('id', shiftId)
           .maybeSingle(),
@@ -131,7 +129,7 @@ export default function ShiftDetailPage() {
   const handleClose = async () => {
     if (!shift) return;
     if (!actualValue) {
-      setError('Заполните фактический тоннаж и состав');
+      setError(t('close_no_actual'));
       return;
     }
 
@@ -161,14 +159,14 @@ export default function ShiftDetailPage() {
       if (err instanceof Error) msg = err.message;
       else if (err && typeof err === 'object' && 'message' in err) msg = String((err as { message: unknown }).message);
       else msg = JSON.stringify(err);
-      setError(`Не удалось закрыть смену: ${msg}`);
+      setError(`${t('close_failed_prefix')} ${msg}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleCancel = async () => {
-    if (!shift || !confirm('Отменить смену? Это действие нельзя откатить.')) return;
+    if (!shift || !confirm(t('cancel_confirm'))) return;
     setSubmitting(true);
     try {
       const client = await createSPASassClient();
@@ -180,7 +178,7 @@ export default function ShiftDetailPage() {
       if (err) throw err;
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось отменить');
+      setError(err instanceof Error ? err.message : t('cancel_failed'));
     } finally {
       setSubmitting(false);
     }
@@ -190,7 +188,7 @@ export default function ShiftDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
@@ -202,10 +200,10 @@ export default function ShiftDetailPage() {
           href="/app/shifts"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К списку смен
+          <ArrowLeft className="w-4 h-4" /> {t('back')}
         </Link>
         <Card className="p-6 text-center">
-          <p className="text-accent-700 whitespace-pre-wrap">{error ?? 'Смена не найдена'}</p>
+          <p className="text-accent-700 whitespace-pre-wrap">{error ?? t('not_found')}</p>
         </Card>
       </div>
     );
@@ -221,7 +219,7 @@ export default function ShiftDetailPage() {
         href="/app/shifts"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку смен
+        <ArrowLeft className="w-4 h-4" />{t('back')}
       </Link>
 
       {/* Header */}
@@ -236,30 +234,33 @@ export default function ShiftDetailPage() {
                 <ShiftStatusBadge status={shift.status} />
                 {shift.plan_recipe && (
                   <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-secondary-100 text-secondary-700">
-                    {RECIPE_LABELS[shift.plan_recipe]}
+                    {tRecipe(shift.plan_recipe)}
                   </span>
                 )}
               </div>
               <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
-                Смена{' — '}
+                {t('title')}{' — '}
                 {shift.machine ? (
                   <Link
                     href={`/app/machines/${shift.machine.id}`}
                     className="text-primary-700 hover:underline"
                   >
-                    {shift.machine.model_code}
+                    {shift.machine.internal_name?.trim() || shift.machine.model_code}
+                    {shift.machine.internal_name?.trim() && (
+                      <span className="text-secondary-400 text-sm ml-1">· {shift.machine.model_code}</span>
+                    )}
                   </Link>
                 ) : (
                   '—'
                 )}
               </h1>
               <p className="text-sm text-secondary-600 mt-1">
-                Оператор: <strong>{shift.operator?.full_name ?? '—'}</strong>
+                {t('operator')}: <strong>{shift.operator?.full_name ?? '—'}</strong>
                 {dateStr && (
                   <>
                     {' · '}
                     <Calendar className="inline w-3 h-3" />{' '}
-                    {new Date(dateStr).toLocaleDateString('ru-RU')}
+                    {new Date(dateStr).toLocaleDateString(dateLocale)}
                   </>
                 )}
               </p>
@@ -269,7 +270,7 @@ export default function ShiftDetailPage() {
           {!isClosed && shift.status === 'in_progress' && (
             <Button onClick={() => setCloseOpen(true)}>
               <CheckCircle2 className="w-4 h-4" />
-              Закрыть смену
+              {t('close_open_button')}
             </Button>
           )}
         </div>
@@ -278,8 +279,9 @@ export default function ShiftDetailPage() {
           <div className="mt-4 p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>
-              Смена заблокирована — в чек-листе была критичная ошибка. Устраните неисправность,
-              затем создайте новую смену.
+              {locale === 'en'
+                ? 'Shift is blocked — there was a critical checklist failure. Resolve the fault, then start a new shift.'
+                : 'Смена заблокирована — в чек-листе была критичная ошибка. Устраните неисправность, затем создайте новую смену.'}
             </span>
           </div>
         )}
@@ -288,37 +290,33 @@ export default function ShiftDetailPage() {
       {/* Plan vs Actual */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card className="p-5">
-          <h3 className="font-heading font-semibold text-secondary-900 mb-3">План</h3>
+          <h3 className="font-heading font-semibold text-secondary-900 mb-3">{t('plan_block_title')}</h3>
           <dl className="space-y-2 text-sm">
-            <Row
-              label="Рецепт"
-              value={shift.plan_recipe ? RECIPE_LABELS[shift.plan_recipe] : '—'}
-            />
             {shift.plan_emulsion_tons !== null && (
               <Row
-                label="Эмульсия"
-                value={`${Number(shift.plan_emulsion_tons).toLocaleString('ru-RU')} т`}
+                label={t('plan_emulsion')}
+                value={`${Number(shift.plan_emulsion_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
               />
             )}
             {shift.plan_an_tons !== null && (
               <Row
-                label="Аммиачная селитра (AN)"
-                value={`${Number(shift.plan_an_tons).toLocaleString('ru-RU')} т`}
+                label={t('plan_an')}
+                value={`${Number(shift.plan_an_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
               />
             )}
             {shift.plan_diesel_tons !== null && (
               <Row
-                label="Дизель"
-                value={`${Number(shift.plan_diesel_tons).toLocaleString('ru-RU')} т`}
+                label={t('plan_diesel')}
+                value={`${Number(shift.plan_diesel_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
               />
             )}
             <Row
-              label="Итого тонн"
-              value={shift.plan_tons !== null ? `${Number(shift.plan_tons).toLocaleString('ru-RU')} т` : '—'}
+              label={t('plan_total')}
+              value={shift.plan_tons !== null ? `${Number(shift.plan_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}` : '—'}
               strong
             />
-            <Row label="Скважин" value={shift.plan_holes !== null ? String(shift.plan_holes) : '—'} />
-            <Row label="Карьер" value={shift.plan_pit_location ?? '—'} />
+            <Row label={t('holes')} value={shift.plan_holes !== null ? String(shift.plan_holes) : '—'} />
+            <Row label={t('location')} value={shift.plan_pit_location ?? '—'} />
           </dl>
           {shift.plan_notes && (
             <p className="mt-3 text-xs text-secondary-600 italic">{shift.plan_notes}</p>
@@ -326,38 +324,40 @@ export default function ShiftDetailPage() {
         </Card>
 
         <Card className={`p-5 ${shift.actual_tons !== null ? 'bg-emerald-50/30 border-emerald-200' : 'bg-secondary-50/40 border-dashed'}`}>
-          <h3 className="font-heading font-semibold text-secondary-900 mb-3">Факт</h3>
+          <h3 className="font-heading font-semibold text-secondary-900 mb-3">{t('actual_block_title')}</h3>
           {shift.actual_tons !== null ? (
             <dl className="space-y-2 text-sm">
               {shift.actual_emulsion_tons !== null && (
                 <Row
-                  label="Эмульсия"
-                  value={`${Number(shift.actual_emulsion_tons).toLocaleString('ru-RU')} т`}
+                  label={t('actual_emulsion')}
+                  value={`${Number(shift.actual_emulsion_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
                 />
               )}
               {shift.actual_an_tons !== null && (
                 <Row
-                  label="Аммиачная селитра (AN)"
-                  value={`${Number(shift.actual_an_tons).toLocaleString('ru-RU')} т`}
+                  label={t('actual_an')}
+                  value={`${Number(shift.actual_an_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
                 />
               )}
               {shift.actual_diesel_tons !== null && (
                 <Row
-                  label="Дизель"
-                  value={`${Number(shift.actual_diesel_tons).toLocaleString('ru-RU')} т`}
+                  label={t('actual_diesel')}
+                  value={`${Number(shift.actual_diesel_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
                 />
               )}
               <Row
-                label="Итого прокачано"
-                value={`${Number(shift.actual_tons).toLocaleString('ru-RU')} т`}
+                label={t('actual_total')}
+                value={`${Number(shift.actual_tons).toLocaleString(dateLocale)} ${tCommon('tons_short')}`}
                 strong
               />
               {shift.completed_at && (
-                <Row label="Закрыта" value={new Date(shift.completed_at).toLocaleString('ru-RU')} />
+                <Row label={t('closed')} value={new Date(shift.completed_at).toLocaleString(dateLocale)} />
               )}
             </dl>
           ) : (
-            <p className="text-sm text-secondary-500 italic">Смена ещё не закрыта</p>
+            <p className="text-sm text-secondary-500 italic">
+              {locale === 'en' ? 'Shift not closed yet' : 'Смена ещё не закрыта'}
+            </p>
           )}
           {shift.actual_notes && (
             <p className="mt-3 text-xs text-secondary-600 italic">{shift.actual_notes}</p>
@@ -372,10 +372,12 @@ export default function ShiftDetailPage() {
           <Card key={cl.id}>
             <CardHeader>
               <CardTitle className="font-heading text-base flex items-center gap-2 flex-wrap">
-                {isMonthly ? 'Ежемесячный осмотр' : 'Ежесменный осмотр'}
+                {isMonthly
+                  ? (locale === 'en' ? 'Monthly inspection' : 'Ежемесячный осмотр')
+                  : (locale === 'en' ? 'Pre-shift inspection' : 'Ежесменный осмотр')}
                 {cl.has_critical_fail && (
                   <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
-                    <AlertTriangle className="w-3 h-3" /> Критичный fail
+                    <AlertTriangle className="w-3 h-3" /> {locale === 'en' ? 'Critical fail' : 'Критичный fail'}
                   </span>
                 )}
               </CardTitle>
@@ -400,7 +402,7 @@ export default function ShiftDetailPage() {
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-secondary-900">
-                            {item.name_ru}
+                            {locale === 'en' && item.name_en ? item.name_en : item.name_ru}
                             {item.severity === 'critical' && (
                               <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent-700">
                                 critical
@@ -418,7 +420,7 @@ export default function ShiftDetailPage() {
               </ul>
               {cl.notes && (
                 <p className="mt-3 text-xs text-secondary-600 pt-3 border-t border-secondary-100">
-                  <strong>Примечание оператора:</strong> {cl.notes}
+                  <strong>{t('operator_note_label')}</strong> {cl.notes}
                 </p>
               )}
             </CardContent>
@@ -429,19 +431,19 @@ export default function ShiftDetailPage() {
       {/* Close shift inline form */}
       {closeOpen && (
         <Card className="p-5 border-emerald-300 bg-emerald-50/30">
-          <h3 className="font-heading font-semibold text-secondary-900 mb-3">Закрытие смены</h3>
+          <h3 className="font-heading font-semibold text-secondary-900 mb-3">{t('close_shift_title')}</h3>
           <ChargingPlanInput
             machineType={shift.machine?.machine_type ?? null}
             onChange={setActualValue}
             variant="actual"
           />
           <div className="mt-3">
-            <Label htmlFor="actualNotes">Примечания</Label>
+            <Label htmlFor="actualNotes">{t('close_notes_label')}</Label>
             <Textarea
               id="actualNotes"
               value={actualNotes}
               onChange={(e) => setActualNotes(e.target.value)}
-              placeholder="Что произошло за смену…"
+              placeholder={t('close_notes_placeholder')}
               rows={2}
               className="mt-1"
             />
@@ -453,11 +455,11 @@ export default function ShiftDetailPage() {
           )}
           <div className="mt-4 flex items-center justify-end gap-3">
             <Button variant="outline" onClick={() => setCloseOpen(false)}>
-              Отмена
+              {t('close_cancel')}
             </Button>
             <Button onClick={handleClose} disabled={submitting || !actualValue}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {submitting ? 'Закрытие…' : 'Закрыть смену'}
+              {submitting ? t('closing') : t('close_button')}
             </Button>
           </div>
         </Card>
@@ -468,7 +470,7 @@ export default function ShiftDetailPage() {
         <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={handleCancel} disabled={submitting}>
             <XCircle className="w-4 h-4" />
-            Отменить смену
+            {t('cancel_button')}
           </Button>
         </div>
       )}

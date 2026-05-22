@@ -18,6 +18,7 @@ interface MachineRow {
   model_code: string;
   tonnage_t: number;
   serial_number: string | null;
+  internal_name: string | null;
   pit_location: string | null;
   engine_hours: number;
   tons_pumped: number;
@@ -41,7 +42,7 @@ export default function MachinesListPage() {
         const { data, error } = await supabase
           .from('machines')
           .select(
-            'id, machine_type, model_code, tonnage_t, serial_number, pit_location, engine_hours, tons_pumped, status, created_at'
+            'id, machine_type, model_code, tonnage_t, serial_number, internal_name, pit_location, engine_hours, tons_pumped, status, created_at'
           )
           .order('created_at', { ascending: false });
         if (error) throw error;
@@ -62,6 +63,7 @@ export default function MachinesListPage() {
     return (
       m.model_code.toLowerCase().includes(q) ||
       m.serial_number?.toLowerCase().includes(q) ||
+      m.internal_name?.toLowerCase().includes(q) ||
       m.pit_location?.toLowerCase().includes(q) ||
       m.machine_type.toLowerCase().includes(q)
     );
@@ -137,6 +139,11 @@ export default function MachinesListPage() {
                       >
                         {m.model_code}
                       </Link>
+                      {m.internal_name && (
+                        <div className="text-xs text-secondary-500 font-normal mt-0.5">
+                          {m.internal_name}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <MachineTypeBadge type={m.machine_type} />

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NPGM Service — мокап титульного экрана</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Бренд */
+    --indigo-900: #1c1640;
+    --indigo-800: #2a2257;
+    --indigo-700: #383080;   /* фирменный индиго */
+    --indigo-500: #5a4fb0;
+    --red:        #e01848;   /* фирменный красный, CTA */
+    --red-600:    #c11340;
+    --white:      #ffffff;
+    --ink:        #0f172a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--white);
+    background: var(--indigo-900);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  /*
+    Слои фона (сверху вниз):
+    1) фото hero-szm-sunset.jpg  — реальный кадр (подставится позже)
+    2) закатный градиент-ЗАГЛУШКА — виден, пока фото нет; повторяет светотень кадра
+  */
+  .hero__bg {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background-image:
+      url('hero-szm-sunset.jpg'),
+      linear-gradient(180deg, #f6a623 0%, #ef7d1a 32%, #b85a2a 55%, #5b4630 74%, #2a2118 100%);
+    background-size: cover;
+    background-position: center 45%;
+    background-repeat: no-repeat;
+  }
+
+  /* Скрим для читаемости на солнце: индиго-вуаль + притемнение к центру и низу */
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(125% 95% at 50% 46%, rgba(28,22,64,0.30) 0%, rgba(28,22,64,0.60) 52%, rgba(28,22,64,0.82) 100%),
+      linear-gradient(180deg, rgba(28,22,64,0.55) 0%, rgba(28,22,64,0.12) 26%, rgba(28,22,64,0.22) 58%, rgba(28,22,64,0.85) 100%);
+  }
+
+  /* ---------- NAV ---------- */
+  .nav {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand img { height: 38px; width: auto; display: block; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+  .brand__name {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0,0,0,.45);
+  }
+
+  .lang {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    padding: 3px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .lang button {
+    border: 0;
+    background: transparent;
+    color: rgba(255,255,255,0.85);
+    font: 600 13px 'Inter', sans-serif;
+    padding: 7px 14px;
+    min-height: 36px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .lang button.is-active { background: #fff; color: var(--indigo-700); }
+
+  /* ---------- CONTENT ---------- */
+  .hero__content {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 22px 56px;
+  }
+  .stack { max-width: 760px; display: flex; flex-direction: column; align-items: center; }
+
+  .title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(40px, 9vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 28px rgba(0,0,0,.5);
+  }
+  .title .accent { color: #fff; }
+
+  .subtitle {
+    margin-top: 18px;
+    font-size: clamp(16px, 2.4vw, 21px);
+    font-weight: 400;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.92);
+    max-width: 30ch;
+    text-shadow: 0 1px 14px rgba(0,0,0,.5);
+  }
+
+  .actions {
+    margin-top: 36px;
+    display: flex;
+    gap: 14px;
+    width: 100%;
+    max-width: 460px;
+    justify-content: center;
+  }
+  .btn {
+    flex: 1 1 auto;
+    min-height: 52px;
+    padding: 0 26px;
+    border-radius: 12px;
+    font: 600 16px 'Inter', sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:active { transform: translateY(1px); }
+
+  .btn--primary {
+    background: var(--red);
+    color: #fff;
+    border: 1px solid var(--red);
+    box-shadow: 0 8px 24px rgba(224,24,72,0.35);
+  }
+  .btn--primary:hover { background: var(--red-600); }
+
+  .btn--ghost {
+    background: rgba(255,255,255,0.10);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .btn--ghost:hover { background: rgba(255,255,255,0.18); }
+
+  /* Маркер заглушки */
+  .placeholder-note {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 5;
+    font: 500 11px 'Inter', sans-serif;
+    color: rgba(255,255,255,0.7);
+    background: rgba(28,22,64,0.5);
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 12px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    text-align: center;
+  }
+
+  /* ---------- MOBILE ---------- */
+  @media (max-width: 560px) {
+    .actions { flex-direction: column; max-width: 340px; }
+    .btn { width: 100%; }
+    .brand__name { font-size: 17px; }
+    .subtitle { max-width: 26ch; }
+  }
+</style>
+</head>
+<body>
+  <main class="hero">
+    <div class="hero__bg"></div>
+    <div class="hero__scrim"></div>
+
+    <nav class="nav">
+      <div class="brand">
+        <img src="logo-mark.png" alt="NPGM" />
+        <span class="brand__name">NPGM Service</span>
+      </div>
+      <div class="lang" role="group" aria-label="Язык">
+        <button id="btn-ru" class="is-active" onclick="setLang('ru')">RU</button>
+        <button id="btn-en" onclick="setLang('en')">EN</button>
+      </div>
+    </nav>
+
+    <div class="hero__content">
+      <div class="stack">
+        <h1 class="title"><span class="accent">NPGM Service</span></h1>
+        <p class="subtitle" id="subtitle">Обслуживание и ремонт парка горной техники — в одном приложении</p>
+        <div class="actions">
+          <a href="#" class="btn btn--primary" id="btn-register">Зарегистрироваться</a>
+          <a href="#" class="btn btn--ghost" id="btn-login">Войти</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const T = {
+      ru: {
+        subtitle: 'Обслуживание и ремонт парка горной техники — в одном приложении',
+        register: 'Зарегистрироваться',
+        login: 'Войти'
+      },
+      en: {
+        subtitle: 'Maintenance and service for your mining fleet — in one app',
+        register: 'Sign up',
+        login: 'Log in'
+      }
+    };
+    function setLang(l) {
+      document.documentElement.lang = l;
+      document.getElementById('subtitle').textContent = T[l].subtitle;
+      document.getElementById('btn-register').textContent = T[l].register;
+      document.getElementById('btn-login').textContent = T[l].login;
+      document.getElementById('btn-ru').classList.toggle('is-active', l === 'ru');
+      document.getElementById('btn-en').classList.toggle('is-active', l === 'en');
+    }
+  </script>
+</body>
+</html>

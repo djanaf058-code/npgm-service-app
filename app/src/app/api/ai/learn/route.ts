@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerAdminClient } from '@/lib/supabase/serverAdminClient';
 import { anthropic, CLAUDE_MODEL } from '@/lib/ai/anthropic';
-import { embed } from '@/lib/ai/voyage';
+import { embed } from '@/lib/ai/mistral';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;

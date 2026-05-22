@@ -21,7 +21,7 @@ interface TicketRow {
   title: string | null;
   created_at: string;
   resolved_at: string | null;
-  machine: { id: string; model_code: string; machine_type: string } | null;
+  machine: { id: string; model_code: string; machine_type: string; internal_name: string | null } | null;
   operator: { full_name: string } | null;
 }
 
@@ -41,7 +41,7 @@ export default function TicketsListPage() {
         const { data, error } = await supabase
           .from('tickets')
           .select(
-            'id, status, priority, title, created_at, resolved_at, machine:machines(id, model_code, machine_type), operator:profiles!tickets_operator_id_fkey(full_name)'
+            'id, status, priority, title, created_at, resolved_at, machine:machines(id, model_code, machine_type, internal_name), operator:profiles!tickets_operator_id_fkey(full_name)'
           )
           .order('created_at', { ascending: false });
         if (error) throw error;
@@ -62,7 +62,9 @@ export default function TicketsListPage() {
     if (query) {
       const q = query.toLowerCase();
       const inTitle = t.title?.toLowerCase().includes(q);
-      const inMachine = t.machine?.model_code.toLowerCase().includes(q);
+      const inMachine =
+        t.machine?.model_code.toLowerCase().includes(q) ||
+        (t.machine?.internal_name?.toLowerCase().includes(q) ?? false);
       const inOperator = t.operator?.full_name.toLowerCase().includes(q);
       return Boolean(inTitle || inMachine || inOperator);
     }
@@ -150,7 +152,7 @@ export default function TicketsListPage() {
                   <p className="text-sm text-secondary-600 mt-0.5">
                     {tk.machine ? (
                       <>
-                        <span className="font-medium">{tk.machine.model_code}</span>
+                        <span className="font-medium">{tk.machine.internal_name?.trim() || tk.machine.model_code}</span>
                         {' · '}
                       </>
                     ) : (

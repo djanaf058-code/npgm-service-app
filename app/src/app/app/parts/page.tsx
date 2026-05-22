@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Plus,
   Wrench,
@@ -603,6 +603,8 @@ function RequestSection({
 
 function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
   const t = useTranslations('parts');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
   const UIcon = URGENCY_ICON[r.urgency];
   const itemsCount = r.parts_requested.length + r.parts_freeform.length;
   const isConsolidated = r.kind === 'consolidated';
@@ -651,15 +653,15 @@ function RequestRowCard({ request: r }: { request: PartsRequestRow }) {
         <div className="flex items-center gap-2 flex-shrink-0">
           {r.expected_delivery_date && (
             <span className="text-xs text-secondary-500" title={t('eta_label')}>
-              ETA{' '}
-              {new Date(r.expected_delivery_date).toLocaleDateString('ru-RU', {
+              {t('list.eta_prefix')}{' '}
+              {new Date(r.expected_delivery_date).toLocaleDateString(dateLocale, {
                 day: '2-digit',
                 month: 'short',
               })}
             </span>
           )}
           <span className="text-xs text-secondary-500">
-            {new Date(r.created_at).toLocaleDateString('ru-RU', {
+            {new Date(r.created_at).toLocaleDateString(dateLocale, {
               day: '2-digit',
               month: 'short',
             })}

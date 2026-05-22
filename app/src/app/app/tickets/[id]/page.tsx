@@ -23,6 +23,7 @@ import { PriorityBadge } from '@/components/tickets/PriorityBadge';
 import { SLATimer } from '@/components/tickets/SLATimer';
 import { MessageBubble } from '@/components/tickets/MessageBubble';
 import { PhotoUpload } from '@/components/tickets/PhotoUpload';
+import { ResolveTicketDialog } from '@/components/tickets/ResolveTicketDialog';
 import type { TicketStatus, MessageSender } from '@/lib/types';
 
 interface TicketDetail {
@@ -32,9 +33,10 @@ interface TicketDetail {
   priority: number;
   title: string | null;
   resolution_summary: string | null;
+  originated_from: string | null;
   created_at: string;
   resolved_at: string | null;
-  machine: { id: string; model_code: string; machine_type: string } | null;
+  machine: { id: string; model_code: string; machine_type: string; internal_name: string | null } | null;
   operator: { id: string; full_name: string } | null;
 }
 
@@ -65,6 +67,7 @@ export default function TicketDetailPage() {
   const [sending, setSending] = useState(false);
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [myProfile, setMyProfile] = useState<{ role: string; full_name: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -94,7 +97,7 @@ export default function TicketDetailPage() {
         const { data: ticketData, error: ticketErr } = await supabase
           .from('tickets')
           .select(
-            'id, company_id, status, priority, title, resolution_summary, created_at, resolved_at, machine:machines(id, model_code, machine_type), operator:profiles!tickets_operator_id_fkey(id, full_name)'
+            'id, company_id, status, priority, title, resolution_summary, originated_from, created_at, resolved_at, machine:machines(id, model_code, machine_type, internal_name), operator:profiles!tickets_operator_id_fkey(id, full_name)'
           )
           .eq('id', ticketId)
           .maybeSingle();
@@ -236,6 +239,20 @@ export default function TicketDetailPage() {
       setReply('');
       setReplyPhoto(null);
       setShowPhotoUpload(false);
+
+      // Operator messages trigger AI assistant: it reads the latest history
+      // and posts a reply. Fire-and-forget so the operator isn't blocked by
+      // Claude latency. AI itself bails out if the last message isn't from
+      // the operator (e.g. an engineer cut in).
+      if (senderTypeForMe === 'operator') {
+        void fetch('/api/tickets/ai-reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket_id: ticketId }),
+        }).catch(() => {
+          // intentional — see comment above
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение');
     } finally {
@@ -245,6 +262,12 @@ export default function TicketDetailPage() {
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!ticket) return;
+    // Closing as 'resolved' goes through the dialog so we capture a
+    // resolution_summary — that field powers the AI learning loop.
+    if (newStatus === 'resolved') {
+      setResolveDialogOpen(true);
+      return;
+    }
     setUpdatingStatus(true);
     try {
       const client = await createSPASassClient();
@@ -254,13 +277,10 @@ export default function TicketDetailPage() {
         resolved_at?: string | null;
         resolved_by?: string | null;
       } = { status: newStatus };
-      if (newStatus === 'resolved' || newStatus === 'closed_self') {
+      if (newStatus === 'closed_self') {
         update.resolved_at = new Date().toISOString();
       } else {
         update.resolved_at = null;
-      }
-      if (newStatus === 'resolved') {
-        update.resolved_by = user?.id ?? null;
       }
       const { error: updateErr } = await supabase
         .from('tickets')
@@ -274,6 +294,28 @@ export default function TicketDetailPage() {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  // Persists status='resolved' + resolution_summary + resolved_at + resolved_by
+  // in a single atomic update. Called by ResolveTicketDialog after the user
+  // confirms.
+  const handleResolveSubmit = async (resolutionSummary: string) => {
+    if (!ticket) return;
+    const client = await createSPASassClient();
+    const supabase = client.getSupabaseClient();
+    const update = {
+      status: 'resolved' as TicketStatus,
+      resolution_summary: resolutionSummary,
+      resolved_at: new Date().toISOString(),
+      resolved_by: user?.id ?? null,
+    };
+    const { error: updateErr } = await supabase
+      .from('tickets')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(update as any)
+      .eq('id', ticketId);
+    if (updateErr) throw updateErr;
+    setTicket({ ...ticket, ...update });
   };
 
   if (loading) {
@@ -335,7 +377,10 @@ export default function TicketDetailPage() {
                     className="inline-flex items-center gap-1 font-medium text-primary-700 hover:underline"
                   >
                     <Truck className="w-3 h-3" />
-                    {ticket.machine.model_code}
+                    {ticket.machine.internal_name?.trim() || ticket.machine.model_code}
+                    {ticket.machine.internal_name?.trim() && (
+                      <span className="text-secondary-400 text-xs ml-1">· {ticket.machine.model_code}</span>
+                    )}
                   </Link>
                 </>
               )}
@@ -442,6 +487,13 @@ export default function TicketDetailPage() {
           <p className="text-sm text-secondary-800 whitespace-pre-wrap">{ticket.resolution_summary}</p>
         </Card>
       )}
+
+      <ResolveTicketDialog
+        open={resolveDialogOpen}
+        onOpenChange={setResolveDialogOpen}
+        isAIEscalation={ticket.originated_from === 'ai_escalation'}
+        onSubmit={handleResolveSubmit}
+      />
     </div>
   );
 }

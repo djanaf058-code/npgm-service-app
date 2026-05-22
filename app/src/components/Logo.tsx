@@ -9,12 +9,15 @@ interface LogoProps {
   height?: number;
 }
 
+// Intrinsic aspect ratio of the NPGM wordmark (LogoNew.png is 439×117).
+const FULL_RATIO = 439 / 117;
+
 /**
  * NPGM brand logo.
- *  - variant="full": wordmark "NPGM Service App" + brand mark (default).
- *  - variant="mark": square mark only (use in tight nav slots, favicon, app icon).
- * If `href` is given (or omitted, defaults to "/"), wraps the logo in a Link.
- * Pass `href={false}` to render as a plain inline image (e.g. inside an existing link).
+ *  - variant="full": horizontal wordmark "NPGM — Advanced Mining Equipment" (default).
+ *  - variant="mark": square brand mark only (favicon, app icon, tight slots).
+ * The wordmark always keeps its aspect ratio: pass either width OR height and
+ * the other is derived, so existing call sites can't distort it.
  */
 export default function Logo({
   variant = 'full',
@@ -23,16 +26,30 @@ export default function Logo({
   width,
   height,
 }: LogoProps) {
-  const src = variant === 'mark' ? '/logo-mark.svg' : '/logo.svg';
-  const intrinsicWidth = variant === 'mark' ? 32 : 200;
-  const intrinsicHeight = variant === 'mark' ? 32 : 40;
+  const src = variant === 'mark' ? '/logo-mark.png' : '/LogoNew.png';
+
+  let w: number;
+  let h: number;
+  if (variant === 'mark') {
+    h = height ?? width ?? 32;
+    w = h;
+  } else if (width) {
+    w = width;
+    h = Math.round(width / FULL_RATIO);
+  } else if (height) {
+    h = height;
+    w = Math.round(height * FULL_RATIO);
+  } else {
+    w = 150;
+    h = Math.round(150 / FULL_RATIO);
+  }
 
   const img = (
     <Image
       src={src}
-      alt="NPGM Service App"
-      width={width ?? intrinsicWidth}
-      height={height ?? intrinsicHeight}
+      alt="NPGM — Advanced Mining Equipment"
+      width={w}
+      height={h}
       priority
       className={className}
     />
@@ -40,7 +57,7 @@ export default function Logo({
 
   if (href === false) return img;
   return (
-    <Link href={href} aria-label="NPGM Service App home">
+    <Link href={href} aria-label="NPGM home">
       {img}
     </Link>
   );

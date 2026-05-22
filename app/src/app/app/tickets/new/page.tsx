@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
@@ -18,11 +19,18 @@ interface MachineOption {
   id: string;
   model_code: string;
   machine_type: string;
+  internal_name: string | null;
+}
+
+function machineLabel(m: MachineOption): string {
+  const primary = m.internal_name?.trim() ? m.internal_name : m.model_code;
+  return `${primary} (${m.machine_type})`;
 }
 
 export default function NewTicketPage() {
   const router = useRouter();
   const { user } = useGlobal();
+  const t = useTranslations('tickets.new');
 
   const [machines, setMachines] = useState<MachineOption[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -46,33 +54,34 @@ export default function NewTicketPage() {
           .eq('id', user!.id)
           .single();
         const cid = (profile as { company_id: string } | null)?.company_id;
-        if (!cid) throw new Error('Профиль не привязан к компании');
+        if (!cid) throw new Error(t('err_no_company'));
         setCompanyId(cid);
 
         const { data: machinesData, error: machinesErr } = await supabase
           .from('machines')
-          .select('id, model_code, machine_type')
+          .select('id, model_code, machine_type, internal_name')
           .eq('status', 'active')
+          .order('internal_name', { ascending: true, nullsFirst: false })
           .order('model_code');
         if (machinesErr) throw machinesErr;
         setMachines((machinesData ?? []) as MachineOption[]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить данные');
+        setError(err instanceof Error ? err.message : t('err_no_data'));
       }
     };
     if (user) load();
-  }, [user]);
+  }, [user, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!description.trim() && !photoPath) {
-      setError('Опишите проблему текстом или прикрепите фото');
+      setError(t('err_empty'));
       return;
     }
     if (!companyId) {
-      setError('Не удалось определить компанию');
+      setError(t('err_no_company'));
       return;
     }
 
@@ -93,10 +102,9 @@ export default function NewTicketPage() {
         })
         .select('id')
         .single();
-      if (insertErr || !ticket) throw insertErr ?? new Error('Не удалось создать тикет');
+      if (insertErr || !ticket) throw insertErr ?? new Error(t('err_create'));
       const ticketId = (ticket as { id: string }).id;
 
-      // First message: the description + (optional) photo
       const { error: msgErr } = await supabase.from('ticket_messages').insert({
         ticket_id: ticketId,
         sender_type: 'operator',
@@ -106,9 +114,20 @@ export default function NewTicketPage() {
       });
       if (msgErr) throw msgErr;
 
+      // Fire-and-forget AI auto-reply. If the API fails or takes long, the
+      // ticket is already created — engineer will pick it up. We don't await
+      // here so the operator isn't blocked by Claude latency.
+      void fetch('/api/tickets/ai-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_id: ticketId }),
+      }).catch(() => {
+        // intentional — see comment above
+      });
+
       router.push(`/app/tickets/${ticketId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось отправить тикет');
+      setError(err instanceof Error ? err.message : t('err_send'));
       setSubmitting(false);
     }
   };
@@ -119,15 +138,15 @@ export default function NewTicketPage() {
         href="/app/tickets"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку тикетов
+        <ArrowLeft className="w-4 h-4" />{t('back_to_list')}
       </Link>
 
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Новый тикет
+          {t('title')}
         </h1>
         <p className="text-secondary-600 text-sm mt-1">
-          Опишите проблему. Фото с камеры — лучше, чем тысяча слов.
+          {t('subtitle')}
         </p>
       </div>
 
@@ -140,74 +159,74 @@ export default function NewTicketPage() {
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <Label htmlFor="machine">Машина</Label>
+            <Label htmlFor="machine">{t('machine_label')}</Label>
             <Select
               id="machine"
               value={machineId}
               onChange={(e) => setMachineId(e.target.value)}
               className="mt-1"
             >
-              <option value="">Не привязано к машине</option>
+              <option value="">{t('machine_unbound')}</option>
               {machines.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.model_code} ({m.machine_type})
+                  {machineLabel(m)}
                 </option>
               ))}
             </Select>
             {machines.length === 0 && (
               <p className="mt-1 text-xs text-secondary-500">
-                У компании ещё нет активных машин.{' '}
+                {t('no_active_machines')}{' '}
                 <Link href="/app/machines/new" className="text-primary-600 hover:underline">
-                  Добавить машину →
+                  {t('add_machine')}
                 </Link>
               </p>
             )}
           </div>
 
           <div>
-            <Label htmlFor="title">Тема (необязательно)</Label>
+            <Label htmlFor="title">{t('title_label')}</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Например: Машина не запускается"
+              placeholder={t('title_placeholder')}
               maxLength={120}
               className="mt-1"
             />
             <p className="mt-1 text-xs text-secondary-500">
-              Если не указать, возьмём первые 80 символов описания.
+              {t('title_hint')}
             </p>
           </div>
 
           <div>
-            <Label htmlFor="description">Описание проблемы *</Label>
+            <Label htmlFor="description">{t('description_label')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Что происходит? Когда началось? Что вы пробовали?"
+              placeholder={t('description_placeholder')}
               rows={5}
               className="mt-1"
             />
           </div>
 
           <div>
-            <Label>Приоритет</Label>
+            <Label>{t('priority_label')}</Label>
             <Select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
               className="mt-1"
             >
-              <option value="1">P1 — Авария (полная остановка)</option>
-              <option value="2">P2 — Высокий (значительные потери)</option>
-              <option value="3">P3 — Средний (стандартный запрос)</option>
-              <option value="4">P4 — Низкий (можно подождать)</option>
-              <option value="5">P5 — Несрочный (общий вопрос)</option>
+              <option value="1">{t('priority_p1')}</option>
+              <option value="2">{t('priority_p2')}</option>
+              <option value="3">{t('priority_p3')}</option>
+              <option value="4">{t('priority_p4')}</option>
+              <option value="5">{t('priority_p5')}</option>
             </Select>
           </div>
 
           <div>
-            <Label>Фото</Label>
+            <Label>{t('photo_label')}</Label>
             <div className="mt-1">
               {companyId ? (
                 <PhotoUpload
@@ -216,14 +235,14 @@ export default function NewTicketPage() {
                   onError={(err) => setError(err)}
                 />
               ) : (
-                <p className="text-xs text-secondary-500">Загрузка возможна после определения компании…</p>
+                <p className="text-xs text-secondary-500">{t('photo_company_pending')}</p>
               )}
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-secondary-100">
             <Button asChild variant="outline" type="button">
-              <Link href="/app/tickets">Отмена</Link>
+              <Link href="/app/tickets">{t('cancel')}</Link>
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? (
@@ -231,7 +250,7 @@ export default function NewTicketPage() {
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              {submitting ? 'Отправка…' : 'Отправить тикет'}
+              {submitting ? t('submitting') : t('submit_button')}
             </Button>
           </div>
         </form>

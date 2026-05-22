@@ -47,6 +47,7 @@ interface MachineDetail {
   component_count: number;
   ggd_type: string | null;
   serial_number: string | null;
+  internal_name: string | null;
   in_service_since: string | null;
   pit_location: string | null;
   engine_hours: number;
@@ -175,6 +176,11 @@ export default function MachineDetailPage() {
               <MachineTypeBadge type={machine.machine_type} />
               <MachineStatusBadge status={machine.status} />
             </div>
+            {machine.internal_name && (
+              <p className="text-secondary-500 text-sm mt-0.5 italic">
+                «{machine.internal_name}»
+              </p>
+            )}
             <p className="text-secondary-600 text-sm mt-1">
               {t('tonnage_t', { t: Number(machine.tonnage_t).toLocaleString('ru-RU') })}
               {machine.serial_number && (
@@ -231,6 +237,7 @@ export default function MachineDetailPage() {
           <dl className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
             <Row label={t('row_type')} value={`${machine.machine_type}`} />
             <Row label={t('row_model')} value={machine.model_code} mono />
+            <Row label={t('internal_name')} value={machine.internal_name ?? '—'} />
             <Row label={t('row_tonnage')} value={`${machine.tonnage_t} ${tCommon('tons_short')}`} />
             <Row label={t('row_serial')} value={machine.serial_number ?? '—'} mono />
             <Row

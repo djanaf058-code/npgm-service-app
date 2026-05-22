@@ -3,164 +3,117 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  getRecipeSpec,
-  computeComponentTons,
-  isValidMix,
-  MSZU_PRESETS,
-  type ComponentMix,
-} from '@/lib/calculations/recipes';
+import { getRecipeSpec, type ComponentMix } from '@/lib/calculations/recipes';
 
 export interface ChargingPlanValue {
   totalTons: number;
   emulsionTons: number | null;
   anTons: number | null;
   dieselTons: number | null;
-  // Derived recipe label suitable for the plan_recipe enum.
-  // (For МСЗУ free mix it will be 'OTHER'.)
+  // Derived from the per-component tonnage. Stored on the shift row so the
+  // list can show a quick badge (70/30, ANFO, etc.).
   recipe: 'ANFO' | 'EMULSION' | 'BLEND_70_30' | 'BLEND_30_70' | 'OTHER';
-  mix: ComponentMix; // percentages (sum=100)
+  mix: ComponentMix;
 }
 
 interface Props {
   machineType: string | null | undefined;
-  initialTotalTons?: string;
-  initialMix?: ComponentMix;
-  // Called whenever the form has a complete + valid value.
+  initialEmulsionTons?: string;
+  initialAnTons?: string;
+  initialDieselTons?: string;
   onChange: (value: ChargingPlanValue | null) => void;
-  // Visual variant: 'plan' (initial planning) or 'actual' (closing the shift).
   variant?: 'plan' | 'actual';
   disabled?: boolean;
 }
 
 function deriveRecipeEnum(mix: ComponentMix): ChargingPlanValue['recipe'] {
-  const eq = (a: number, b: number) => Math.abs(a - b) < 1.5;
+  const eq = (a: number, b: number) => Math.abs(a - b) < 5;
   if (eq(mix.emulsion_pct, 100)) return 'EMULSION';
-  if (mix.emulsion_pct === 0 && mix.an_pct >= 90 && mix.diesel_pct >= 1) return 'ANFO';
-  if (eq(mix.emulsion_pct, 70) && eq(mix.an_pct, 30) && mix.diesel_pct === 0) return 'BLEND_70_30';
-  if (eq(mix.emulsion_pct, 30) && eq(mix.an_pct, 70) && mix.diesel_pct === 0) return 'BLEND_30_70';
+  if (mix.emulsion_pct === 0 && mix.an_pct >= 80) return 'ANFO';
+  if (eq(mix.emulsion_pct, 70) && eq(mix.an_pct, 30)) return 'BLEND_70_30';
+  if (eq(mix.emulsion_pct, 30) && eq(mix.an_pct, 70)) return 'BLEND_30_70';
   return 'OTHER';
+}
+
+function parseTons(raw: string): number {
+  const v = parseFloat(raw.replace(',', '.'));
+  return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
 export function ChargingPlanInput({
   machineType,
-  initialTotalTons = '',
-  initialMix,
+  initialEmulsionTons = '',
+  initialAnTons = '',
+  initialDieselTons = '',
   onChange,
   variant = 'plan',
   disabled = false,
 }: Props) {
   const spec = useMemo(() => getRecipeSpec(machineType), [machineType]);
-  const [totalTons, setTotalTons] = useState(initialTotalTons);
 
-  // Default mix per spec.kind on first mount or when machine type changes.
-  const defaultMix = useMemo<ComponentMix>(() => {
-    if (initialMix) return initialMix;
-    if (spec.kind === 'fixed') return spec.mix;
-    if (spec.kind === 'em_an_range') {
-      return { emulsion_pct: spec.emulsionMaxPct, an_pct: 100 - spec.emulsionMaxPct, diesel_pct: 0 };
+  // Which components this machine type uses.
+  const shows = useMemo(() => {
+    if (spec.kind === 'fixed') {
+      return {
+        emulsion: spec.mix.emulsion_pct > 0,
+        an: spec.mix.an_pct > 0,
+        diesel: spec.mix.diesel_pct > 0,
+      };
     }
-    return { emulsion_pct: 100, an_pct: 0, diesel_pct: 0 };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spec.kind, machineType]);
+    if (spec.kind === 'em_an_range') {
+      return { emulsion: true, an: true, diesel: false };
+    }
+    return { emulsion: true, an: true, diesel: true };
+  }, [spec]);
 
-  const [mix, setMix] = useState<ComponentMix>(defaultMix);
+  const [emulsion, setEmulsion] = useState(initialEmulsionTons);
+  const [an, setAn] = useState(initialAnTons);
+  const [diesel, setDiesel] = useState(initialDieselTons);
 
-  // Reset mix when machine type changes (defaultMix changes).
+  // Reset hidden fields when machine type changes.
   useEffect(() => {
-    setMix(defaultMix);
-  }, [defaultMix]);
+    if (!shows.emulsion) setEmulsion('');
+    if (!shows.an) setAn('');
+    if (!shows.diesel) setDiesel('');
+  }, [shows.emulsion, shows.an, shows.diesel]);
 
   // Lift value upward on every change.
   useEffect(() => {
-    const tt = parseFloat(totalTons);
-    if (!Number.isFinite(tt) || tt <= 0) {
+    const em = shows.emulsion ? parseTons(emulsion) : 0;
+    const ann = shows.an ? parseTons(an) : 0;
+    const dl = shows.diesel ? parseTons(diesel) : 0;
+    const total = em + ann + dl;
+
+    if (total <= 0) {
       onChange(null);
       return;
     }
-    if (!isValidMix(mix)) {
-      onChange(null);
-      return;
-    }
-    if (spec.kind === 'em_an_range') {
-      if (mix.emulsion_pct < spec.emulsionMinPct || mix.emulsion_pct > spec.emulsionMaxPct) {
-        onChange(null);
-        return;
-      }
-    }
-    const tons = computeComponentTons(spec, tt, spec.kind === 'fixed' ? undefined : mix);
+
+    const mix: ComponentMix = {
+      emulsion_pct: (em / total) * 100,
+      an_pct: (ann / total) * 100,
+      diesel_pct: (dl / total) * 100,
+    };
+
     onChange({
-      totalTons: tt,
-      emulsionTons: tons.emulsion,
-      anTons: tons.an,
-      dieselTons: tons.diesel,
-      recipe: deriveRecipeEnum(spec.kind === 'fixed' ? spec.mix : mix),
-      mix: spec.kind === 'fixed' ? spec.mix : mix,
+      totalTons: Math.round(total * 1000) / 1000,
+      emulsionTons: shows.emulsion && em > 0 ? em : null,
+      anTons: shows.an && ann > 0 ? ann : null,
+      dieselTons: shows.diesel && dl > 0 ? dl : null,
+      recipe: deriveRecipeEnum(mix),
+      mix,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalTons, mix, spec.kind, machineType]);
+  }, [emulsion, an, diesel, shows.emulsion, shows.an, shows.diesel]);
 
-  const sumPct = mix.emulsion_pct + mix.an_pct + mix.diesel_pct;
-  const sumOk = isValidMix(mix);
+  const totalNum = useMemo(() => {
+    const em = shows.emulsion ? parseTons(emulsion) : 0;
+    const ann = shows.an ? parseTons(an) : 0;
+    const dl = shows.diesel ? parseTons(diesel) : 0;
+    return em + ann + dl;
+  }, [emulsion, an, diesel, shows.emulsion, shows.an, shows.diesel]);
 
-  // Render a numeric % input + range slider on one row.
-  const PctRow = ({
-    label,
-    value,
-    onChangeValue,
-    min = 0,
-    max = 100,
-    accent,
-    locked = false,
-  }: {
-    label: string;
-    value: number;
-    onChangeValue: (v: number) => void;
-    min?: number;
-    max?: number;
-    accent: 'primary' | 'amber' | 'secondary';
-    locked?: boolean;
-  }) => {
-    const accentBar = {
-      primary: 'accent-primary-600',
-      amber: 'accent-amber-600',
-      secondary: 'accent-secondary-600',
-    }[accent];
-    return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs">{label}</Label>
-          <div className="flex items-center gap-1">
-            <Input
-              type="number"
-              step="1"
-              min={min}
-              max={max}
-              value={Number.isFinite(value) ? value : 0}
-              onChange={(e) => onChangeValue(parseFloat(e.target.value) || 0)}
-              disabled={disabled || locked}
-              className="w-16 h-8 text-right tabular-nums"
-            />
-            <span className="text-xs text-secondary-500">%</span>
-          </div>
-        </div>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step="1"
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(e) => onChangeValue(parseFloat(e.target.value))}
-          disabled={disabled || locked}
-          className={`w-full ${accentBar}`}
-        />
-      </div>
-    );
-  };
-
-  const totalNum = parseFloat(totalTons) || 0;
-  const componentTons = computeComponentTons(spec, totalNum, spec.kind === 'fixed' ? undefined : mix);
+  const labelTons = variant === 'plan' ? 'плановые тонны' : 'фактические тонны';
 
   return (
     <div className="space-y-4">
@@ -168,218 +121,67 @@ export function ChargingPlanInput({
         <strong>{machineType ?? '—'}:</strong> {spec.label}
       </div>
 
-      {/* Total tonnage */}
-      <div>
-        <Label htmlFor="totalTons">
-          {variant === 'plan' ? 'Плановый общий тоннаж, т *' : 'Фактический общий тоннаж, т *'}
-        </Label>
-        <Input
-          id="totalTons"
-          type="number"
-          step="0.1"
-          min="0"
-          value={totalTons}
-          onChange={(e) => setTotalTons(e.target.value)}
-          disabled={disabled}
-          placeholder="14.5"
-          className="mt-1"
-          required
-        />
-      </div>
-
-      {/* Spec-specific mix UI */}
-      {spec.kind === 'fixed' && (
-        <div className="rounded-md border border-secondary-200 bg-secondary-50/40 p-3 space-y-1.5 text-sm">
-          <p className="text-xs text-secondary-500 mb-1">Соотношение зашито для этого типа машины:</p>
-          {spec.mix.emulsion_pct > 0 && (
-            <ComponentRow label="Эмульсия" pct={spec.mix.emulsion_pct} tons={componentTons.emulsion} />
-          )}
-          {spec.mix.an_pct > 0 && (
-            <ComponentRow label="Аммиачная селитра (AN)" pct={spec.mix.an_pct} tons={componentTons.an} />
-          )}
-          {spec.mix.diesel_pct > 0 && (
-            <ComponentRow label="Дизельное топливо" pct={spec.mix.diesel_pct} tons={componentTons.diesel} />
-          )}
+      {shows.emulsion && (
+        <div>
+          <Label htmlFor="cmpEm">Эмульсия (ЭМ), т *</Label>
+          <Input
+            id="cmpEm"
+            type="number"
+            step="0.1"
+            min="0"
+            value={emulsion}
+            onChange={(e) => setEmulsion(e.target.value)}
+            disabled={disabled}
+            placeholder="14.5"
+            className="mt-1"
+            inputMode="decimal"
+          />
         </div>
       )}
 
-      {spec.kind === 'em_an_range' && (
-        <div className="rounded-md border border-primary-100 bg-primary-50/30 p-3 space-y-3">
-          <p className="text-xs text-secondary-600">
-            Эмульсия от {spec.emulsionMinPct}% до {spec.emulsionMaxPct}%; селитра — остаток.
-          </p>
-          <PctRow
-            label="Эмульсия"
-            value={mix.emulsion_pct}
-            min={spec.emulsionMinPct}
-            max={spec.emulsionMaxPct}
-            accent="primary"
-            onChangeValue={(v) => {
-              const clamped = Math.max(spec.emulsionMinPct, Math.min(spec.emulsionMaxPct, v));
-              setMix({ emulsion_pct: clamped, an_pct: 100 - clamped, diesel_pct: 0 });
-            }}
+      {shows.an && (
+        <div>
+          <Label htmlFor="cmpAn">Аммиачная селитра (АС), т {variant === 'plan' ? '*' : ''}</Label>
+          <Input
+            id="cmpAn"
+            type="number"
+            step="0.1"
+            min="0"
+            value={an}
+            onChange={(e) => setAn(e.target.value)}
+            disabled={disabled}
+            placeholder="6.0"
+            className="mt-1"
+            inputMode="decimal"
           />
-          <PctRow
-            label="Аммиачная селитра (AN)"
-            value={mix.an_pct}
-            min={100 - spec.emulsionMaxPct}
-            max={100 - spec.emulsionMinPct}
-            accent="amber"
-            locked
-            onChangeValue={() => {}}
-          />
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-primary-100">
-            <ComponentTonsBox label="Эмульсия" tons={componentTons.emulsion} />
-            <ComponentTonsBox label="AN" tons={componentTons.an} />
-          </div>
         </div>
       )}
 
-      {spec.kind === 'free_three' && (
-        <div className="rounded-md border border-primary-100 bg-primary-50/30 p-3 space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-xs text-secondary-500 self-center mr-1">Пресет:</span>
-            {MSZU_PRESETS.map((p) => (
-              <Button
-                key={p.label}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={disabled}
-                onClick={() => setMix(p.mix)}
-                className="h-7 text-xs"
-              >
-                {p.label}
-              </Button>
-            ))}
-          </div>
-          <PctRow
-            label="Эмульсия"
-            value={mix.emulsion_pct}
-            accent="primary"
-            onChangeValue={(v) =>
-              setMix((m) => rebalance(m, 'emulsion_pct', clamp(v)))
-            }
+      {shows.diesel && (
+        <div>
+          <Label htmlFor="cmpDiesel">Дизельное топливо, т {variant === 'plan' ? '*' : ''}</Label>
+          <Input
+            id="cmpDiesel"
+            type="number"
+            step="0.1"
+            min="0"
+            value={diesel}
+            onChange={(e) => setDiesel(e.target.value)}
+            disabled={disabled}
+            placeholder="0.3"
+            className="mt-1"
+            inputMode="decimal"
           />
-          <PctRow
-            label="Аммиачная селитра (AN)"
-            value={mix.an_pct}
-            accent="amber"
-            onChangeValue={(v) =>
-              setMix((m) => rebalance(m, 'an_pct', clamp(v)))
-            }
-          />
-          <PctRow
-            label="Дизельное топливо"
-            value={mix.diesel_pct}
-            accent="secondary"
-            onChangeValue={(v) =>
-              setMix((m) => rebalance(m, 'diesel_pct', clamp(v)))
-            }
-          />
-          <div
-            className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
-              sumOk ? 'bg-emerald-50 text-emerald-700' : 'bg-accent-50 text-accent-700'
-            }`}
-          >
-            <span>Сумма процентов</span>
-            <strong className="tabular-nums">{sumPct.toFixed(1)}%</strong>
-          </div>
-          {!sumOk && (
-            <p className="text-xs text-accent-700">
-              Сумма должна быть 100%. Сейчас не хватает{' '}
-              <strong>{(100 - sumPct).toFixed(1)}%</strong>.
-            </p>
-          )}
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-primary-100">
-            <ComponentTonsBox label="Эмульсия" tons={componentTons.emulsion} />
-            <ComponentTonsBox label="AN" tons={componentTons.an} />
-            <ComponentTonsBox label="Дизель" tons={componentTons.diesel} />
-          </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function clamp(v: number): number {
-  if (!Number.isFinite(v)) return 0;
-  return Math.max(0, Math.min(100, v));
-}
-
-// When one slider moves, redistribute the remaining 100 - newValue
-// across the other two components, preserving their previous ratio.
-// If both other components were 0, split equally between them.
-// If newValue alone exceeds 100, clamp it and zero the others.
-function rebalance(
-  current: ComponentMix,
-  changedKey: keyof ComponentMix,
-  newValue: number
-): ComponentMix {
-  const v = clamp(newValue);
-  const otherKeys = (Object.keys(current) as (keyof ComponentMix)[]).filter(
-    (k) => k !== changedKey
-  );
-  const remaining = 100 - v;
-  const a = current[otherKeys[0]];
-  const b = current[otherKeys[1]];
-  const otherSum = a + b;
-  let na: number;
-  let nb: number;
-  if (remaining <= 0) {
-    na = 0;
-    nb = 0;
-  } else if (otherSum <= 0) {
-    na = remaining / 2;
-    nb = remaining / 2;
-  } else {
-    na = (remaining * a) / otherSum;
-    nb = (remaining * b) / otherSum;
-  }
-  // Round to 1 decimal to avoid floating noise; carry remainder to the larger.
-  const round1 = (x: number) => Math.round(x * 10) / 10;
-  na = round1(na);
-  nb = round1(nb);
-  // Ensure precise sum=100 by absorbing the rounding delta into the larger one.
-  const delta = 100 - (v + na + nb);
-  if (na >= nb) na = round1(na + delta);
-  else nb = round1(nb + delta);
-
-  return {
-    ...current,
-    [changedKey]: v,
-    [otherKeys[0]]: na,
-    [otherKeys[1]]: nb,
-  } as ComponentMix;
-}
-
-function ComponentRow({
-  label,
-  pct,
-  tons,
-}: {
-  label: string;
-  pct: number;
-  tons: number | null;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-secondary-700">{label}</span>
-      <span className="tabular-nums text-secondary-900">
-        <strong>{tons !== null ? tons.toLocaleString('ru-RU') : '—'}</strong> т
-        <span className="ml-2 text-xs text-secondary-500">({pct}%)</span>
-      </span>
-    </div>
-  );
-}
-
-function ComponentTonsBox({ label, tons }: { label: string; tons: number | null }) {
-  return (
-    <div className="text-center bg-white rounded-md border border-secondary-200 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-secondary-500">{label}</div>
-      <div className="font-heading font-bold text-secondary-900 tabular-nums">
-        {tons !== null ? tons.toLocaleString('ru-RU') : '—'}
-        <span className="text-xs font-normal text-secondary-500"> т</span>
+      <div className="rounded-md border border-secondary-200 bg-secondary-50/40 px-3 py-2 flex items-center justify-between text-sm">
+        <span className="text-secondary-600">
+          Итого {labelTons}:
+        </span>
+        <strong className="tabular-nums text-secondary-900">
+          {totalNum > 0 ? totalNum.toLocaleString('ru-RU') : '—'} т
+        </strong>
       </div>
     </div>
   );

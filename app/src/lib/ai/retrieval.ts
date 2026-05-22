@@ -2,7 +2,7 @@
 // not 'document'), search across all languages (cross-lingual), boost
 // verified FAQ chunks 1.5x.
 
-import { embed } from './voyage';
+import { embed } from './mistral';
 import { createServerAdminClient } from '../supabase/serverAdminClient';
 
 export interface RetrievedChunk {

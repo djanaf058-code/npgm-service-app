@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Loader2,
@@ -75,16 +76,17 @@ interface ChildOperatorRow {
   created_at: string;
 }
 
-const URGENCY_LABELS: Record<
+const URGENCY_META: Record<
   PartsRequestUrgency,
-  { ru: string; variant: React.ComponentProps<typeof Badge>['variant']; icon: React.ComponentType<{ className?: string }> | null }
+  { variant: React.ComponentProps<typeof Badge>['variant']; icon: React.ComponentType<{ className?: string }> | null }
 > = {
-  normal: { ru: 'Обычная', variant: 'outline', icon: null },
-  urgent: { ru: 'Срочная', variant: 'warning', icon: AlertCircle },
-  critical: { ru: 'Критическая', variant: 'destructive', icon: AlertTriangle },
+  normal: { variant: 'outline', icon: null },
+  urgent: { variant: 'warning', icon: AlertCircle },
+  critical: { variant: 'destructive', icon: AlertTriangle },
 };
 
 export default function PartsRequestDetailPage() {
+  const t = useTranslations('parts.request_detail');
   const params = useParams<{ id: string }>();
   const requestId = params.id;
 
@@ -93,6 +95,12 @@ export default function PartsRequestDetailPage() {
   const [parent, setParent] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const urgencyLabel = (u: PartsRequestUrgency): string => {
+    if (u === 'critical') return t('urgency_critical');
+    if (u === 'urgent') return t('urgency_urgent');
+    return t('urgency_normal');
+  };
 
   const reload = async () => {
     setLoading(true);
@@ -125,7 +133,7 @@ export default function PartsRequestDetailPage() {
         .maybeSingle();
       if (err) throw err;
       if (!data) {
-        setError('Заявка не найдена или у вас нет к ней доступа');
+        setError(t('not_found'));
       } else {
         const detail = data as unknown as RequestDetail;
         setRequest(detail);
@@ -150,7 +158,7 @@ export default function PartsRequestDetailPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : t('load_failed'));
     } finally {
       setLoading(false);
     }
@@ -165,7 +173,7 @@ export default function PartsRequestDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
@@ -177,16 +185,22 @@ export default function PartsRequestDetailPage() {
           href="/app/parts"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К гаражу
+          <ArrowLeft className="w-4 h-4" /> {t('back_to_garage')}
         </Link>
         <Card className="p-6 text-center">
-          <p className="text-accent-700 whitespace-pre-wrap">{error ?? 'Заявка не найдена'}</p>
+          <p className="text-accent-700 whitespace-pre-wrap">{error ?? t('not_found')}</p>
         </Card>
       </div>
     );
   }
 
-  const UrgencyIcon = URGENCY_LABELS[request.urgency].icon;
+  const UrgencyIcon = URGENCY_META[request.urgency].icon;
+
+  const itemsCountLabel = (n: number): string => {
+    if (n === 1) return t('items_count_one', { n });
+    if (n < 5) return t('items_count_few', { n });
+    return t('items_count_many', { n });
+  };
 
   return (
     <div className="space-y-5 p-4 md:p-6 max-w-4xl mx-auto">
@@ -194,7 +208,8 @@ export default function PartsRequestDetailPage() {
         href="/app/parts"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К гаражу
+        <ArrowLeft className="w-4 h-4" />
+        {t('back_to_garage')}
       </Link>
 
       {/* Header */}
@@ -207,16 +222,16 @@ export default function PartsRequestDetailPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <RequestStatusBadge status={request.status} />
-                <Badge variant={URGENCY_LABELS[request.urgency].variant}>
+                <Badge variant={URGENCY_META[request.urgency].variant}>
                   {UrgencyIcon && <UrgencyIcon className="w-3 h-3 inline mr-1" />}
-                  {URGENCY_LABELS[request.urgency].ru}
+                  {urgencyLabel(request.urgency)}
                 </Badge>
                 {request.company?.name && (
                   <Badge variant="outline">{request.company.name}</Badge>
                 )}
               </div>
               <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
-                Заказ запчастей
+                {t('title')}
                 {request.machine && (
                   <>
                     {' — '}
@@ -230,7 +245,7 @@ export default function PartsRequestDetailPage() {
                 )}
               </h1>
               <p className="text-sm text-secondary-600 mt-1">
-                Создал: <strong>{request.requester?.full_name ?? '—'}</strong>
+                {t('created_by')}: <strong>{request.requester?.full_name ?? t('dash')}</strong>
               </p>
             </div>
           </div>
@@ -252,7 +267,7 @@ export default function PartsRequestDetailPage() {
       {/* Timeline */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading text-base">Лента событий</CardTitle>
+          <CardTitle className="font-heading text-base">{t('timeline_title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <RequestTimeline
@@ -287,12 +302,12 @@ export default function PartsRequestDetailPage() {
       {request.kind === 'operator' && parent && (
         <Card className="p-4 bg-secondary-50/40">
           <p className="text-sm text-secondary-700">
-            Эта заявка вошла в сводную:{' '}
+            {t('consolidated_into_prefix')}{' '}
             <Link
               href={`/app/parts/request/${parent.id}`}
               className="text-primary-700 font-medium hover:underline"
             >
-              открыть сводную →
+              {t('open_consolidated_link')}
             </Link>
           </p>
         </Card>
@@ -303,7 +318,7 @@ export default function PartsRequestDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-base">
-              Дочерние заявки операторов ({children.length})
+              {t('children_title', { n: children.length })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -313,9 +328,9 @@ export default function PartsRequestDetailPage() {
                 return (
                   <li key={c.id} className="py-2 flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                      <Badge variant="outline">{c.machine?.model_code ?? '—'}</Badge>
+                      <Badge variant="outline">{c.machine?.model_code ?? t('dash')}</Badge>
                       <span className="text-sm text-secondary-900">
-                        {itemsCount} {itemsCount === 1 ? 'позиция' : 'позиций'}
+                        {itemsCountLabel(itemsCount)}
                       </span>
                       {c.requester?.full_name && (
                         <span className="text-xs text-secondary-500">
@@ -327,7 +342,7 @@ export default function PartsRequestDetailPage() {
                       href={`/app/parts/request/${c.id}`}
                       className="text-xs text-primary-600 hover:underline"
                     >
-                      открыть →
+                      {t('open_link')}
                     </Link>
                   </li>
                 );
@@ -342,7 +357,7 @@ export default function PartsRequestDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-base">
-              Из каталога ({request.parts_requested.length})
+              {t('catalog_section_title', { n: request.parts_requested.length })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -350,7 +365,7 @@ export default function PartsRequestDetailPage() {
               {request.parts_requested.map((p, idx) => (
                 <li key={idx} className="py-2.5 flex items-center justify-between text-sm">
                   <span className="text-secondary-900">{p.display_name_ru}</span>
-                  <span className="text-secondary-700 tabular-nums">{p.quantity} шт</span>
+                  <span className="text-secondary-700 tabular-nums">{p.quantity} {t('unit_pcs')}</span>
                 </li>
               ))}
             </ul>
@@ -363,7 +378,7 @@ export default function PartsRequestDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-base">
-              Свободные позиции ({request.parts_freeform.length})
+              {t('freeform_section_title', { n: request.parts_freeform.length })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -373,7 +388,9 @@ export default function PartsRequestDetailPage() {
                   <p className="text-sm text-secondary-900 whitespace-pre-wrap">{item.description}</p>
                   <div className="flex items-center gap-3 mt-2">
                     {item.quantity_estimate != null && (
-                      <p className="text-xs text-secondary-500">кол-во ≈ {item.quantity_estimate}</p>
+                      <p className="text-xs text-secondary-500">
+                        {t('freeform_qty_approx', { n: item.quantity_estimate })}
+                      </p>
                     )}
                     {item.photo_url && (
                       <PhotoUploader
@@ -398,7 +415,7 @@ export default function PartsRequestDetailPage() {
       {request.notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-base">Примечания оператора</CardTitle>
+            <CardTitle className="font-heading text-base">{t('notes_title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-secondary-700 whitespace-pre-wrap">{request.notes}</p>
@@ -410,13 +427,13 @@ export default function PartsRequestDetailPage() {
       {request.status === 'received' && request.received_photo_url && (
         <Card className="border-emerald-300 bg-emerald-50/30">
           <CardHeader>
-            <CardTitle className="font-heading text-base">Подтверждение получения</CardTitle>
+            <CardTitle className="font-heading text-base">{t('received_title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {request.received_quantity_text && (
                 <p className="text-sm text-secondary-900">
-                  <strong>Получено:</strong> {request.received_quantity_text}
+                  <strong>{t('received_label')}</strong> {request.received_quantity_text}
                 </p>
               )}
               {request.received_notes && (

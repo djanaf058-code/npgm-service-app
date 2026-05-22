@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Loader2,
@@ -42,25 +43,14 @@ interface MachineOption {
   machine_type: string;
 }
 
-const URGENCY_LABELS: Record<PartsRequestUrgency, { ru: string; description: string; color: string }> = {
-  normal: {
-    ru: 'Обычная',
-    description: 'Можно подождать несколько недель',
-    color: 'border-secondary-200',
-  },
-  urgent: {
-    ru: 'Срочная',
-    description: 'Нужно в течение недели',
-    color: 'border-amber-300 bg-amber-50/30',
-  },
-  critical: {
-    ru: 'Критическая',
-    description: 'Машина стоит — нужно как можно скорее',
-    color: 'border-accent-300 bg-accent-50/30',
-  },
+const URGENCY_STYLE: Record<PartsRequestUrgency, string> = {
+  normal: 'border-secondary-200',
+  urgent: 'border-amber-300 bg-amber-50/30',
+  critical: 'border-accent-300 bg-accent-50/30',
 };
 
 export default function PartsRequestPage() {
+  const t = useTranslations('parts.request_new');
   const router = useRouter();
   const { user } = useGlobal();
 
@@ -80,6 +70,17 @@ export default function PartsRequestPage() {
   // Catalog picker state
   const [pickerPartId, setPickerPartId] = useState('');
   const [pickerQty, setPickerQty] = useState('1');
+
+  const urgencyLabel = (u: PartsRequestUrgency): string => {
+    if (u === 'critical') return t('urgency_critical');
+    if (u === 'urgent') return t('urgency_urgent');
+    return t('urgency_normal');
+  };
+  const urgencyDesc = (u: PartsRequestUrgency): string => {
+    if (u === 'critical') return t('urgency_critical_desc');
+    if (u === 'urgent') return t('urgency_urgent_desc');
+    return t('urgency_normal_desc');
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -102,7 +103,7 @@ export default function PartsRequestPage() {
         ]);
 
         const cid = (profileResp.data as { company_id: string } | null)?.company_id;
-        if (!cid) throw new Error('Профиль не привязан к компании');
+        if (!cid) throw new Error(t('err_no_profile_company'));
         setCompanyId(cid);
 
         if (catalogResp.error) throw catalogResp.error;
@@ -111,13 +112,13 @@ export default function PartsRequestPage() {
         if (machinesResp.error) throw machinesResp.error;
         setMachines((machinesResp.data ?? []) as MachineOption[]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setError(err instanceof Error ? err.message : t('load_failed'));
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [user]);
+  }, [user, t]);
 
   const addCatalogPart = () => {
     if (!pickerPartId) return;
@@ -172,15 +173,15 @@ export default function PartsRequestPage() {
     setError(null);
 
     if (parts.length === 0 && freeform.length === 0) {
-      setError('Добавьте хотя бы одну запчасть в заявку');
+      setError(t('err_empty_request'));
       return;
     }
     if (parts.some((p) => !Number.isFinite(p.quantity) || p.quantity <= 0)) {
-      setError('Количество каждой позиции должно быть положительным');
+      setError(t('err_invalid_quantity'));
       return;
     }
     if (freeform.some((f) => f.description.trim().length < 3)) {
-      setError('Опишите дополнительные запчасти (минимум 3 символа)');
+      setError(t('err_freeform_too_short'));
       return;
     }
 
@@ -204,7 +205,7 @@ export default function PartsRequestPage() {
         })
         .select('id')
         .single();
-      if (insertErr || !req) throw insertErr ?? new Error('Не удалось создать заявку');
+      if (insertErr || !req) throw insertErr ?? new Error(t('err_create_failed'));
 
       router.push(`/app/parts/request/${(req as { id: string }).id}`);
     } catch (err) {
@@ -212,7 +213,7 @@ export default function PartsRequestPage() {
       if (err instanceof Error) msg = err.message;
       else if (err && typeof err === 'object' && 'message' in err) msg = String((err as { message: unknown }).message);
       else msg = JSON.stringify(err);
-      setError(`Не удалось отправить заявку: ${msg}`);
+      setError(`${t('err_submit_prefix')}: ${msg}`);
       setSubmitting(false);
     }
   };
@@ -221,10 +222,12 @@ export default function PartsRequestPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
+
+  const URGENCY_LIST: PartsRequestUrgency[] = ['normal', 'urgent', 'critical'];
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
@@ -232,21 +235,19 @@ export default function PartsRequestPage() {
         href="/app/parts"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К гаражу
+        <ArrowLeft className="w-4 h-4" />
+        {t('back_to_garage')}
       </Link>
 
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Заказ запчастей
+          {t('title')}
         </h1>
         <p className="text-secondary-600 text-sm mt-1">
-          Заявка не привязана к ТО — просто нужны запчасти. Можно срочно (машина стоит) или
-          в обычном порядке.
+          {t('subtitle')}
         </p>
         <p className="text-xs text-secondary-500 mt-2">
-          После отправки заявка попадёт сервисному инженеру. Он объединит её с заявками
-          по другим машинам в сводную, согласует с проектным менеджером, и сводная уйдёт
-          в НПГМ.
+          {t('footnote')}
         </p>
       </div>
 
@@ -259,25 +260,25 @@ export default function PartsRequestPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Urgency */}
         <Card className="p-5">
-          <Label className="mb-3 block">Срочность *</Label>
+          <Label className="mb-3 block">{t('urgency_label')}</Label>
           <div className="grid gap-2">
-            {(Object.keys(URGENCY_LABELS) as PartsRequestUrgency[]).map((u) => (
+            {URGENCY_LIST.map((u) => (
               <button
                 key={u}
                 type="button"
                 onClick={() => setUrgency(u)}
                 className={`text-left px-4 py-3 rounded-lg border transition-colors ${
                   urgency === u
-                    ? `${URGENCY_LABELS[u].color} ring-2 ring-primary-500`
-                    : `${URGENCY_LABELS[u].color} hover:border-primary-300`
+                    ? `${URGENCY_STYLE[u]} ring-2 ring-primary-500`
+                    : `${URGENCY_STYLE[u]} hover:border-primary-300`
                 }`}
               >
                 <div className="flex items-center gap-2 font-medium text-secondary-900">
                   {u === 'critical' && <AlertTriangle className="w-4 h-4 text-accent-600" />}
                   {u === 'urgent' && <AlertCircle className="w-4 h-4 text-amber-600" />}
-                  {URGENCY_LABELS[u].ru}
+                  {urgencyLabel(u)}
                 </div>
-                <p className="text-xs text-secondary-600 mt-0.5">{URGENCY_LABELS[u].description}</p>
+                <p className="text-xs text-secondary-600 mt-0.5">{urgencyDesc(u)}</p>
               </button>
             ))}
           </div>
@@ -285,14 +286,14 @@ export default function PartsRequestPage() {
 
         {/* Optional machine binding */}
         <Card className="p-5">
-          <Label htmlFor="machineId">Привязка к машине (опционально)</Label>
+          <Label htmlFor="machineId">{t('machine_label')}</Label>
           <Select
             id="machineId"
             value={machineId}
             onChange={(e) => setMachineId(e.target.value)}
             className="mt-1"
           >
-            <option value="">Не привязано</option>
+            <option value="">{t('machine_none')}</option>
             {machines.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.model_code} ({m.machine_type})
@@ -300,14 +301,14 @@ export default function PartsRequestPage() {
             ))}
           </Select>
           <p className="mt-1 text-xs text-secondary-500">
-            Указание конкретной машины помогает выбрать совместимые позиции и быстрее найти артикул.
+            {t('machine_hint')}
           </p>
         </Card>
 
         {/* Catalog parts */}
         <Card className="p-5">
           <h2 className="font-heading font-semibold text-secondary-900 mb-3">
-            Запчасти из каталога
+            {t('catalog_section')}
           </h2>
 
           {parts.length > 0 && (
@@ -325,12 +326,12 @@ export default function PartsRequestPage() {
                     onChange={(e) => updatePartQty(idx, parseFloat(e.target.value) || 0)}
                     className="w-20 text-right tabular-nums"
                   />
-                  <span className="text-xs text-secondary-500 w-8">шт</span>
+                  <span className="text-xs text-secondary-500 w-8">{t('unit_pcs')}</span>
                   <button
                     type="button"
                     onClick={() => removePart(idx)}
                     className="text-secondary-400 hover:text-accent-600 p-1"
-                    aria-label="Убрать"
+                    aria-label={t('remove_aria')}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -343,7 +344,7 @@ export default function PartsRequestPage() {
           <div className="flex items-end gap-2 pt-3 border-t border-secondary-100">
             <div className="flex-1 min-w-0">
               <Label htmlFor="pickerPart" className="text-xs">
-                Выбрать из каталога
+                {t('picker_label')}
               </Label>
               <Select
                 id="pickerPart"
@@ -351,7 +352,7 @@ export default function PartsRequestPage() {
                 onChange={(e) => setPickerPartId(e.target.value)}
                 className="mt-1"
               >
-                <option value="">…</option>
+                <option value="">{t('picker_placeholder')}</option>
                 {catalog.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.display_name_ru} ({p.compatible_machine_types.join(', ') || '—'})
@@ -361,7 +362,7 @@ export default function PartsRequestPage() {
             </div>
             <div className="w-20">
               <Label htmlFor="pickerQty" className="text-xs">
-                Кол-во
+                {t('picker_qty_label')}
               </Label>
               <Input
                 id="pickerQty"
@@ -383,17 +384,16 @@ export default function PartsRequestPage() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading font-semibold text-secondary-900">
-              Дополнительные / неизвестные запчасти
+              {t('freeform_section')}
             </h2>
             <Button type="button" variant="outline" size="sm" onClick={addFreeformItem}>
               <Plus className="w-4 h-4" />
-              Добавить
+              {t('freeform_add')}
             </Button>
           </div>
           {freeform.length === 0 ? (
             <p className="text-sm text-secondary-500">
-              Если не знаете точное название запчасти — опишите своими словами и приложите фото.
-              Мы определим артикул и подтвердим перед заказом.
+              {t('freeform_empty')}
             </p>
           ) : (
             <ul className="space-y-3">
@@ -401,7 +401,7 @@ export default function PartsRequestPage() {
                 <li key={idx} className="border border-secondary-200 rounded-lg p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <Textarea
-                      placeholder="Например: подшипник на втором валу, чёрный, диаметр ~50мм"
+                      placeholder={t('freeform_placeholder')}
                       value={item.description}
                       onChange={(e) => updateFreeform(idx, { description: e.target.value })}
                       rows={2}
@@ -411,14 +411,14 @@ export default function PartsRequestPage() {
                       type="button"
                       onClick={() => removeFreeform(idx)}
                       className="text-secondary-400 hover:text-accent-600 p-1 mt-1"
-                      aria-label="Убрать"
+                      aria-label={t('remove_aria')}
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-secondary-500">Кол-во:</Label>
+                      <Label className="text-xs text-secondary-500">{t('freeform_qty_label')}</Label>
                       <Input
                         type="number"
                         step="1"
@@ -451,12 +451,12 @@ export default function PartsRequestPage() {
 
         {/* Notes */}
         <Card className="p-5">
-          <Label htmlFor="notes">Примечания</Label>
+          <Label htmlFor="notes">{t('notes_label')}</Label>
           <Textarea
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Контекст, желаемая дата, контакты для уточнений…"
+            placeholder={t('notes_placeholder')}
             rows={3}
             className="mt-1"
           />
@@ -465,11 +465,11 @@ export default function PartsRequestPage() {
         {/* Actions */}
         <div className="flex items-center justify-end gap-3">
           <Button asChild type="button" variant="outline">
-            <Link href="/app/parts">Отмена</Link>
+            <Link href="/app/parts">{t('cancel')}</Link>
           </Button>
           <Button type="submit" disabled={submitting}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {submitting ? 'Отправка…' : 'Подать заявку'}
+            {submitting ? t('submitting') : t('submit')}
           </Button>
         </div>
       </form>

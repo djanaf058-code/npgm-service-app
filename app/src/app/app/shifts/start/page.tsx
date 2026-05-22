@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Send,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,9 @@ interface MachineOption {
   id: string;
   machine_type: string;
   model_code: string;
+  internal_name: string | null;
   last_monthly_check_at: string | null;
+  first_shift_at: string | null;
 }
 
 interface TemplateRow {
@@ -48,12 +51,21 @@ interface TemplateRow {
 
 const MONTHLY_DUE_AFTER_DAYS = 30;
 
-function isMonthlyDue(lastAt: string | null): boolean {
+// Monthly inspection is gated by "30 days since the machine entered service".
+// - No first shift yet → not due (this run will BE the first shift).
+// - First shift < 30 days ago → not due.
+// - No monthly done yet AND first shift ≥ 30 days ago → due.
+// - Monthly was done and ≥30 days passed since → due.
+function isMonthlyDue(lastAt: string | null, firstShiftAt: string | null): boolean {
+  if (!firstShiftAt) return false;
+  const first = new Date(firstShiftAt).getTime();
+  if (!Number.isFinite(first)) return false;
+  const dayMs = 1000 * 60 * 60 * 24;
+  if (Date.now() - first < MONTHLY_DUE_AFTER_DAYS * dayMs) return false;
   if (!lastAt) return true;
   const last = new Date(lastAt).getTime();
   if (!Number.isFinite(last)) return true;
-  const days = (Date.now() - last) / (1000 * 60 * 60 * 24);
-  return days >= MONTHLY_DUE_AFTER_DAYS;
+  return (Date.now() - last) / dayMs >= MONTHLY_DUE_AFTER_DAYS;
 }
 
 function daysSince(lastAt: string | null): number | null {
@@ -63,11 +75,18 @@ function daysSince(lastAt: string | null): number | null {
   return Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24));
 }
 
+function machineLabel(m: MachineOption): string {
+  const primary = m.internal_name?.trim() ? m.internal_name : m.model_code;
+  return `${primary} (${m.machine_type})`;
+}
+
 type Step = 'machine' | 'checklist' | 'plan';
 
 export default function StartShiftPage() {
   const router = useRouter();
   const { user } = useGlobal();
+  const t = useTranslations('shifts.start');
+  const locale = useLocale();
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [machines, setMachines] = useState<MachineOption[]>([]);
@@ -103,8 +122,9 @@ export default function StartShiftPage() {
           supabase.from('profiles').select('company_id').eq('id', user.id).single(),
           supabase
             .from('machines')
-            .select('id, machine_type, model_code, last_monthly_check_at')
+            .select('id, machine_type, model_code, internal_name, last_monthly_check_at, first_shift_at')
             .eq('status', 'active')
+            .order('internal_name', { ascending: true, nullsFirst: false })
             .order('model_code'),
           supabase
             .from('checklist_templates')
@@ -113,7 +133,7 @@ export default function StartShiftPage() {
         ]);
 
         const cid = (profileResp.data as { company_id: string } | null)?.company_id;
-        if (!cid) throw new Error('Профиль не привязан к компании');
+        if (!cid) throw new Error(t('err_profile_no_company'));
         setCompanyId(cid);
 
         if (machinesResp.error) throw machinesResp.error;
@@ -122,36 +142,38 @@ export default function StartShiftPage() {
         if (templatesResp.error) throw templatesResp.error;
         setTemplates((templatesResp.data ?? []) as TemplateRow[]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setError(err instanceof Error ? err.message : t('err_loading'));
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [user]);
+  }, [user, t]);
 
   const selectedMachine = machines.find((m) => m.id === machineId) ?? null;
   const preShiftTemplate = selectedMachine
     ? templates.find(
-        (t) => t.machine_type === selectedMachine.machine_type && t.kind === 'pre_shift'
+        (tpl) => tpl.machine_type === selectedMachine.machine_type && tpl.kind === 'pre_shift'
       ) ?? null
     : null;
   const monthlyTemplate = selectedMachine
     ? templates.find(
-        (t) => t.machine_type === selectedMachine.machine_type && t.kind === 'monthly'
+        (tpl) => tpl.machine_type === selectedMachine.machine_type && tpl.kind === 'monthly'
       ) ?? null
     : null;
-  const monthlyDue = selectedMachine ? isMonthlyDue(selectedMachine.last_monthly_check_at) : false;
+  const monthlyDue = selectedMachine
+    ? isMonthlyDue(selectedMachine.last_monthly_check_at, selectedMachine.first_shift_at)
+    : false;
   const monthlyDays = selectedMachine ? daysSince(selectedMachine.last_monthly_check_at) : null;
-  // Active templates for this run = pre-shift always; monthly only if due.
   const activeTemplates: TemplateRow[] = [
     ...(preShiftTemplate ? [preShiftTemplate] : []),
     ...(monthlyTemplate && monthlyDue ? [monthlyTemplate] : []),
   ];
-  // Combined items list across all active templates (used for completeness check / submit).
-  const allItems = activeTemplates.flatMap((t) => t.items);
-  // Legacy var name kept for the rest of the file's logic.
+  const allItems = activeTemplates.flatMap((tpl) => tpl.items);
   const template = preShiftTemplate;
+
+  const itemName = (item: ChecklistItem): string =>
+    locale === 'en' && item.name_en ? item.name_en : item.name_ru;
 
   const setAnswer = (item: ChecklistItem, status: ChecklistAnswerStatus) => {
     setAnswers((prev) => ({
@@ -201,7 +223,7 @@ export default function StartShiftPage() {
     setError(null);
 
     if (!planValue) {
-      setError('Заполните план зарядки: тоннаж и состав');
+      setError(t('err_no_plan'));
       return;
     }
 
@@ -210,7 +232,6 @@ export default function StartShiftPage() {
       const client = await createSPASassClient();
       const supabase = client.getSupabaseClient();
 
-      // 1) Create the shift
       const { data: shift, error: shiftErr } = await supabase
         .from('shifts')
         .insert({
@@ -231,10 +252,9 @@ export default function StartShiftPage() {
         })
         .select('id')
         .single();
-      if (shiftErr || !shift) throw shiftErr ?? new Error('Не удалось создать смену');
+      if (shiftErr || !shift) throw shiftErr ?? new Error(t('err_create_shift_generic'));
       const shiftId = (shift as { id: string }).id;
 
-      // 2) One checklist_execution per active template (pre_shift, and monthly when due).
       const executions = activeTemplates.map((tpl) => {
         const itemsStatus: ChecklistAnswer[] = tpl.items.map((it) =>
           answers[it.id] ?? { item_id: it.id, status: 'skip', photo_url: null, comment: null }
@@ -261,7 +281,7 @@ export default function StartShiftPage() {
       if (err instanceof Error) msg = err.message;
       else if (err && typeof err === 'object' && 'message' in err) msg = String((err as { message: unknown }).message);
       else msg = JSON.stringify(err);
-      setError(`Не удалось начать смену: ${msg}`);
+      setError(`${t('err_create_shift_prefix')} ${msg}`);
       setSubmitting(false);
     }
   };
@@ -270,7 +290,7 @@ export default function StartShiftPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка…
+        {t('loading')}
       </div>
     );
   }
@@ -281,30 +301,29 @@ export default function StartShiftPage() {
         href="/app/shifts"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку смен
+        <ArrowLeft className="w-4 h-4" />{t('back_to_list')}
       </Link>
 
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-secondary-900">
-          Начать смену
+          {t('title')}
         </h1>
         <p className="text-secondary-600 text-sm mt-1">
-          Три шага: выбор машины → чек-лист → план зарядки.
+          {t('subtitle')}
         </p>
       </div>
 
-      {/* Stepper */}
       <div className="flex items-center gap-2 flex-wrap">
-        <StepBadge active={step === 'machine'} done={step !== 'machine'} icon={Truck} label="1. Машина" />
+        <StepBadge active={step === 'machine'} done={step !== 'machine'} icon={Truck} label={t('step1_machine')} />
         <ArrowRight className="w-4 h-4 text-secondary-300" />
         <StepBadge
           active={step === 'checklist'}
           done={step === 'plan'}
           icon={ClipboardCheck}
-          label="2. Чек-лист"
+          label={t('step2_checklist')}
         />
         <ArrowRight className="w-4 h-4 text-secondary-300" />
-        <StepBadge active={step === 'plan'} done={false} icon={Wrench} label="3. План" />
+        <StepBadge active={step === 'plan'} done={false} icon={Wrench} label={t('step3_plan')} />
       </div>
 
       {error && (
@@ -313,11 +332,10 @@ export default function StartShiftPage() {
         </div>
       )}
 
-      {/* === STEP 1: Machine === */}
       {step === 'machine' && (
         <Card className="p-5 space-y-5">
           <div>
-            <Label htmlFor="machine">Машина *</Label>
+            <Label htmlFor="machine">{t('machine_label')}</Label>
             <Select
               id="machine"
               value={machineId}
@@ -325,24 +343,24 @@ export default function StartShiftPage() {
               required
               className="mt-1"
             >
-              <option value="">Выберите машину…</option>
+              <option value="">{t('machine_placeholder')}</option>
               {machines.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.model_code} ({m.machine_type})
+                  {machineLabel(m)}
                 </option>
               ))}
             </Select>
             {machines.length === 0 && (
               <p className="mt-1 text-xs text-secondary-500">
-                Нет активных машин.{' '}
+                {t('no_active_machines')}{' '}
                 <Link href="/app/machines/new" className="text-primary-600 hover:underline">
-                  Добавить машину →
+                  {t('add_machine')}
                 </Link>
               </p>
             )}
           </div>
           <div>
-            <Label htmlFor="plannedFor">Дата смены</Label>
+            <Label htmlFor="plannedFor">{t('planned_for')}</Label>
             <DatePicker
               id="plannedFor"
               value={plannedFor}
@@ -356,30 +374,26 @@ export default function StartShiftPage() {
               onClick={() => setStep('checklist')}
               disabled={!machineId || !template}
             >
-              Дальше
+              {t('next')}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
           {machineId && !template && (
             <div className="p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
-              Чек-лист для типа «{selectedMachine?.machine_type}» ещё не настроен. Свяжитесь с
-              администратором платформы.
+              {t('template_not_set', { type: selectedMachine?.machine_type ?? '' })}
             </div>
           )}
         </Card>
       )}
 
-      {/* === STEP 2: Checklist === */}
       {step === 'checklist' && template && (
         <Card className="p-5">
           <div className="mb-4">
             <h3 className="font-heading font-semibold text-secondary-900">
-              Чек-лист перед сменой
+              {t('checklist_title')}
             </h3>
             <p className="text-xs text-secondary-500 mt-1">
-              По каждому пункту: <strong>OK</strong> — в норме; <strong>Не OK</strong> — есть
-              проблема (опишите и приложите фото). Критичная «Не OK» блокирует смену и
-              создаст тикет в Tier 2.
+              {t('checklist_hint')}
             </p>
           </div>
 
@@ -396,18 +410,21 @@ export default function StartShiftPage() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] uppercase tracking-wider font-bold">
-                      {isMonthly ? 'Ежемесячный осмотр' : 'Ежесменный осмотр'}
+                      {isMonthly ? t('monthly_label') : t('pre_shift_label')}
                     </span>
                     {isMonthly && (
                       <span className="text-xs text-amber-700">
                         {monthlyDays === null
-                          ? '— ни разу не выполнялся'
-                          : `— просрочен на ${monthlyDays - MONTHLY_DUE_AFTER_DAYS} дн (последний ${monthlyDays} дн назад)`}
+                          ? t('monthly_never')
+                          : t('monthly_overdue', {
+                              over: monthlyDays - MONTHLY_DUE_AFTER_DAYS,
+                              last: monthlyDays,
+                            })}
                       </span>
                     )}
                   </div>
                   <span className="text-xs text-secondary-500">
-                    {tpl.items.length} {tpl.items.length === 1 ? 'пункт' : 'пунктов'}
+                    {t('items_count', { count: tpl.items.length })}
                   </span>
                 </div>
 
@@ -420,10 +437,10 @@ export default function StartShiftPage() {
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-secondary-900">
-                              {item.name_ru}{' '}
+                              {itemName(item)}{' '}
                               {isCritical && (
                                 <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded ml-1">
-                                  <AlertTriangle className="w-3 h-3" /> Критично
+                                  <AlertTriangle className="w-3 h-3" /> {t('critical_badge')}
                                 </span>
                               )}
                             </p>
@@ -433,14 +450,14 @@ export default function StartShiftPage() {
                               active={ans?.status === 'pass'}
                               onClick={() => setAnswer(item, 'pass')}
                               icon={Check}
-                              label="OK"
+                              label={t('answer_ok')}
                               variant="pass"
                             />
                             <AnswerButton
                               active={ans?.status === 'fail'}
                               onClick={() => setAnswer(item, 'fail')}
                               icon={XIcon}
-                              label="Не OK"
+                              label={t('answer_not_ok')}
                               variant="fail"
                             />
                           </div>
@@ -448,7 +465,7 @@ export default function StartShiftPage() {
                         {ans?.status === 'fail' && (
                           <div className="mt-2 ml-1 space-y-2 pl-3 border-l-2 border-accent-300">
                             <Textarea
-                              placeholder="Опишите проблему…"
+                              placeholder={t('problem_placeholder')}
                               value={ans.comment ?? ''}
                               onChange={(e) => setAnswerComment(item.id, e.target.value)}
                               rows={2}
@@ -477,12 +494,12 @@ export default function StartShiftPage() {
           })}
 
           <div className="mt-4 pt-4 border-t border-secondary-100">
-            <Label htmlFor="checklistNotes">Дополнительно</Label>
+            <Label htmlFor="checklistNotes">{t('additional_label')}</Label>
             <Textarea
               id="checklistNotes"
               value={checklistNotes}
               onChange={(e) => setChecklistNotes(e.target.value)}
-              placeholder="Любые наблюдения по машине…"
+              placeholder={t('additional_placeholder')}
               rows={2}
               className="mt-1"
             />
@@ -492,9 +509,7 @@ export default function StartShiftPage() {
             <div className="mt-4 p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Критичная ошибка в чек-листе.</strong> При продолжении смена
-                будет создана со статусом «Заблокирована» — оператор не сможет начать
-                работу до устранения. Это правильно, не пытайтесь обойти.
+                <strong>{t('critical_fail_warning_strong')}</strong> {t('critical_fail_warning_rest')}
               </span>
             </div>
           )}
@@ -502,29 +517,28 @@ export default function StartShiftPage() {
           <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
             <Button type="button" variant="outline" onClick={() => setStep('machine')}>
               <ArrowLeft className="w-4 h-4" />
-              Назад
+              {t('back')}
             </Button>
             <Button
               type="button"
               onClick={() => setStep('plan')}
               disabled={!checklistComplete}
             >
-              Дальше
+              {t('next')}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </Card>
       )}
 
-      {/* === STEP 3: Charging plan === */}
       {step === 'plan' && (
         <Card className="p-5 space-y-5">
           <div>
             <h3 className="font-heading font-semibold text-secondary-900">
-              План зарядки
+              {t('plan_title')}
             </h3>
             <p className="text-xs text-secondary-500 mt-1">
-              Это план — фактические значения внесёте при закрытии смены.
+              {t('plan_subtitle')}
             </p>
           </div>
 
@@ -535,7 +549,7 @@ export default function StartShiftPage() {
           />
 
           <div>
-            <Label htmlFor="planHoles">Кол-во скважин</Label>
+            <Label htmlFor="planHoles">{t('plan_holes_label')}</Label>
             <Input
               id="planHoles"
               type="number"
@@ -543,29 +557,29 @@ export default function StartShiftPage() {
               min="0"
               value={planHoles}
               onChange={(e) => setPlanHoles(e.target.value)}
-              placeholder="32"
+              placeholder={t('plan_holes_placeholder')}
               className="mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="planPit">Блок / карьер</Label>
+            <Label htmlFor="planPit">{t('plan_pit_label')}</Label>
             <Input
               id="planPit"
               value={planPit}
               onChange={(e) => setPlanPit(e.target.value)}
-              placeholder="Block A, Pit 2"
+              placeholder={t('plan_pit_placeholder')}
               className="mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="planNotes">Примечания</Label>
+            <Label htmlFor="planNotes">{t('plan_notes_label')}</Label>
             <Textarea
               id="planNotes"
               value={planNotes}
               onChange={(e) => setPlanNotes(e.target.value)}
-              placeholder="Особенности задания, требования заказчика…"
+              placeholder={t('plan_notes_placeholder')}
               rows={2}
               className="mt-1"
             />
@@ -574,14 +588,14 @@ export default function StartShiftPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap pt-2 border-t border-secondary-100">
             <Button type="button" variant="outline" onClick={() => setStep('checklist')}>
               <ArrowLeft className="w-4 h-4" />
-              Назад
+              {t('back')}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={submitting || !planValue}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {submitting ? 'Создание…' : 'Начать смену'}
+              {submitting ? t('creating') : t('start_button')}
             </Button>
           </div>
         </Card>

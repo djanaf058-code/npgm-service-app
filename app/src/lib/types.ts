@@ -228,11 +228,13 @@ export interface Database {
           component_count: number;
           ggd_type: GgdType;
           serial_number: string | null;
+          internal_name: string | null;
           in_service_since: string | null;
           pit_location: string | null;
           engine_hours: number;
           tons_pumped: number;
           last_monthly_check_at: string | null;
+          first_shift_at: string | null;
           status: MachineStatus;
           notes: string | null;
           created_at: string;
@@ -249,6 +251,7 @@ export interface Database {
           component_count?: number;
           ggd_type?: GgdType;
           serial_number?: string | null;
+          internal_name?: string | null;
           in_service_since?: string | null;
           pit_location?: string | null;
           engine_hours?: number;
@@ -265,6 +268,7 @@ export interface Database {
           component_count?: number;
           ggd_type?: GgdType;
           serial_number?: string | null;
+          internal_name?: string | null;
           in_service_since?: string | null;
           pit_location?: string | null;
           engine_hours?: number;
@@ -679,6 +683,8 @@ export interface Database {
           started_at: string | null;
           completed_at: string | null;
           plan_recipe: ChargingRecipe | null;
+          plan_recipe_b: ChargingRecipe | null;
+          plan_recipe_b_holes: number | null;
           plan_tons: number | null;
           plan_emulsion_tons: number | null;
           plan_an_tons: number | null;
@@ -692,6 +698,8 @@ export interface Database {
           actual_diesel_tons: number | null;
           actual_engine_hours: number | null;
           actual_notes: string | null;
+          actual_recipe_b: ChargingRecipe | null;
+          actual_recipe_b_holes: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -705,6 +713,8 @@ export interface Database {
           started_at?: string | null;
           completed_at?: string | null;
           plan_recipe?: ChargingRecipe | null;
+          plan_recipe_b?: ChargingRecipe | null;
+          plan_recipe_b_holes?: number | null;
           plan_tons?: number | null;
           plan_emulsion_tons?: number | null;
           plan_an_tons?: number | null;
@@ -718,12 +728,16 @@ export interface Database {
           actual_diesel_tons?: number | null;
           actual_engine_hours?: number | null;
           actual_notes?: string | null;
+          actual_recipe_b?: ChargingRecipe | null;
+          actual_recipe_b_holes?: number | null;
         };
         Update: {
           status?: ShiftStatus;
           started_at?: string | null;
           completed_at?: string | null;
           plan_recipe?: ChargingRecipe | null;
+          plan_recipe_b?: ChargingRecipe | null;
+          plan_recipe_b_holes?: number | null;
           plan_tons?: number | null;
           plan_emulsion_tons?: number | null;
           plan_an_tons?: number | null;
@@ -737,6 +751,8 @@ export interface Database {
           actual_diesel_tons?: number | null;
           actual_engine_hours?: number | null;
           actual_notes?: string | null;
+          actual_recipe_b?: ChargingRecipe | null;
+          actual_recipe_b_holes?: number | null;
         };
         Relationships: [
           { foreignKeyName: 'shifts_company_id_fkey'; columns: ['company_id']; referencedRelation: 'companies'; referencedColumns: ['id'] },

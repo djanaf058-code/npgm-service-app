@@ -139,7 +139,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <Link
                                 key={item.nameKey}
                                 href={item.href}
-                                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                                onClick={() => setSidebarOpen(false)}
+                                className={`group flex items-center px-3 py-3 lg:py-2 text-sm font-medium rounded-md transition-colors ${
                                     isActive
                                         ? 'bg-primary-50 text-primary-700'
                                         : 'text-secondary-600 hover:bg-secondary-50 hover:text-secondary-900'
@@ -164,7 +165,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="sticky top-0 z-10 flex items-center justify-between h-16 bg-white border-b border-secondary-200 px-4">
                     <button
                         onClick={toggleSidebar}
-                        className="lg:hidden text-secondary-500 hover:text-secondary-700"
+                        className="lg:hidden text-secondary-500 hover:text-secondary-700 p-2 -ml-2"
+                        aria-label="Open menu"
                     >
                         <Menu className="h-6 w-6"/>
                     </button>

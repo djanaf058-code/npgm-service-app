@@ -1,16 +1,16 @@
 // Usage: cd app && pnpm tsx scripts/ingest-manuals.ts
 //
 // Prerequisites:
-//   1. .env.local has VOYAGE_API_KEY + NEXT_PUBLIC_SUPABASE_URL + PRIVATE_SUPABASE_SERVICE_KEY
+//   1. .env.local has MISTRAL_API_KEY + NEXT_PUBLIC_SUPABASE_URL + PRIVATE_SUPABASE_SERVICE_KEY
 //   2. Migration 0032a + 0032b applied to Supabase (creates pgvector + manual_chunks)
 //
 // Idempotent: re-running deletes prior rows for the same source first, then re-inserts.
-// Cost: ~$0.20 in Voyage embeddings for the full corpus.
+// Cost: free on Mistral La Plateforme free tier (rate-limited 1 RPS).
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { parseAndChunkPdf, summarise } from '../src/lib/ai/pdf-parser';
-import { embed } from '../src/lib/ai/voyage';
+import { embed } from '../src/lib/ai/mistral';
 
 // Parse .env.local manually — node doesn't auto-load it for scripts.
 const env = readFileSync('.env.local', 'utf8');
@@ -25,8 +25,8 @@ if (!URL_BASE || !KEY) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or PRIVATE_SUPABASE_SERVICE_KEY in .env.local');
   process.exit(1);
 }
-if (!process.env.VOYAGE_API_KEY) {
-  console.error('Missing VOYAGE_API_KEY in .env.local');
+if (!process.env.MISTRAL_API_KEY) {
+  console.error('Missing MISTRAL_API_KEY in .env.local');
   process.exit(1);
 }
 
@@ -38,11 +38,11 @@ const headers = {
 
 // Path relative to app/ (where script runs from). Manuals live a level up.
 const MANUALS = [
-  { path: '../manuals/МСЗУ/МСЗУ-14-НПБ.pdf', type: 'МСЗУ', lang: 'ru' as const },
-  { path: '../manuals/МЗУ/Operation Manual MZU-16-4K Eng.pdf', type: 'МЗУ', lang: 'en' as const },
-  { path: '../manuals/МСЗ/ANFO Operational Manual.pdf', type: 'МСЗ', lang: 'en' as const },
-  { path: '../manuals/МЗВ/ТО МЗВ-16.pdf', type: 'МЗВ', lang: 'ru' as const },
-  { path: '../manuals/МЗВ/ТО МЗВ-16 eng.pdf', type: 'МЗВ', lang: 'en' as const },
+  { path: '../../manuals/МСЗУ/МСЗУ-14-НПБ.pdf', type: 'МСЗУ', lang: 'ru' as const },
+  { path: '../../manuals/МЗУ/Operation Manual MZU-16-4K Eng.pdf', type: 'МЗУ', lang: 'en' as const },
+  { path: '../../manuals/МСЗ/ANFO Operational Manual.pdf', type: 'МСЗ', lang: 'en' as const },
+  { path: '../../manuals/МЗВ/ТО МЗВ-16.pdf', type: 'МЗВ', lang: 'ru' as const },
+  { path: '../../manuals/МЗВ/ТО МЗВ-16 eng.pdf', type: 'МЗВ', lang: 'en' as const },
 ];
 
 async function deleteBySource(source: string) {
@@ -80,8 +80,9 @@ async function main() {
     await deleteBySource(source);
     console.log(`  cleared prior rows for ${source}`);
 
-    // Embed in batches of 128 (Voyage limit)
-    const BATCH = 128;
+    // Embed in batches of 96 (well under Mistral's practical per-request cap;
+    // also keeps us inside the free tier's 1-RPS pacing comfortably).
+    const BATCH = 96;
     for (let i = 0; i < chunks.length; i += BATCH) {
       const slice = chunks.slice(i, i + BATCH);
       const embeddings = await embed(

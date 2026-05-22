@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
@@ -29,12 +29,25 @@ const ibmPlex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_PRODUCTNAME,
   description:
-    "B2B-платформа для подрядчиков по взрывным работам: сервис, ТО и техподдержка парка СЗМ и буровых станков НИПИГОРМАШа.",
-  icons: {
-    icon: [
-      { url: "/logo-mark.svg", type: "image/svg+xml" },
-    ],
+    "B2B platform for blasting contractors: service, maintenance and support for emulsion charger and drill rig fleets.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "NPGM Service App",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NPGM",
   },
+  icons: {
+    icon: [{ url: "/logo-mark.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#1d4ed8",
 };
 
 export default async function RootLayout({
