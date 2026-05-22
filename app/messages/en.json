@@ -119,8 +119,11 @@
     "done_title": "Done",
     "done_desc": "{count} items added. Stock updated on the company's shared inventory.",
     "to_garage": "To Garage",
-    "nothing_to_import": "Nothing to import.",
-    "import_failed": "Import failed"
+    "nothing_to_import": "No rows with a quantity to add.",
+    "import_failed": "Import failed",
+    "qty_required": "Enter quantity",
+    "missing_qty_note": "{count} rows have no quantity — fill them in to add",
+    "done_failed": "Failed to add: {count}. Check those rows manually."
   },
   "landing": {
     "hero_title": "Your fleet, under control",

@@ -27,61 +27,75 @@ export interface ScheduleSummary {
 export interface ForecastResult {
   next_kind: MaintenanceKind;
   next_at_tons: number;
+  /** Tons to the next service. NEGATIVE when the machine is overdue (it has
+   *  crossed a service threshold that has no completed maintenance event). */
   tons_remaining: number;
   schedule_id: string;
   /** how many ТО of this kind have already passed (0 if first one) */
   cycles_completed: number;
+  /** true when more services were due-by-now than have been completed */
+  is_overdue: boolean;
 }
 
 /**
  * Returns the next maintenance event a machine is approaching based on its
  * accumulated tons_pumped, or null if no schedule applies to its type.
+ *
+ * `completedCount` is how many maintenance events the machine has actually
+ * completed. When the machine has crossed more service thresholds than it has
+ * completed services, it is OVERDUE: the forecast targets the first
+ * un-serviced threshold (already behind it) and `tons_remaining` goes negative.
  */
 export function forecastNextMaintenance(
   machineType: string,
   tonsPumped: number,
-  schedules: ScheduleSummary[]
+  schedules: ScheduleSummary[],
+  completedCount = 0
 ): ForecastResult | null {
   const ofType = schedules.filter((s) => s.machine_type === machineType);
   if (ofType.length === 0) return null;
 
+  const buildResult = (
+    interval: number,
+    kindForCycle: (cycle: number) => MaintenanceKind,
+    scheduleFor: (kind: MaintenanceKind) => ScheduleSummary | undefined
+  ): ForecastResult | null => {
+    const dueByNow = Math.floor(tonsPumped / interval); // thresholds crossed
+    const overdue = completedCount < dueByNow;
+    // Overdue → first un-serviced threshold (behind us). Otherwise → the next
+    // threshold after whichever is further along: thresholds crossed vs services done.
+    const targetCycle = overdue ? completedCount + 1 : Math.max(dueByNow, completedCount) + 1;
+    const kind = kindForCycle(targetCycle);
+    const schedule = scheduleFor(kind);
+    if (!schedule) return null;
+    const nextAt = targetCycle * interval;
+    return {
+      next_kind: kind,
+      next_at_tons: nextAt,
+      tons_remaining: nextAt - tonsPumped, // negative when overdue
+      schedule_id: schedule.id,
+      cycles_completed: completedCount,
+      is_overdue: overdue,
+    };
+  };
+
   // Single-kind type (МЗВ)
   const single = ofType.find((s) => s.alternates_with === null);
   if (single) {
-    const cyclesCompleted = Math.floor(tonsPumped / single.interval_tons);
-    const nextAt = (cyclesCompleted + 1) * single.interval_tons;
-    return {
-      next_kind: single.kind,
-      next_at_tons: nextAt,
-      tons_remaining: Math.max(0, nextAt - tonsPumped),
-      schedule_id: single.id,
-      cycles_completed: cyclesCompleted,
-    };
+    return buildResult(
+      single.interval_tons,
+      () => single.kind,
+      () => single
+    );
   }
 
-  // Alternating ТО-1 / ТО-2 (МСЗ, МСЗУ, МЗУ)
-  // Baseline interval = 2000 t (smallest interval); kind alternates each cycle.
-  const interval = ofType[0].interval_tons; // assume same for all kinds of one type
-  const cyclesCompleted = Math.floor(tonsPumped / interval);
-  const nextCycle = cyclesCompleted + 1; // 1-indexed
-
-  // Convention:
-  //   1st (cycle index 1) → ТО-1
-  //   2nd (cycle index 2) → ТО-2
-  //   3rd → ТО-1
-  //   4th → ТО-2
-  const expectedKind: MaintenanceKind = nextCycle % 2 === 1 ? 'TO-1' : 'TO-2';
-  const schedule = ofType.find((s) => s.kind === expectedKind);
-  if (!schedule) return null;
-
-  const nextAt = nextCycle * interval;
-  return {
-    next_kind: expectedKind,
-    next_at_tons: nextAt,
-    tons_remaining: Math.max(0, nextAt - tonsPumped),
-    schedule_id: schedule.id,
-    cycles_completed: cyclesCompleted,
-  };
+  // Alternating ТО-1 / ТО-2 (МСЗ, МСЗУ, МЗУ). Odd cycle → ТО-1, even → ТО-2.
+  const interval = ofType[0].interval_tons;
+  return buildResult(
+    interval,
+    (cycle) => (cycle % 2 === 1 ? 'TO-1' : 'TO-2'),
+    (kind) => ofType.find((s) => s.kind === kind)
+  );
 }
 
 /** Fallback charging rate when a machine has too few shifts to infer its own. */

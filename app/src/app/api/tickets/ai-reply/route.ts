@@ -99,27 +99,45 @@ export async function POST(request: NextRequest) {
     const retrieved = await retrieve(retrievalQuery, ctx.machine_type, 5);
     const systemPrompt = buildTicketReplyPrompt(ctx, lang, retrieved);
 
+    // Ticket photos are stored as `ticket-photos` storage paths, not URLs.
+    // Sign them so Claude can actually see the operator's photo.
+    const signImage = async (path: string): Promise<string | null> => {
+      if (/^https?:\/\//.test(path)) return path;
+      const { data } = await sb.storage.from('ticket-photos').createSignedUrl(path, 3600);
+      return data?.signedUrl ?? null;
+    };
+
     // Build Claude messages from ticket history.
     // operator → user;  everyone else (engineer / ai / tier2 / admin) → assistant.
-    // This keeps the alternating roles Claude expects while preserving
-    // context of what humans already said.
-    const claudeMessages = msgs
-      .filter((m) => (m.text && m.text.trim()) || m.image_url)
-      .map((m) => {
-        const role: 'user' | 'assistant' =
-          m.sender_type === 'operator' ? 'user' : 'assistant';
-        const textContent = m.text?.trim() ?? '';
-        if (m.image_url && /^https?:\/\//.test(m.image_url) && role === 'user') {
-          return {
+    type ClaudeMsg = {
+      role: 'user' | 'assistant';
+      content:
+        | string
+        | Array<
+            | { type: 'image'; source: { type: 'url'; url: string } }
+            | { type: 'text'; text: string }
+          >;
+    };
+    const filteredMsgs = msgs.filter((m) => (m.text && m.text.trim()) || m.image_url);
+    const claudeMessages: ClaudeMsg[] = [];
+    for (const m of filteredMsgs) {
+      const role: 'user' | 'assistant' = m.sender_type === 'operator' ? 'user' : 'assistant';
+      const textContent = m.text?.trim() ?? '';
+      if (m.image_url && role === 'user') {
+        const url = await signImage(m.image_url);
+        if (url) {
+          claudeMessages.push({
             role,
             content: [
-              { type: 'image' as const, source: { type: 'url' as const, url: m.image_url } },
-              { type: 'text' as const, text: textContent || (lang === 'ru' ? '(фото от оператора)' : '(operator photo)') },
+              { type: 'image', source: { type: 'url', url } },
+              { type: 'text', text: textContent || (lang === 'ru' ? '(фото от оператора)' : '(operator photo)') },
             ],
-          };
+          });
+          continue;
         }
-        return { role, content: textContent };
-      });
+      }
+      claudeMessages.push({ role, content: textContent });
+    }
 
     // Edge case: Claude requires the conversation to start with a user turn.
     // If our first message happens to be from a non-operator (rare), drop it.
@@ -142,6 +160,20 @@ export async function POST(request: NextRequest) {
     );
     const replyText = textBlocks.map((b) => b.text).join('\n').trim();
     if (!replyText) return NextResponse.json({ skipped: 'empty_response' });
+
+    // Guard against a double reply: during the (multi-second) Claude call a
+    // parallel ai-reply or a human could have already responded. Re-check the
+    // latest message; only post if the operator is still the last to speak.
+    const { data: latest } = await sb
+      .from('ticket_messages')
+      .select('sender_type')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest && latest.sender_type !== 'operator') {
+      return NextResponse.json({ skipped: 'superseded' });
+    }
 
     const { error: insertErr } = await sb.from('ticket_messages').insert({
       ticket_id: ticketId,

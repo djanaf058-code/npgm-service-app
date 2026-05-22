@@ -60,6 +60,10 @@ interface ShiftTonsRow {
   started_at: string | null;
 }
 
+interface CompletedEventRow {
+  machine_id: string;
+}
+
 interface ActiveShiftRow {
   id: string;
   status: 'in_progress' | 'planned' | 'blocked';
@@ -77,6 +81,7 @@ export default function DashboardContent() {
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleFull[]>([]);
   const [shiftTons, setShiftTons] = useState<ShiftTonsRow[]>([]);
+  const [completedEvents, setCompletedEvents] = useState<CompletedEventRow[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
   const [activeShifts, setActiveShifts] = useState<ActiveShiftRow[]>([]);
@@ -104,7 +109,7 @@ export default function DashboardContent() {
           .from('parts_requests')
           .select('id', { count: 'exact', head: true });
 
-        const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp, shiftTonsResp] = await Promise.all([
+        const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp, shiftTonsResp, eventsCountResp] = await Promise.all([
           supabase
             .from('machines')
             .select('id, machine_type, model_code, internal_name, tons_pumped, status')
@@ -141,6 +146,12 @@ export default function DashboardContent() {
             .not('actual_tons', 'is', null)
             .order('planned_for', { ascending: false, nullsFirst: false })
             .limit(300),
+          // Completed maintenance events — to detect overdue machines (services
+          // crossed by tonnage but never performed).
+          supabase
+            .from('maintenance_events')
+            .select('machine_id')
+            .eq('status', 'completed'),
         ]);
         setMachines((machinesResp.data ?? []) as MachineRow[]);
         setSchedules((schedulesResp.data ?? []) as unknown as ScheduleFull[]);
@@ -148,6 +159,7 @@ export default function DashboardContent() {
         setOpenTicketsCount(ticketsResp.count ?? 0);
         setActiveShifts((shiftsResp.data ?? []) as unknown as ActiveShiftRow[]);
         setShiftTons((shiftTonsResp.data ?? []) as ShiftTonsRow[]);
+        setCompletedEvents((eventsCountResp.data ?? []) as CompletedEventRow[]);
       } finally {
         setDataLoading(false);
       }
@@ -172,10 +184,21 @@ export default function DashboardContent() {
     return map;
   }, [shiftTons]);
 
+  const completedByMachine = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of completedEvents) map[e.machine_id] = (map[e.machine_id] ?? 0) + 1;
+    return map;
+  }, [completedEvents]);
+
   const upcomingMaintenance = useMemo(() => {
     return machines
       .map((m) => {
-        const f = forecastNextMaintenance(m.machine_type, Number(m.tons_pumped), schedules);
+        const f = forecastNextMaintenance(
+          m.machine_type,
+          Number(m.tons_pumped),
+          schedules,
+          completedByMachine[m.id] ?? 0
+        );
         if (!f) return null;
         const rateInfo = rateByMachine[m.id] ?? { rate: DEFAULT_TONS_PER_DAY, isReal: false };
         const schedule = schedules.find((s) => s.id === f.schedule_id) ?? null;
@@ -191,7 +214,7 @@ export default function DashboardContent() {
       .filter((x): x is NonNullable<typeof x> => x !== null)
       .sort((a, b) => a.days - b.days)
       .slice(0, 3);
-  }, [machines, schedules, rateByMachine]);
+  }, [machines, schedules, rateByMachine, completedByMachine]);
 
   const greeting = user?.full_name || user?.email?.split('@')[0] || t('default_greeting');
   const roleHero = isProjectManager

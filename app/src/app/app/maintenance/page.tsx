@@ -74,6 +74,7 @@ export default function MaintenancePage() {
   const [schedules, setSchedules] = useState<ScheduleFull[]>([]);
   const [activeEvents, setActiveEvents] = useState<EventRow[]>([]);
   const [shiftTons, setShiftTons] = useState<ShiftTonsRow[]>([]);
+  const [completedByMachine, setCompletedByMachine] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +84,7 @@ export default function MaintenancePage() {
         const client = await createSPASassClient();
         const supabase = client.getSupabaseClient();
 
-        const [machinesResp, schedulesResp, eventsResp, shiftTonsResp] = await Promise.all([
+        const [machinesResp, schedulesResp, eventsResp, shiftTonsResp, completedEventsResp] = await Promise.all([
           supabase
             .from('machines')
             .select('id, machine_type, model_code, internal_name, tons_pumped, status')
@@ -106,6 +107,10 @@ export default function MaintenancePage() {
             .not('actual_tons', 'is', null)
             .order('planned_for', { ascending: false, nullsFirst: false })
             .limit(300),
+          supabase
+            .from('maintenance_events')
+            .select('machine_id')
+            .eq('status', 'completed'),
         ]);
 
         if (machinesResp.error) throw machinesResp.error;
@@ -116,6 +121,11 @@ export default function MaintenancePage() {
         setSchedules((schedulesResp.data ?? []) as unknown as ScheduleFull[]);
         setActiveEvents((eventsResp.data ?? []) as unknown as EventRow[]);
         setShiftTons((shiftTonsResp.data ?? []) as ShiftTonsRow[]);
+        const counts: Record<string, number> = {};
+        for (const e of (completedEventsResp.data ?? []) as { machine_id: string }[]) {
+          counts[e.machine_id] = (counts[e.machine_id] ?? 0) + 1;
+        }
+        setCompletedByMachine(counts);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('list.load_failed'));
       } finally {
@@ -160,7 +170,8 @@ export default function MaintenancePage() {
         const forecast = forecastNextMaintenance(
           m.machine_type,
           Number(m.tons_pumped),
-          schedules
+          schedules,
+          completedByMachine[m.id] ?? 0
         );
         const inFlight = inFlightByMachine.get(m.id) ?? [];
         const blocking = forecast
@@ -178,7 +189,7 @@ export default function MaintenancePage() {
         const db = estimateDaysUntilDue(b.forecast.tons_remaining, b.rateInfo.rate);
         return da - db;
       });
-  }, [machines, schedules, activeEvents, rateByMachine]);
+  }, [machines, schedules, activeEvents, rateByMachine, completedByMachine]);
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">

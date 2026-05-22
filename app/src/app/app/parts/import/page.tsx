@@ -69,6 +69,7 @@ export default function PartsImportPage() {
 
   const [review, setReview] = useState<ReviewRow[]>([]);
   const [importedCount, setImportedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -154,8 +155,10 @@ export default function PartsImportPage() {
       if (article && byArticle.has(norm(article))) matchedId = byArticle.get(norm(article))!;
       else if (name && byName.has(norm(name))) matchedId = byName.get(norm(name))!;
       built.push({
+        // 0 when the quantity is blank/unparseable — surfaced in review and
+        // excluded from import until the user fills it in (never silently 1).
         name: name || article || '—',
-        qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
+        qty: Number.isFinite(qty) && qty > 0 ? qty : 0,
         article,
         matchedId,
         action: matchedId ? 'matched' : 'custom',
@@ -179,9 +182,12 @@ export default function PartsImportPage() {
     return { matched, custom, skip };
   }, [review]);
 
-  const importable = review.filter((r) => r.action !== 'skip');
+  // Only rows with a real quantity and not skipped are importable.
+  const importable = review.filter((r) => r.action !== 'skip' && r.qty > 0);
+  const missingQtyCount = review.filter((r) => r.action !== 'skip' && r.qty <= 0).length;
 
   // ---- Step 3: import ----
+  // Throws on any DB error so the caller can count the row as failed.
   const upsertInventory = async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sb: any,
@@ -196,21 +202,23 @@ export default function PartsImportPage() {
       .is('machine_id', null)
       .maybeSingle();
     if (existing) {
-      await sb
+      const { error: upErr } = await sb
         .from('parts_inventory')
         .update({
           quantity: Number(existing.quantity) + qty,
           last_replenished_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
+      if (upErr) throw upErr;
     } else {
-      await sb.from('parts_inventory').insert({
+      const { error: insErr } = await sb.from('parts_inventory').insert({
         company_id: companyId,
         part_id: partId,
         machine_id: null,
         quantity: qty,
         last_replenished_at: new Date().toISOString(),
       });
+      if (insErr) throw insErr;
     }
   };
 
@@ -226,33 +234,46 @@ export default function PartsImportPage() {
       const client = await createSPASassClient();
       const sb = client.getSupabaseClient();
       let count = 0;
+      let failed = 0;
       for (const r of importable) {
-        let partId: string | null = null;
-        if (r.action === 'matched') partId = r.matchedId;
-        else if (r.action === 'pick') partId = r.pickedId || null;
-        else if (r.action === 'custom') {
-          const { data: created, error: cErr } = await sb
-            .from('parts_catalog')
-            .insert({
-              display_name_ru: r.name,
-              category: 'consumable',
-              manufacturer: 'Прочее',
-              part_number: r.article || `IMPORT-${Date.now().toString().slice(-6)}-${count}`,
-              unit: 'pcs',
-              compatible_machine_types: ALL_MACHINE_TYPES,
-              is_custom: true,
-              created_by_company_id: companyId,
-            })
-            .select('id')
-            .single();
-          if (cErr || !created) continue;
-          partId = (created as { id: string }).id;
+        try {
+          let partId: string | null = null;
+          if (r.action === 'matched') partId = r.matchedId;
+          else if (r.action === 'pick') partId = r.pickedId || null;
+          else if (r.action === 'custom') {
+            const { data: created, error: cErr } = await sb
+              .from('parts_catalog')
+              .insert({
+                display_name_ru: r.name,
+                category: 'consumable',
+                manufacturer: 'Прочее',
+                // Unique enough to avoid part_number collisions across re-runs.
+                part_number: r.article || `IMPORT-${crypto.randomUUID().slice(0, 8)}`,
+                unit: 'pcs',
+                compatible_machine_types: ALL_MACHINE_TYPES,
+                is_custom: true,
+                created_by_company_id: companyId,
+              })
+              .select('id')
+              .single();
+            if (cErr || !created) {
+              failed++;
+              continue;
+            }
+            partId = (created as { id: string }).id;
+          }
+          if (!partId) {
+            failed++;
+            continue;
+          }
+          await upsertInventory(sb, partId, r.qty);
+          count++;
+        } catch {
+          failed++;
         }
-        if (!partId) continue;
-        await upsertInventory(sb, partId, r.qty);
-        count++;
       }
       setImportedCount(count);
+      setFailedCount(failed);
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('import_failed'));
@@ -474,15 +495,20 @@ export default function PartsImportPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <Input
                         type="number"
                         step="0.001"
                         min="0"
-                        value={r.qty}
+                        value={r.qty || ''}
                         onChange={(e) => setRow(i, { qty: parseFloat(e.target.value) || 0 })}
-                        className="w-20 h-9 text-right tabular-nums"
+                        className={`w-20 h-9 text-right tabular-nums ${
+                          !isSkip && r.qty <= 0 ? 'border-accent-400 ring-1 ring-accent-300' : ''
+                        }`}
                       />
+                      {!isSkip && r.qty <= 0 && (
+                        <span className="text-[10px] text-accent-700">{t('qty_required')}</span>
+                      )}
                     </div>
                   </div>
 
@@ -516,6 +542,12 @@ export default function PartsImportPage() {
             })}
           </div>
 
+          {missingQtyCount > 0 && (
+            <p className="text-xs text-accent-700">
+              {t('missing_qty_note', { count: missingQtyCount })}
+            </p>
+          )}
+
           <div className="flex items-center justify-between gap-3 flex-wrap pt-3 border-t border-secondary-100">
             <p className="text-xs text-secondary-500 tabular-nums">
               {t('summary', { matched: summary.matched, custom: summary.custom, skip: summary.skip })}
@@ -533,7 +565,10 @@ export default function PartsImportPage() {
         <Card className="p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
           <h3 className="font-heading font-semibold text-secondary-900 mb-1">{t('done_title')}</h3>
-          <p className="text-sm text-secondary-600 mb-6">{t('done_desc', { count: importedCount })}</p>
+          <p className="text-sm text-secondary-600 mb-2">{t('done_desc', { count: importedCount })}</p>
+          {failedCount > 0 && (
+            <p className="text-sm text-accent-700 mb-6">{t('done_failed', { count: failedCount })}</p>
+          )}
           <Button onClick={() => router.replace('/app/parts')}>{t('to_garage')}</Button>
         </Card>
       )}
