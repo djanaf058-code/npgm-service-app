@@ -10,7 +10,6 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Truck,
@@ -20,7 +19,6 @@ import {
   ChevronRight,
   Box,
   ShoppingCart,
-  AlertTriangle,
   Activity,
 } from 'lucide-react';
 import { useGlobal, useRole } from '@/lib/context/GlobalContext';
@@ -28,16 +26,38 @@ import { createSPASassClient } from '@/lib/supabase/client';
 import {
   forecastNextMaintenance,
   estimateDaysUntilDue,
+  computeAvgTonsPerDay,
+  DEFAULT_TONS_PER_DAY,
   type ScheduleSummary,
 } from '@/lib/calculations/maintenance';
-import type { MaintenanceKind, PartsRequestStatus } from '@/lib/types';
+import { MaintenanceForecastCard } from '@/components/maintenance/MaintenanceForecastCard';
+import type {
+  MaintenanceKind,
+  PartsRequestStatus,
+  MaintenanceWorkItem,
+  MaintenanceBomItem,
+} from '@/lib/types';
 
 interface MachineRow {
   id: string;
   machine_type: string;
   model_code: string;
+  internal_name: string | null;
   tons_pumped: number;
   status: string;
+}
+
+interface ScheduleFull extends ScheduleSummary {
+  work_items: MaintenanceWorkItem[] | null;
+  parts_required: MaintenanceBomItem[] | null;
+  total_hours_norm: number | null;
+}
+
+interface ShiftTonsRow {
+  machine_id: string;
+  actual_tons: number | null;
+  planned_for: string | null;
+  started_at: string | null;
 }
 
 interface ActiveShiftRow {
@@ -55,7 +75,8 @@ export default function DashboardContent() {
   const { loading: globalLoading, user } = useGlobal();
   const { isOperator, isProjectManager, isPlatformAdmin } = useRole();
   const [machines, setMachines] = useState<MachineRow[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleFull[]>([]);
+  const [shiftTons, setShiftTons] = useState<ShiftTonsRow[]>([]);
   const [activeRequestsCount, setActiveRequestsCount] = useState<number | null>(null);
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
   const [activeShifts, setActiveShifts] = useState<ActiveShiftRow[]>([]);
@@ -83,15 +104,15 @@ export default function DashboardContent() {
           .from('parts_requests')
           .select('id', { count: 'exact', head: true });
 
-        const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp] = await Promise.all([
+        const [machinesResp, schedulesResp, requestsResp, ticketsResp, shiftsResp, shiftTonsResp] = await Promise.all([
           supabase
             .from('machines')
-            .select('id, machine_type, model_code, tons_pumped, status')
+            .select('id, machine_type, model_code, internal_name, tons_pumped, status')
             .eq('status', 'active')
             .order('model_code'),
           supabase
             .from('maintenance_schedules')
-            .select('id, machine_type, kind, interval_tons, alternates_with'),
+            .select('id, machine_type, kind, interval_tons, alternates_with, work_items, parts_required, total_hours_norm'),
           requestsActionFilter
             ? requestsCountQuery.in('status', requestsActionFilter)
             : requestsCountQuery
@@ -111,12 +132,22 @@ export default function DashboardContent() {
             .in('status', ['in_progress', 'planned', 'blocked'])
             .order('started_at', { ascending: false, nullsFirst: false })
             .limit(5),
+          // Completed shifts with actual tonnage — used to estimate each
+          // machine's real charging rate (tons/day) for the forecast.
+          supabase
+            .from('shifts')
+            .select('machine_id, actual_tons, planned_for, started_at')
+            .eq('status', 'completed')
+            .not('actual_tons', 'is', null)
+            .order('planned_for', { ascending: false, nullsFirst: false })
+            .limit(300),
         ]);
         setMachines((machinesResp.data ?? []) as MachineRow[]);
-        setSchedules((schedulesResp.data ?? []) as ScheduleSummary[]);
+        setSchedules((schedulesResp.data ?? []) as unknown as ScheduleFull[]);
         setActiveRequestsCount(requestsResp.count ?? 0);
         setOpenTicketsCount(ticketsResp.count ?? 0);
         setActiveShifts((shiftsResp.data ?? []) as unknown as ActiveShiftRow[]);
+        setShiftTons((shiftTonsResp.data ?? []) as ShiftTonsRow[]);
       } finally {
         setDataLoading(false);
       }
@@ -124,21 +155,43 @@ export default function DashboardContent() {
     load();
   }, [user]);
 
+  // Per-machine charging rate (tons/day) from completed shifts.
+  const rateByMachine = useMemo(() => {
+    const grouped: Record<string, { date: string | null; actual_tons: number | null }[]> = {};
+    for (const s of shiftTons) {
+      (grouped[s.machine_id] ??= []).push({
+        date: s.planned_for ?? s.started_at,
+        actual_tons: s.actual_tons,
+      });
+    }
+    const map: Record<string, { rate: number; isReal: boolean }> = {};
+    for (const [mid, pts] of Object.entries(grouped)) {
+      const real = computeAvgTonsPerDay(pts);
+      map[mid] = real != null ? { rate: real, isReal: true } : { rate: DEFAULT_TONS_PER_DAY, isReal: false };
+    }
+    return map;
+  }, [shiftTons]);
+
   const upcomingMaintenance = useMemo(() => {
     return machines
       .map((m) => {
         const f = forecastNextMaintenance(m.machine_type, Number(m.tons_pumped), schedules);
         if (!f) return null;
+        const rateInfo = rateByMachine[m.id] ?? { rate: DEFAULT_TONS_PER_DAY, isReal: false };
+        const schedule = schedules.find((s) => s.id === f.schedule_id) ?? null;
         return {
           machine: m,
           forecast: f,
-          days: estimateDaysUntilDue(f.tons_remaining),
+          days: estimateDaysUntilDue(f.tons_remaining, rateInfo.rate),
+          rate: rateInfo.rate,
+          rateIsReal: rateInfo.isReal,
+          schedule,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => a.forecast.tons_remaining - b.forecast.tons_remaining)
+      .sort((a, b) => a.days - b.days)
       .slice(0, 3);
-  }, [machines, schedules]);
+  }, [machines, schedules, rateByMachine]);
 
   const greeting = user?.full_name || user?.email?.split('@')[0] || t('default_greeting');
   const roleHero = isProjectManager
@@ -308,53 +361,24 @@ export default function DashboardContent() {
           </Card>
         ) : (
           <div className="grid gap-3">
-            {upcomingMaintenance.map(({ machine, forecast, days }) => {
-              const tonsRem = forecast.tons_remaining;
-              const urgency =
-                tonsRem === 0 ? 'critical' : tonsRem < 200 ? 'high' : tonsRem < 500 ? 'medium' : 'low';
-              const urgencyStyle = {
-                critical: 'border-accent-300 bg-accent-50/30',
-                high: 'border-amber-300 bg-amber-50/30',
-                medium: 'border-secondary-200',
-                low: 'border-secondary-200',
-              }[urgency];
-
-              return (
-                <Card key={machine.id} className={`p-4 ${urgencyStyle}`}>
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
-                        {urgency === 'critical' ? (
-                          <AlertTriangle className="w-4 h-4 text-accent-600" />
-                        ) : (
-                          <Truck className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium text-secondary-900">{machine.model_code}</h3>
-                          <Badge variant="outline">{machine.machine_type}</Badge>
-                        </div>
-                        <p className="text-sm text-secondary-600 mt-0.5">
-                          <strong>{kindLabel(forecast.next_kind)}</strong> {t('kind_through')}{' '}
-                          <strong className="tabular-nums">
-                            {Number(tonsRem).toLocaleString('ru-RU')} {t('tons_unit')}
-                          </strong>
-                          {days < 365 && <> · {t('days_approx', { days })}</>}
-                        </p>
-                      </div>
-                    </div>
-                    <Button asChild size="sm" variant={urgency === 'critical' ? 'default' : 'outline'}>
-                      <Link
-                        href={`/app/maintenance/new?machine=${machine.id}&schedule=${forecast.schedule_id}`}
-                      >
-                        {t('submit_request')}
-                      </Link>
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
+            {upcomingMaintenance.map(({ machine, forecast, days, rate, rateIsReal, schedule }) => (
+              <MaintenanceForecastCard
+                key={machine.id}
+                machineId={machine.id}
+                machineLabel={machine.internal_name?.trim() || machine.model_code}
+                machineType={machine.machine_type}
+                modelCode={machine.model_code}
+                kindLabel={kindLabel(forecast.next_kind)}
+                tonsRemaining={forecast.tons_remaining}
+                days={days}
+                rate={rate}
+                rateIsReal={rateIsReal}
+                workItems={schedule?.work_items ?? []}
+                partsRequired={schedule?.parts_required ?? []}
+                totalHours={schedule?.total_hours_norm ?? null}
+                requestHref={`/app/maintenance/new?machine=${machine.id}&schedule=${forecast.schedule_id}`}
+              />
+            ))}
           </div>
         )}
       </section>

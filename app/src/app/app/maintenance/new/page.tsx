@@ -173,7 +173,9 @@ function NewMaintenanceRequestInner() {
         .single();
       if (insertErr || !event) throw insertErr ?? new Error(t('new.err_create_failed'));
 
-      router.push(`/app/maintenance/${(event as { id: string }).id}`);
+      // replace (not push): drop the form from history so "back" lands on the
+      // list/dashboard, not back inside the just-submitted form.
+      router.replace(`/app/maintenance/${(event as { id: string }).id}`);
     } catch (err) {
       let msg: string;
       if (err instanceof Error) msg = err.message;

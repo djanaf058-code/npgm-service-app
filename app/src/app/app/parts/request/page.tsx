@@ -207,7 +207,9 @@ export default function PartsRequestPage() {
         .single();
       if (insertErr || !req) throw insertErr ?? new Error(t('err_create_failed'));
 
-      router.push(`/app/parts/request/${(req as { id: string }).id}`);
+      // replace (not push): drop the form from history so "back" lands on the
+      // garage list, not back inside the just-submitted request form.
+      router.replace(`/app/parts/request/${(req as { id: string }).id}`);
     } catch (err) {
       let msg: string;
       if (err instanceof Error) msg = err.message;

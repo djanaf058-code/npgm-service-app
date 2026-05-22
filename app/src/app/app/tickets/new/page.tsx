@@ -125,7 +125,9 @@ export default function NewTicketPage() {
         // intentional — see comment above
       });
 
-      router.push(`/app/tickets/${ticketId}`);
+      // replace (not push): drop the form from history so "back" lands on the
+      // tickets list, not back inside the just-created ticket form.
+      router.replace(`/app/tickets/${ticketId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_send'));
       setSubmitting(false);

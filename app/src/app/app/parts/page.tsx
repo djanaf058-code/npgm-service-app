@@ -19,6 +19,7 @@ import {
   ListChecks,
   Clock,
   Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal, useRole } from '@/lib/context/GlobalContext';
@@ -320,10 +321,18 @@ export default function PartsPage() {
             </Button>
           )}
           {isProjectManager && (
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="w-4 h-4" />
-              {t('add_stock')}
-            </Button>
+            <>
+              <Button asChild variant="outline">
+                <Link href="/app/parts/import">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  {t('import_from_file')}
+                </Link>
+              </Button>
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="w-4 h-4" />
+                {t('add_stock')}
+              </Button>
+            </>
           )}
         </div>
       </div>

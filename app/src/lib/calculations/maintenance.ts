@@ -84,15 +84,59 @@ export function forecastNextMaintenance(
   };
 }
 
+/** Fallback charging rate when a machine has too few shifts to infer its own. */
+export const DEFAULT_TONS_PER_DAY = 30;
+
+/** How many days before the due date a service request must be filed. */
+export const REQUEST_LEAD_DAYS = 30;
+
+export interface ShiftTonsPoint {
+  /** planned_for or started_at — any parseable date string */
+  date: string | null;
+  actual_tons: number | null;
+}
+
 /**
- * Convert tons_remaining → estimated days, assuming a default daily charging rate.
- * Tunable via the avgTonsPerDay parameter; default 30 t/day is a starting point
- * we'll calibrate from real shift data in Sprint 1.11.
+ * Estimate a machine's real charging rate (tons/day) from its completed shifts.
+ * Sums actual tons over the calendar span between the earliest and latest shift.
+ * Returns null when there isn't enough signal (fewer than 2 dated shifts, or
+ * all on the same day) — the caller then falls back to DEFAULT_TONS_PER_DAY.
+ */
+export function computeAvgTonsPerDay(shifts: ShiftTonsPoint[]): number | null {
+  const points = shifts
+    .filter((s) => s.actual_tons != null && s.actual_tons > 0 && s.date)
+    .map((s) => ({ t: new Date(s.date as string).getTime(), tons: s.actual_tons as number }))
+    .filter((p) => Number.isFinite(p.t))
+    .sort((a, b) => a.t - b.t);
+  if (points.length < 2) return null;
+  const totalTons = points.reduce((sum, p) => sum + p.tons, 0);
+  const spanDays = (points[points.length - 1].t - points[0].t) / 86_400_000;
+  if (spanDays < 1) return null;
+  return totalTons / spanDays;
+}
+
+/**
+ * Convert tons_remaining → estimated days using a daily charging rate.
+ * Pass a rate computed from real shifts; defaults to DEFAULT_TONS_PER_DAY.
  */
 export function estimateDaysUntilDue(
   tonsRemaining: number,
-  avgTonsPerDay = 30
+  avgTonsPerDay: number = DEFAULT_TONS_PER_DAY
 ): number {
   if (avgTonsPerDay <= 0) return Number.POSITIVE_INFINITY;
   return Math.ceil(tonsRemaining / avgTonsPerDay);
+}
+
+export type MaintenanceUrgency = 'overdue' | 'due_soon' | 'upcoming' | 'ok';
+
+/**
+ * Urgency tier driven by estimated days-to-due. A request must be filed
+ * REQUEST_LEAD_DAYS (30) before the due date, so anything within that window
+ * (or already past) is the "act now" red zone.
+ */
+export function urgencyFromDays(days: number, tonsRemaining: number): MaintenanceUrgency {
+  if (tonsRemaining <= 0 || days <= 0) return 'overdue';
+  if (days <= REQUEST_LEAD_DAYS) return 'due_soon';
+  if (days <= 60) return 'upcoming';
+  return 'ok';
 }
