@@ -50,6 +50,14 @@
     "logout": "Sign out",
     "loading": "Loading..."
   },
+  "charging_input": {
+    "machine_prefix": "Machine type",
+    "emulsion": "Emulsion (EM), t",
+    "an": "Ammonium nitrate (AN), t",
+    "diesel": "Diesel fuel, t",
+    "total_plan": "Total planned tons",
+    "total_actual": "Total actual tons"
+  },
   "machine_types": {
     "МЗВ": "100% Emulsion MMU",
     "МЗУ": "70/30% Blended MMU",
@@ -658,6 +666,9 @@
       "checklist_no_executions": "Checklist not performed",
       "operator_note_label": "Operator note:",
       "close_shift_title": "Closing the shift",
+      "close_engine_hours_label": "Engine hours this shift",
+      "close_engine_hours_placeholder": "8",
+      "close_engine_hours_hint": "Hours the engine ran this shift — added to the machine's running hours.",
       "close_notes_label": "Notes",
       "close_notes_placeholder": "What happened during the shift…",
       "close_cancel": "Cancel",

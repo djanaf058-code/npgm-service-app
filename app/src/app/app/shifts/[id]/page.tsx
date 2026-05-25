@@ -20,6 +20,7 @@ import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ShiftStatusBadge } from '@/components/shifts/ShiftStatusBadge';
 import { ChargingPlanInput, type ChargingPlanValue } from '@/components/shifts/ChargingPlanInput';
@@ -84,6 +85,7 @@ export default function ShiftDetailPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [actualValue, setActualValue] = useState<ChargingPlanValue | null>(null);
   const [actualNotes, setActualNotes] = useState('');
+  const [actualEngineHours, setActualEngineHours] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const reload = async () => {
@@ -147,11 +149,13 @@ export default function ShiftDetailPage() {
           actual_emulsion_tons: actualValue.emulsionTons,
           actual_an_tons: actualValue.anTons,
           actual_diesel_tons: actualValue.dieselTons,
+          actual_engine_hours: actualEngineHours ? parseFloat(actualEngineHours.replace(',', '.')) : null,
           actual_notes: actualNotes.trim() || null,
         })
         .eq('id', shift.id);
       if (err) throw err;
-      // The DB trigger increments machines.tons_pumped automatically.
+      // The DB trigger increments machines.tons_pumped AND engine_hours
+      // (from actual_engine_hours) automatically.
       await reload();
       setCloseOpen(false);
     } catch (err) {
@@ -437,6 +441,21 @@ export default function ShiftDetailPage() {
             onChange={setActualValue}
             variant="actual"
           />
+          <div className="mt-3">
+            <Label htmlFor="actualEngineHours">{t('close_engine_hours_label')}</Label>
+            <Input
+              id="actualEngineHours"
+              type="number"
+              step="0.1"
+              min="0"
+              inputMode="decimal"
+              value={actualEngineHours}
+              onChange={(e) => setActualEngineHours(e.target.value)}
+              placeholder={t('close_engine_hours_placeholder')}
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-secondary-500">{t('close_engine_hours_hint')}</p>
+          </div>
           <div className="mt-3">
             <Label htmlFor="actualNotes">{t('close_notes_label')}</Label>
             <Textarea

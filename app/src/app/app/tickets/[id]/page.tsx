@@ -220,20 +220,16 @@ export default function TicketDetailPage() {
       });
       if (insertErr) throw insertErr;
 
-      // If status was 'new' or 'awaiting_operator' and a service_engineer/tier2 replies →
-      // bump to tier2_responding; if operator replies → keep as is or mark awaiting_operator depending.
+      // Engineer/tier2 replies to a new ticket → "tier2 responding".
+      // Operator replies to an "awaiting operator" ticket → it goes BACK into
+      // the engineer's queue as needs-response ('new'), NOT "tier2 responding"
+      // (the engineer hasn't replied yet — the operator just answered).
       if (ticket && senderTypeForMe !== 'operator' && ticket.status === 'new') {
-        await supabase
-          .from('tickets')
-          .update({ status: 'tier2_responding' })
-          .eq('id', ticketId);
+        await supabase.from('tickets').update({ status: 'tier2_responding' }).eq('id', ticketId);
         setTicket({ ...ticket, status: 'tier2_responding' });
       } else if (ticket && senderTypeForMe === 'operator' && ticket.status === 'awaiting_operator') {
-        await supabase
-          .from('tickets')
-          .update({ status: 'tier2_responding' })
-          .eq('id', ticketId);
-        setTicket({ ...ticket, status: 'tier2_responding' });
+        await supabase.from('tickets').update({ status: 'new' }).eq('id', ticketId);
+        setTicket({ ...ticket, status: 'new' });
       }
 
       setReply('');

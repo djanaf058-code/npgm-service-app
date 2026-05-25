@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { getRecipeSpec, type ComponentMix } from '@/lib/calculations/recipes';
@@ -49,6 +50,9 @@ export function ChargingPlanInput({
   variant = 'plan',
   disabled = false,
 }: Props) {
+  const t = useTranslations('charging_input');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'ru-RU';
   const spec = useMemo(() => getRecipeSpec(machineType), [machineType]);
 
   // Which components this machine type uses.
@@ -113,17 +117,18 @@ export function ChargingPlanInput({
     return em + ann + dl;
   }, [emulsion, an, diesel, shows.emulsion, shows.an, shows.diesel]);
 
-  const labelTons = variant === 'plan' ? 'плановые тонны' : 'фактические тонны';
+  const totalLabel = variant === 'plan' ? t('total_plan') : t('total_actual');
+  const reqMark = variant === 'plan' ? ' *' : '';
 
   return (
     <div className="space-y-4">
       <div className="text-xs text-secondary-600 px-1">
-        <strong>{machineType ?? '—'}:</strong> {spec.label}
+        <strong>{t('machine_prefix')}:</strong> {machineType ?? '—'}
       </div>
 
       {shows.emulsion && (
         <div>
-          <Label htmlFor="cmpEm">Эмульсия (ЭМ), т *</Label>
+          <Label htmlFor="cmpEm">{t('emulsion')} *</Label>
           <Input
             id="cmpEm"
             type="number"
@@ -141,7 +146,7 @@ export function ChargingPlanInput({
 
       {shows.an && (
         <div>
-          <Label htmlFor="cmpAn">Аммиачная селитра (АС), т {variant === 'plan' ? '*' : ''}</Label>
+          <Label htmlFor="cmpAn">{t('an')}{reqMark}</Label>
           <Input
             id="cmpAn"
             type="number"
@@ -159,7 +164,7 @@ export function ChargingPlanInput({
 
       {shows.diesel && (
         <div>
-          <Label htmlFor="cmpDiesel">Дизельное топливо, т {variant === 'plan' ? '*' : ''}</Label>
+          <Label htmlFor="cmpDiesel">{t('diesel')}{reqMark}</Label>
           <Input
             id="cmpDiesel"
             type="number"
@@ -176,11 +181,9 @@ export function ChargingPlanInput({
       )}
 
       <div className="rounded-md border border-secondary-200 bg-secondary-50/40 px-3 py-2 flex items-center justify-between text-sm">
-        <span className="text-secondary-600">
-          Итого {labelTons}:
-        </span>
+        <span className="text-secondary-600">{totalLabel}:</span>
         <strong className="tabular-nums text-secondary-900">
-          {totalNum > 0 ? totalNum.toLocaleString('ru-RU') : '—'} т
+          {totalNum > 0 ? totalNum.toLocaleString(numLocale) : '—'}
         </strong>
       </div>
     </div>

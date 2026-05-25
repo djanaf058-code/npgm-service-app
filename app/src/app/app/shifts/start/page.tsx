@@ -650,9 +650,9 @@ function AnswerButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${colors}`}
+      className={`inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[64px] px-4 py-2 rounded-md text-sm font-medium border transition-colors ${colors}`}
     >
-      <Icon className="w-3 h-3" />
+      <Icon className="w-4 h-4" />
       {label}
     </button>
   );

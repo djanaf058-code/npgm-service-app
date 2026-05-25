@@ -18,6 +18,15 @@ export async function POST(request: NextRequest) {
     .from('machines').select('id, company_id').eq('id', body.machine_id).maybeSingle();
   if (mErr || !machine) return NextResponse.json({ error: 'machine_not_found' }, { status: 404 });
 
+  // Authorize: the machine must belong to the caller's company. The admin
+  // client bypasses RLS, so this check is what prevents cross-tenant access
+  // (opening an AI chat scoped to another company's machine + manuals).
+  const { data: profile } = await adminAny
+    .from('profiles').select('company_id').eq('id', user.id).single();
+  if (!profile || profile.company_id !== machine.company_id) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
   // Find existing active conversation or create new
   const { data: existing } = await adminAny
     .from('ai_conversations')

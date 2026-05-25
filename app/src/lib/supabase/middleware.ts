@@ -38,10 +38,11 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname
     const isProtectedAppRoute = path.startsWith('/app')
+    const isAdminRoute = path.startsWith('/admin')
     const isOnboardingRoute = path === '/auth/onboarding'
 
-    // Not logged in → block /app/*
-    if (!authedUser && isProtectedAppRoute) {
+    // Not logged in → block /app/* and /admin/*
+    if (!authedUser && (isProtectedAppRoute || isAdminRoute)) {
         const url = request.nextUrl.clone()
         url.pathname = '/auth/login'
         return NextResponse.redirect(url)
@@ -50,7 +51,7 @@ export async function updateSession(request: NextRequest) {
     // Logged in → role/onboarding-aware redirects.
     // platform_admin is cross-tenant: they intentionally have company_id=NULL
     // and should never see the onboarding screen — they land in /admin.
-    if (authedUser && (isProtectedAppRoute || isOnboardingRoute)) {
+    if (authedUser && (isProtectedAppRoute || isAdminRoute || isOnboardingRoute)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const {data: profile} = await (supabase as any)
             .from('profiles')
@@ -60,6 +61,14 @@ export async function updateSession(request: NextRequest) {
 
         const hasCompany = !!profile?.company_id
         const isPlatformAdmin = profile?.role === 'platform_admin'
+
+        // Server-side gate for /admin/*: only platform_admin may enter; bounce
+        // everyone else to their app (the client guard was defense-in-depth only).
+        if (isAdminRoute && !isPlatformAdmin) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/app'
+            return NextResponse.redirect(url)
+        }
 
         if (isPlatformAdmin) {
             // Send admin to /admin from either /app root or onboarding.

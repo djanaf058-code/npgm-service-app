@@ -57,10 +57,18 @@ function detectLanguage(s: string): 'ru' | 'en' {
 }
 
 export async function POST(request: NextRequest) {
-  // Trusted endpoint — protected by cron header secret. Set CRON_SECRET in env
-  // for production; for pilot, missing CRON_SECRET means anyone can call it.
-  const cronSecret = request.headers.get('x-cron-secret');
-  if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  // Cron-only endpoint (runs on a service-role client). Fail CLOSED: if the
+  // secret isn't configured, reject — never allow anonymous calls.
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
+  }
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Also accept an
+  // explicit `x-cron-secret` header for manual/testing triggers.
+  const authHeader = request.headers.get('authorization');
+  const headerSecret = request.headers.get('x-cron-secret');
+  const ok = authHeader === `Bearer ${secret}` || headerSecret === secret;
+  if (!ok) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 

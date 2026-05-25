@@ -184,8 +184,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     {user ? getInitials(user.email) : '??'}
                                 </span>
                             </div>
-                            <span>{user?.email || tMenu('loading')}</span>
-                            <ChevronDown className="h-4 w-4"/>
+                            <span className="hidden sm:inline truncate max-w-[160px] md:max-w-[220px]">{user?.email || tMenu('loading')}</span>
+                            <ChevronDown className="h-4 w-4 flex-shrink-0"/>
                         </button>
 
                         {isUserDropdownOpen && (

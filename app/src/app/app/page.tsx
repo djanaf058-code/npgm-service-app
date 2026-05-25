@@ -86,6 +86,7 @@ export default function DashboardContent() {
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
   const [activeShifts, setActiveShifts] = useState<ActiveShiftRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   const kindLabel = (kind: MaintenanceKind) => tKind(kind);
 
@@ -153,6 +154,13 @@ export default function DashboardContent() {
             .select('machine_id')
             .eq('status', 'completed'),
         ]);
+        // Surface a query error instead of silently rendering an empty
+        // (deceptively "healthy") dashboard.
+        const firstErr =
+          machinesResp.error || schedulesResp.error || shiftsResp.error ||
+          shiftTonsResp.error || eventsCountResp.error;
+        if (firstErr) throw firstErr;
+
         setMachines((machinesResp.data ?? []) as MachineRow[]);
         setSchedules((schedulesResp.data ?? []) as unknown as ScheduleFull[]);
         setActiveRequestsCount(requestsResp.count ?? 0);
@@ -160,6 +168,8 @@ export default function DashboardContent() {
         setActiveShifts((shiftsResp.data ?? []) as unknown as ActiveShiftRow[]);
         setShiftTons((shiftTonsResp.data ?? []) as ShiftTonsRow[]);
         setCompletedEvents((eventsCountResp.data ?? []) as CompletedEventRow[]);
+      } catch (err) {
+        setDataError(err instanceof Error ? err.message : 'Не удалось загрузить данные');
       } finally {
         setDataLoading(false);
       }
@@ -239,6 +249,11 @@ export default function DashboardContent() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
+      {dataError && (
+        <div className="p-3 text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md whitespace-pre-wrap">
+          {dataError}
+        </div>
+      )}
       {/* Hero — signature mesh-gradient surface */}
       <div className="rounded-xl mesh-hero text-white p-6 md:p-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1 bg-accent-600 z-10" />

@@ -50,6 +50,14 @@
     "logout": "Выйти",
     "loading": "Loading..."
   },
+  "charging_input": {
+    "machine_prefix": "Тип машины",
+    "emulsion": "Эмульсия (ЭМ), т",
+    "an": "Аммиачная селитра (АС), т",
+    "diesel": "Дизельное топливо, т",
+    "total_plan": "Итого плановые тонны",
+    "total_actual": "Итого фактические тонны"
+  },
   "machine_types": {
     "МЗВ": "Машина зарядная эмульсионная",
     "МЗУ": "Машина зарядная универсальная (смесевая 70/30)",
@@ -658,6 +666,9 @@
       "checklist_no_executions": "Чек-лист не выполнен",
       "operator_note_label": "Примечание оператора:",
       "close_shift_title": "Закрытие смены",
+      "close_engine_hours_label": "Моточасы за смену",
+      "close_engine_hours_placeholder": "8",
+      "close_engine_hours_hint": "Сколько часов отработал двигатель за смену — прибавится к наработке машины.",
       "close_notes_label": "Примечания",
       "close_notes_placeholder": "Что произошло за смену…",
       "close_cancel": "Отмена",
