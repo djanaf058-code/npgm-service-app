@@ -75,17 +75,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // Sidebar entries differ by role. Operators get a focused view (their work),
     // company admins get the full company-wide management surface, and Tier 2
     // (НПГМ side) gets the cross-tenant view.
+    // Service engineer is scoped to answering tickets: Tickets + Fleet (for
+    // machine context) + Maintenance. No parts/shifts/team (those belong to
+    // operators / project managers / the NPGM admin who issues quotes).
     const baseNav = [
         { nameKey: 'home', href: '/app', icon: Home, roles: ['all'] },
         { nameKey: 'machines', href: '/app/machines', icon: Truck, roles: ['all'] },
         { nameKey: 'shifts', href: '/app/shifts', icon: ClipboardCheck,
-          roles: ['operator', 'service_engineer', 'project_manager'] },
+          roles: ['operator', 'project_manager'] },
         { nameKey: 'tickets', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
         { nameKey: 'maintenance', href: '/app/maintenance', icon: Wrench,
           roles: ['service_engineer', 'project_manager', 'platform_admin'] },
         { nameKey: 'parts', href: '/app/parts', icon: Box,
-          roles: ['operator', 'service_engineer', 'project_manager'] },
-        { nameKey: 'team', href: '/app/team', icon: Users, roles: ['project_manager', 'service_engineer'] },
+          roles: ['operator', 'project_manager'] },
+        { nameKey: 'team', href: '/app/team', icon: Users, roles: ['project_manager'] },
         { nameKey: 'admin_panel', href: '/admin', icon: Shield, roles: ['platform_admin'] },
         { nameKey: 'profile', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
