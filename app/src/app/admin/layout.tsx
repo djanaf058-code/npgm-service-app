@@ -13,6 +13,7 @@ import {
 import { GlobalProvider, useGlobal, useRole } from '@/lib/context/GlobalContext';
 import Logo from '@/components/Logo';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { EscalationsListener } from '@/components/admin/EscalationsListener';
 import { useTranslations } from 'next-intl';
 import { Toaster } from 'sonner';
@@ -78,8 +79,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             Admin
           </span>
         </div>
-        <div className="mt-3 mb-4">
+        <div className="mt-3 mb-4 flex items-center gap-2">
           <LocaleSwitcher />
+          <NotificationsBell />
         </div>
         <nav className="space-y-1">
           {adminNav.map((item) => {

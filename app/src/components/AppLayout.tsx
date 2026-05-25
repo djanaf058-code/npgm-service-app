@@ -22,6 +22,7 @@ import { useGlobal, useRole } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 import { LocaleSwitcher } from "@/components/i18n/LocaleSwitcher";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import { useTranslations } from 'next-intl';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -175,6 +176,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </button>
 
                     <div className="ml-auto flex items-center gap-3">
+                        <NotificationsBell />
                         <LocaleSwitcher />
 
                     <div className="relative">

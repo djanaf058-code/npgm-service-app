@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import {
   ArrowLeft,
   Send,
@@ -11,10 +12,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Camera,
+  Package,
+  X as XIcon,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
@@ -55,6 +60,8 @@ export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
   const ticketId = params.id;
   const { user } = useGlobal();
+  const locale = useLocale();
+  const L = (ru: string, en: string) => (locale === 'en' ? en : ru);
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -69,6 +76,13 @@ export default function TicketDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [myProfile, setMyProfile] = useState<{ role: string; full_name: string } | null>(null);
+
+  // "Need a part" — engineer flags a part needed for the fix → routes to admin.
+  const [needPartOpen, setNeedPartOpen] = useState(false);
+  const [partDesc, setPartDesc] = useState('');
+  const [partQty, setPartQty] = useState('1');
+  const [partSubmitting, setPartSubmitting] = useState(false);
+  const [partDone, setPartDone] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -256,6 +270,42 @@ export default function TicketDetailPage() {
     }
   };
 
+  const handleNeedPart = async () => {
+    if (!ticket || !user) return;
+    if (partDesc.trim().length < 2) return;
+    setPartSubmitting(true);
+    setError(null);
+    try {
+      const client = await createSPASassClient();
+      const supabase = client.getSupabaseClient();
+      const qty = parseFloat(partQty.replace(',', '.'));
+      // status 'forwarded' → lands directly in the NPGM admin queue (the admin
+      // issues the quote). Linked to the ticket via notes for traceability.
+      const { error: insErr } = await supabase.from('parts_requests').insert({
+        company_id: ticket.company_id,
+        machine_id: ticket.machine?.id ?? null,
+        status: 'forwarded',
+        urgency: 'urgent',
+        parts_freeform: [
+          {
+            description: partDesc.trim(),
+            quantity_estimate: Number.isFinite(qty) && qty > 0 ? qty : 1,
+          },
+        ],
+        notes: `По тикету: ${ticket.title ?? ticket.id}`,
+        requested_by: user.id,
+      });
+      if (insErr) throw insErr;
+      setPartDone(true);
+      setPartDesc('');
+      setPartQty('1');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось создать заявку на запчасть');
+    } finally {
+      setPartSubmitting(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!ticket) return;
     // Closing as 'resolved' goes through the dialog so we capture a
@@ -398,6 +448,19 @@ export default function TicketDetailPage() {
                   </option>
                 ))}
               </Select>
+              {['service_engineer', 'tier2_engineer', 'platform_admin'].includes(myProfile?.role ?? '') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPartDone(false);
+                    setNeedPartOpen(true);
+                  }}
+                >
+                  <Package className="w-4 h-4" />
+                  {L('Нужна запчасть', 'Need a part')}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -490,6 +553,83 @@ export default function TicketDetailPage() {
         isAIEscalation={ticket.originated_from === 'ai_escalation'}
         onSubmit={handleResolveSubmit}
       />
+
+      {/* "Need a part" modal — routes a parts request to the NPGM admin */}
+      {needPartOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 backdrop-blur-sm p-4"
+          onClick={() => setNeedPartOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-secondary-200">
+              <h2 className="font-heading text-lg font-semibold text-secondary-900">
+                {L('Нужна запчасть', 'Need a part')}
+              </h2>
+              <button onClick={() => setNeedPartOpen(false)} className="text-secondary-500 hover:text-secondary-900">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {partDone ? (
+              <div className="p-6 text-center">
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
+                <p className="text-sm text-secondary-700 mb-5">
+                  {L(
+                    'Заявка на запчасть отправлена в НПГМ. Администратор подготовит КП.',
+                    'Parts request sent to NPGM. The admin will prepare a quote.'
+                  )}
+                </p>
+                <Button onClick={() => setNeedPartOpen(false)}>{L('Готово', 'Done')}</Button>
+              </div>
+            ) : (
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-secondary-500">
+                  {L(
+                    'Опишите нужную деталь — заявка уйдёт администратору НПГМ для коммерческого предложения.',
+                    'Describe the part needed — the request goes to the NPGM admin for a quote.'
+                  )}
+                </p>
+                <div>
+                  <Label htmlFor="partDesc">{L('Деталь', 'Part')}</Label>
+                  <Textarea
+                    id="partDesc"
+                    value={partDesc}
+                    onChange={(e) => setPartDesc(e.target.value)}
+                    placeholder={L('Например: уплотнение НК-25', 'e.g. seal NK-25')}
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="partQty">{L('Количество', 'Quantity')}</Label>
+                  <Input
+                    id="partQty"
+                    type="number"
+                    step="1"
+                    min="1"
+                    inputMode="decimal"
+                    value={partQty}
+                    onChange={(e) => setPartQty(e.target.value)}
+                    className="mt-1 max-w-[120px]"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-secondary-100">
+                  <Button variant="outline" onClick={() => setNeedPartOpen(false)}>
+                    {L('Отмена', 'Cancel')}
+                  </Button>
+                  <Button onClick={handleNeedPart} disabled={partSubmitting || partDesc.trim().length < 2}>
+                    {partSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                    {L('Отправить заявку', 'Send request')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

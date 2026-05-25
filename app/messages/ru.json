@@ -50,6 +50,17 @@
     "logout": "Выйти",
     "loading": "Loading..."
   },
+  "notifications": {
+    "title": "Уведомления",
+    "mark_all_read": "Прочитать все",
+    "empty": "Уведомлений пока нет",
+    "type": {
+      "ticket_operator_msg": "Новое сообщение в тикете",
+      "ticket_answer": "Ответ по вашему тикету",
+      "parts_request": "Новая заявка на запчасть (нужно КП)",
+      "generic": "Уведомление"
+    }
+  },
   "charging_input": {
     "machine_prefix": "Тип машины",
     "emulsion": "Эмульсия (ЭМ), т",

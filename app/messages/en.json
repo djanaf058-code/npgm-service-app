@@ -50,6 +50,17 @@
     "logout": "Sign out",
     "loading": "Loading..."
   },
+  "notifications": {
+    "title": "Notifications",
+    "mark_all_read": "Mark all read",
+    "empty": "No notifications yet",
+    "type": {
+      "ticket_operator_msg": "New ticket message",
+      "ticket_answer": "Reply on your ticket",
+      "parts_request": "New parts request (quote needed)",
+      "generic": "Notification"
+    }
+  },
   "charging_input": {
     "machine_prefix": "Machine type",
     "emulsion": "Emulsion (EM), t",
