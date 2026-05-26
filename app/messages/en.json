@@ -41,7 +41,7 @@
     "service_engineer": "Service engineer",
     "project_manager": "Project manager",
     "company_admin": "Service manager",
-    "tier2_engineer": "NPGM Tier 2",
+    "tier2_engineer": "NPGM Service Engineer",
     "platform_admin": "NPGM Platform"
   },
   "user_menu": {
@@ -58,6 +58,14 @@
       "ticket_operator_msg": "New ticket message",
       "ticket_answer": "Reply on your ticket",
       "parts_request": "New parts request (quote needed)",
+      "parts_submitted": "New parts request",
+      "parts_pending_pm": "Consolidated request to approve",
+      "parts_forwarded": "Request forwarded to NPGM",
+      "parts_quoted": "Quote issued",
+      "parts_approved": "Quote approved",
+      "parts_ordered": "Order placed",
+      "parts_received": "Parts received",
+      "parts_cancelled": "Request cancelled",
       "generic": "Notification"
     }
   },
@@ -801,7 +809,15 @@
     "delete_confirm_prompt_part1": "Enter",
     "delete_confirm_prompt_part2": "to confirm:",
     "delete_failed": "Could not delete",
-    "delete_forever": "Delete permanently"
+    "delete_forever": "Delete permanently",
+    "register_engineer": "NPGM engineer",
+    "engineer_dialog_title": "Register NPGM engineer",
+    "engineer_dialog_desc": "The NPGM service engineer sees tickets and parts requests across all companies. Prices and quotes stay with you only.",
+    "engineer_field_name": "Full name *",
+    "engineer_field_email": "Email *",
+    "engineer_create": "Create account",
+    "engineer_created": "Account created. Send the engineer this link — they set a password and sign in:",
+    "engineer_failed": "Could not register the engineer"
   },
   "admin_queue": {
     "title": "Consolidated requests queue",

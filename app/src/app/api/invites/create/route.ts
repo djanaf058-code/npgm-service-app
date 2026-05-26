@@ -11,14 +11,20 @@ interface CreateInviteBody {
   target_company_id?: string;
 }
 
-// Who can create what kind of anonymous link. service_engineer is capped to
-// the same operational roles they have peer access to; project_manager and
-// platform_admin can also issue project_manager links.
+// Who can create what kind of anonymous link. service_engineer and
+// project_manager have operational parity, so both hand out the full
+// customer-side set. platform_admin additionally registers НПГМ-side
+// engineers (tier2_engineer) — see NPGM_INTERNAL_ROLES below.
 const ROLES_BY_INVITER: Partial<Record<UserRole, UserRole[]>> = {
-  service_engineer: ['operator', 'service_engineer'],
+  service_engineer: ['operator', 'service_engineer', 'project_manager'],
   project_manager: ['operator', 'service_engineer', 'project_manager'],
-  platform_admin: ['operator', 'service_engineer', 'project_manager'],
+  platform_admin: ['operator', 'service_engineer', 'project_manager', 'tier2_engineer'],
 };
+
+// НПГМ-internal roles are cross-tenant — they don't belong to a customer
+// company. They inherit the inviter's (platform_admin's) own company_id, which
+// is NULL by design, so target_company_id is neither required nor accepted.
+const NPGM_INTERNAL_ROLES: UserRole[] = ['tier2_engineer'];
 
 // Cryptographically random URL-safe token, ~22 chars from 16 bytes.
 function generateToken(): string {
@@ -67,10 +73,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Эту роль вы не можете назначить' }, { status: 403 });
   }
 
-  // Resolve target company. Same rule as preregister: platform_admin picks,
-  // everyone else gets their own.
+  // Resolve target company.
+  //  - НПГМ-internal role (tier2): cross-tenant, inherits the admin's own
+  //    company_id (NULL) — no target needed.
+  //  - platform_admin inviting a customer-side role: must pick the tenant.
+  //  - everyone else: their own company.
   let targetCompanyId: string | null = profile.company_id ?? null;
-  if (profile.role === 'platform_admin') {
+  if (NPGM_INTERNAL_ROLES.includes(body.role)) {
+    targetCompanyId = profile.company_id ?? null;
+  } else if (profile.role === 'platform_admin') {
     targetCompanyId = body.target_company_id ?? null;
     if (!targetCompanyId) {
       return NextResponse.json(

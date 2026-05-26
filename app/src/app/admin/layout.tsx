@@ -18,10 +18,13 @@ import { EscalationsListener } from '@/components/admin/EscalationsListener';
 import { useTranslations } from 'next-intl';
 import { Toaster } from 'sonner';
 
-// Admin route tree (/admin/*) is for platform_admin only — НПГМ side. The
-// regular customer-facing app lives at /app/* with its own AppLayout.
+// Admin route tree (/admin/*) is the НПГМ side. Two roles live here:
+//  - platform_admin (owner): everything, incl. the company list + pricing.
+//  - tier2_engineer (НПГМ service engineer): tickets + parts queue only.
+//    The company list (and creating companies / inviting NPGM staff) is
+//    admin-only — marked `adminOnly` and filtered out for tier2.
 const adminNav = [
-  { nameKey: 'admin_companies', href: '/admin', icon: Building2 },
+  { nameKey: 'admin_companies', href: '/admin', icon: Building2, adminOnly: true },
   { nameKey: 'admin_queue', href: '/admin/queue/parts', icon: ShoppingCart },
   { nameKey: 'admin_tickets', href: '/admin/tickets', icon: MessageSquareText },
   { nameKey: 'profile', href: '/app/user-settings', icon: UserIcon, external: true },
@@ -39,20 +42,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useGlobal();
-  const { isPlatformAdmin } = useRole();
+  const { isPlatformAdmin, isTier2Engineer } = useRole();
+  const allowed = isPlatformAdmin || isTier2Engineer;
   const router = useRouter();
   const pathname = usePathname();
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
 
-  // Bounce non-admins back to the customer app. Has to live in an effect:
-  // calling router.replace during render triggers a setState on the Router
-  // while rendering this component, which React flags as an anti-pattern.
+  // Bounce anyone who isn't НПГМ-side back to the customer app, and send
+  // tier2 (who has no company list) straight to their tickets queue if they
+  // land on the admin root. Has to live in an effect: calling router.replace
+  // during render triggers a setState on the Router while rendering, which
+  // React flags as an anti-pattern.
   useEffect(() => {
-    if (!loading && !isPlatformAdmin) {
+    if (loading) return;
+    if (!allowed) {
       router.replace('/app');
+    } else if (isTier2Engineer && pathname === '/admin') {
+      router.replace('/admin/tickets');
     }
-  }, [loading, isPlatformAdmin, router]);
+  }, [loading, allowed, isTier2Engineer, pathname, router]);
 
   if (loading) {
     return (
@@ -63,10 +72,12 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isPlatformAdmin) {
+  if (!allowed) {
     // Render nothing while the effect above pushes the redirect through.
     return null;
   }
+
+  const visibleNav = adminNav.filter((item) => !item.adminOnly || isPlatformAdmin);
 
   return (
     <div className="min-h-screen bg-secondary-50 flex">
@@ -76,7 +87,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="mb-6 flex items-center gap-2">
           <Logo variant="full" width={140} height={28} />
           <span className="text-[10px] uppercase tracking-wider font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
-            Admin
+            {isPlatformAdmin ? 'Admin' : 'НПГМ'}
           </span>
         </div>
         <div className="mt-3 mb-4 flex items-center gap-2">
@@ -84,7 +95,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           <NotificationsBell />
         </div>
         <nav className="space-y-1">
-          {adminNav.map((item) => {
+          {visibleNav.map((item) => {
             const active =
               pathname === item.href ||
               (item.href !== '/admin' && pathname.startsWith(item.href + '/')) ||

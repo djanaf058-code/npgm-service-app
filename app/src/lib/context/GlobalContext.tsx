@@ -101,9 +101,16 @@ export const useGlobal = () => {
 // Derived role flags for UI gating. Use these instead of comparing role strings
 // directly in components — keeps the role taxonomy in one place.
 //
-// Active roles: operator, service_engineer, project_manager, platform_admin.
-// Legacy values still in the DB enum (company_admin, tier2_engineer) are not
-// exposed here — nothing in the app should be branching on them.
+// Two sides:
+//  - Customer tenant: operator, service_engineer, project_manager. The
+//    service_engineer has full operational parity with project_manager
+//    (machines, shifts, team, tickets, ТО, building parts requests) — the
+//    ONLY thing reserved for project_manager is the financial step: seeing
+//    quote prices and approving the КП (see PriceField / RequestActionPanel).
+//  - НПГМ side (cross-tenant): tier2_engineer (НПГМ service engineer — tickets
+//    + parts queue, no prices) and platform_admin (owner — everything).
+// Legacy value company_admin remains in the DB enum but is migrated away and
+// must not be branched on.
 export function useRole() {
     const { user, loading } = useGlobal();
     const role = user?.role ?? null;
@@ -113,11 +120,15 @@ export function useRole() {
         isOperator: role === 'operator',
         isServiceEngineer: role === 'service_engineer',
         isProjectManager: role === 'project_manager',
+        // НПГМ-side service engineer: cross-tenant tickets + parts, no prices.
+        isTier2Engineer: role === 'tier2_engineer',
         isPlatformAdmin: role === 'platform_admin',
         // "Manages company" — sees everything inside the company, can invite/admin.
-        canManageCompany: role === 'project_manager' || role === 'platform_admin',
-        // "Can invite teammates" — service_engineer can pre-register operators
-        // and peers; project_manager additionally invites other PMs.
+        // service_engineer has the same operational reach as project_manager.
+        canManageCompany:
+            role === 'service_engineer' || role === 'project_manager' || role === 'platform_admin',
+        // "Can invite teammates" — service_engineer and project_manager can both
+        // pre-register the full customer-side role set (operator/SE/PM).
         canInviteTeam:
             role === 'service_engineer' || role === 'project_manager' || role === 'platform_admin',
         // "Manages machines" — service_engineer can also CRUD machines now.

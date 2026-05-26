@@ -40,19 +40,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         isOperator,
         isServiceEngineer,
         isProjectManager,
+        isTier2Engineer,
         isPlatformAdmin,
         role,
     } = useRole();
 
-    // Platform admin lives in /admin. Bounce them off the customer-facing
-    // dashboard at /app, but let them deep-link to specific /app/* pages
-    // (e.g. /app/machines/[id]) from the admin tree so they can inspect a
-    // tenant's data without a parallel UI.
+    // НПГМ-side roles (platform_admin + tier2_engineer) live in /admin. Bounce
+    // them off the customer-facing dashboard at /app, but let them deep-link to
+    // specific /app/* pages (e.g. /app/parts/request/[id]) from the admin tree
+    // so they can inspect a tenant's data without a parallel UI.
     useEffect(() => {
-        if (!globalLoading && isPlatformAdmin && pathname === '/app') {
+        if (
+            !globalLoading &&
+            (isPlatformAdmin || isTier2Engineer) &&
+            pathname === '/app'
+        ) {
             router.replace('/admin');
         }
-    }, [globalLoading, isPlatformAdmin, pathname, router]);
+    }, [globalLoading, isPlatformAdmin, isTier2Engineer, pathname, router]);
 
     const handleLogout = async () => {
         try {
@@ -73,23 +78,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             : parts[0].slice(0, 2).toUpperCase();
     };
 
-    // Sidebar entries differ by role. Operators get a focused view (their work),
-    // company admins get the full company-wide management surface, and Tier 2
-    // (НПГМ side) gets the cross-tenant view.
-    // Service engineer is scoped to answering tickets: Tickets + Fleet (for
-    // machine context) + Maintenance. No parts/shifts/team (those belong to
-    // operators / project managers / the NPGM admin who issues quotes).
+    // Sidebar entries differ by role. Operators get a focused view (their own
+    // work). service_engineer and project_manager share the full company-wide
+    // surface — same nav — because the customer-side service engineer has
+    // operational parity with the PM (the difference is only price/КП access,
+    // gated separately in the parts components, not here).
     const baseNav = [
         { nameKey: 'home', href: '/app', icon: Home, roles: ['all'] },
         { nameKey: 'machines', href: '/app/machines', icon: Truck, roles: ['all'] },
         { nameKey: 'shifts', href: '/app/shifts', icon: ClipboardCheck,
-          roles: ['operator', 'project_manager'] },
+          roles: ['operator', 'service_engineer', 'project_manager'] },
         { nameKey: 'tickets', href: '/app/tickets', icon: MessageSquareText, roles: ['all'] },
         { nameKey: 'maintenance', href: '/app/maintenance', icon: Wrench,
           roles: ['service_engineer', 'project_manager', 'platform_admin'] },
         { nameKey: 'parts', href: '/app/parts', icon: Box,
-          roles: ['operator', 'project_manager'] },
-        { nameKey: 'team', href: '/app/team', icon: Users, roles: ['project_manager'] },
+          roles: ['operator', 'service_engineer', 'project_manager'] },
+        { nameKey: 'team', href: '/app/team', icon: Users,
+          roles: ['service_engineer', 'project_manager'] },
         { nameKey: 'admin_panel', href: '/admin', icon: Shield, roles: ['platform_admin'] },
         { nameKey: 'profile', href: '/app/user-settings', icon: User, roles: ['all'] },
     ];
@@ -101,6 +106,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         ? { label: tRoles('project_manager'), tone: 'bg-primary-50 text-primary-700' }
         : isServiceEngineer
         ? { label: tRoles('service_engineer'), tone: 'bg-primary-50 text-primary-700' }
+        : isTier2Engineer
+        ? { label: tRoles('tier2_engineer'), tone: 'bg-accent-50 text-accent-700' }
         : isPlatformAdmin
         ? { label: tRoles('platform_admin'), tone: 'bg-accent-50 text-accent-700' }
         : isOperator

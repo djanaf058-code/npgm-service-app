@@ -25,7 +25,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   service_engineer: 'Сервисного инженера',
   project_manager: 'Проектного менеджера',
   company_admin: 'Руководителя сервисной службы',
-  tier2_engineer: 'НПГМ Tier 2',
+  tier2_engineer: 'Сервисного инженера НПГМ',
   platform_admin: 'Платформа',
 };
 

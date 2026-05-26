@@ -59,8 +59,9 @@ interface InviteRow {
 // and any future API checks line up.
 function rolesForInviter(role: UserRole | null): UserRole[] {
   switch (role) {
+    // service_engineer has operational parity with project_manager, so both
+    // hand out the full customer-side set.
     case 'service_engineer':
-      return ['operator', 'service_engineer'];
     case 'project_manager':
     case 'platform_admin':
       return ['operator', 'service_engineer', 'project_manager'];

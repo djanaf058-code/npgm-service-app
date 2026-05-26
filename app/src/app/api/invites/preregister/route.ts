@@ -13,13 +13,19 @@ interface CreatePreRegisterBody {
   target_company_id?: string;
 }
 
-// Who can pre-register whom. The list is the inviter's allow-list; missing
-// keys (operator, tier2_engineer, deprecated company_admin) get no rights.
+// Who can pre-register whom. service_engineer and project_manager have
+// operational parity (both register the full customer-side set);
+// platform_admin additionally registers НПГМ-side engineers (tier2_engineer).
+// Missing keys (operator, deprecated company_admin) get no rights.
 const ROLES_BY_INVITER: Partial<Record<UserRole, UserRole[]>> = {
-  service_engineer: ['operator', 'service_engineer'],
+  service_engineer: ['operator', 'service_engineer', 'project_manager'],
   project_manager: ['operator', 'service_engineer', 'project_manager'],
-  platform_admin: ['operator', 'service_engineer', 'project_manager'],
+  platform_admin: ['operator', 'service_engineer', 'project_manager', 'tier2_engineer'],
 };
+
+// НПГМ-internal roles are cross-tenant — they inherit the admin's own
+// company_id (NULL by design); target_company_id is neither required nor used.
+const NPGM_INTERNAL_ROLES: UserRole[] = ['tier2_engineer'];
 
 function generateToken(): string {
   return randomBytes(16).toString('base64url');
@@ -70,11 +76,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // 3a. Resolve the target company. Platform admins can hand-pick a tenant
-  // via target_company_id (they don't belong to a single customer company);
-  // everyone else can only invite into their own.
+  // 3a. Resolve the target company.
+  //  - НПГМ-internal role (tier2): cross-tenant, inherits the admin's own
+  //    company_id (NULL) — no target picked.
+  //  - platform_admin inviting a customer-side role: hand-picks the tenant.
+  //  - everyone else: their own company.
   let targetCompanyId: string | null = profile.company_id ?? null;
-  if (profile.role === 'platform_admin') {
+  if (NPGM_INTERNAL_ROLES.includes(body.role)) {
+    targetCompanyId = profile.company_id ?? null;
+  } else if (profile.role === 'platform_admin') {
     targetCompanyId = body.target_company_id ?? null;
     if (!targetCompanyId) {
       return NextResponse.json(

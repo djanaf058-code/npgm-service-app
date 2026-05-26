@@ -11,6 +11,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
+import { useRole } from '@/lib/context/GlobalContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -38,6 +39,12 @@ export default function AdminTicketsPage() {
   const t = useTranslations('admin_tickets');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+  // platform_admin inspects tickets read-only at /admin/tickets/[id]. The НПГМ
+  // service engineer (tier2) actually answers them, so route them to the
+  // /app/tickets/[id] view which carries the reply box + tier2 sender logic.
+  const { isTier2Engineer } = useRole();
+  const ticketHref = (id: string) =>
+    isTier2Engineer ? `/app/tickets/${id}` : `/admin/tickets/${id}`;
   const [tickets, setTickets] = useState<AdminTicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +176,7 @@ export default function AdminTicketsPage() {
           {filtered.map((tk) => (
             <Link
               key={tk.id}
-              href={`/admin/tickets/${tk.id}`}
+              href={ticketHref(tk.id)}
               className="block bg-white border border-secondary-200 rounded-xl p-4 hover:border-primary-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-start gap-3 flex-wrap">

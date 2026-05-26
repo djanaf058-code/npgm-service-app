@@ -12,6 +12,9 @@ import {
   Loader2,
   Plus,
   Trash2,
+  UserPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +50,7 @@ export default function AdminCompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [registerEngineerOpen, setRegisterEngineerOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
 
   const reload = async () => {
@@ -113,10 +117,16 @@ export default function AdminCompaniesPage() {
             {t('companies_subtitle')}
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4" />
-          {t('create_company')}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setRegisterEngineerOpen(true)}>
+            <UserPlus className="w-4 h-4" />
+            {t('register_engineer')}
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4" />
+            {t('create_company')}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -210,7 +220,153 @@ export default function AdminCompaniesPage() {
           reload();
         }}
       />
+
+      <RegisterEngineerDialog
+        open={registerEngineerOpen}
+        onOpenChange={setRegisterEngineerOpen}
+      />
     </div>
+  );
+}
+
+// =========================================================================
+// Register NPGM service engineer (tier2_engineer) — cross-tenant, company-less.
+// Pre-registers the account and returns a set-password activation link.
+// =========================================================================
+
+function RegisterEngineerDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useTranslations('admin');
+  const tCommon = useTranslations('common');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName('');
+      setEmail('');
+      setErr(null);
+      setLink(null);
+      setCopied(false);
+    }
+  }, [open]);
+
+  const submit = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      const resp = await fetch('/api/invites/preregister', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'tier2_engineer',
+          email: email.trim(),
+          full_name: name.trim(),
+        }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? t('engineer_failed'));
+      setLink(`${window.location.origin}${json.path}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable — user can select the text manually */
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('engineer_dialog_title')}</DialogTitle>
+          <DialogDescription>{t('engineer_dialog_desc')}</DialogDescription>
+        </DialogHeader>
+
+        {!link ? (
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="eng_name">{t('engineer_field_name')}</Label>
+              <Input
+                id="eng_name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ivan Petrov"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label htmlFor="eng_email">{t('engineer_field_email')}</Label>
+              <Input
+                id="eng_email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="engineer@npgm.ru"
+              />
+            </div>
+            {err && (
+              <p className="text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md p-2 whitespace-pre-wrap">
+                {err}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-emerald-900 font-medium">{t('engineer_created')}</p>
+            <p className="text-xs text-secondary-700 font-mono break-all bg-white border border-secondary-200 rounded p-2">
+              {link}
+            </p>
+          </div>
+        )}
+
+        <DialogFooter>
+          {!link ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+                {tCommon('cancel')}
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy || name.trim().length < 2 || !email.trim()}
+              >
+                {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('engineer_create')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                {tCommon('close')}
+              </Button>
+              <Button onClick={copy}>
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? tCommon('copied') : tCommon('copy')}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

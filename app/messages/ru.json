@@ -41,7 +41,7 @@
     "service_engineer": "Сервисный инженер",
     "project_manager": "Проектный менеджер",
     "company_admin": "Руководитель сервисной службы",
-    "tier2_engineer": "НПГМ Tier 2",
+    "tier2_engineer": "Сервисный инженер НПГМ",
     "platform_admin": "НПГМ — Платформа"
   },
   "user_menu": {
@@ -58,6 +58,14 @@
       "ticket_operator_msg": "Новое сообщение в тикете",
       "ticket_answer": "Ответ по вашему тикету",
       "parts_request": "Новая заявка на запчасть (нужно КП)",
+      "parts_submitted": "Новая заявка на запчасти",
+      "parts_pending_pm": "Сводная заявка на согласование",
+      "parts_forwarded": "Заявка переслана в НПГМ",
+      "parts_quoted": "Выставлено КП",
+      "parts_approved": "КП согласовано",
+      "parts_ordered": "Заказ размещён",
+      "parts_received": "Запчасти получены",
+      "parts_cancelled": "Заявка отменена",
       "generic": "Уведомление"
     }
   },
@@ -801,7 +809,15 @@
     "delete_confirm_prompt_part1": "Введите",
     "delete_confirm_prompt_part2": "для подтверждения:",
     "delete_failed": "Не удалось удалить",
-    "delete_forever": "Удалить навсегда"
+    "delete_forever": "Удалить навсегда",
+    "register_engineer": "Инженер НПГМ",
+    "engineer_dialog_title": "Регистрация инженера НПГМ",
+    "engineer_dialog_desc": "Сервисный инженер НИПИГОРМАШ видит тикеты и заявки на запчасти всех компаний. Цены и КП остаются только у вас.",
+    "engineer_field_name": "ФИО *",
+    "engineer_field_email": "Email *",
+    "engineer_create": "Создать аккаунт",
+    "engineer_created": "Аккаунт создан. Передайте инженеру ссылку — по ней он задаёт пароль и входит:",
+    "engineer_failed": "Не удалось зарегистрировать инженера"
   },
   "admin_queue": {
     "title": "Очередь сводных заявок",
