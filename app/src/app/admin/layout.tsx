@@ -124,12 +124,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-secondary-500 truncate">
             {user?.full_name || user?.email}
           </p>
-          <Link
-            href="/app"
-            className="text-xs text-primary-600 hover:underline mt-1 inline-block"
-          >
-            {tNav('back_to_app')}
-          </Link>
+          {/* Tier2 lives in /admin and gets redirected back here from /app —
+              don't dangle a misleading link to a dashboard they can't use. */}
+          {isPlatformAdmin && (
+            <Link
+              href="/app"
+              className="text-xs text-primary-600 hover:underline mt-1 inline-block"
+            >
+              {tNav('back_to_app')}
+            </Link>
+          )}
         </div>
       </aside>
 
