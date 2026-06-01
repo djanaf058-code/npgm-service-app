@@ -70,6 +70,42 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Phase 0: clear tenant-scoped tables that have RESTRICT (or NO ACTION) FK
+  // to profiles. Without this we hit a circular block: companies can't be
+  // deleted while their profiles exist (profiles.company_id RESTRICT), and
+  // profiles can't be deleted while tickets / shifts / ai_conversations /
+  // maintenance_events / parts_requests / invites point at them. All these
+  // tables ARE company-scoped with ON DELETE CASCADE off the company — we
+  // just fire that cascade ahead of time, by company_id, so the user delete
+  // in Phase 1 stops hitting FK violations bubbling up as Supabase Auth's
+  // "Database error deleting user".
+  //
+  // ai_conversations cascades ai_messages; tickets cascade ticket_messages;
+  // shifts cascade checklist_executions — no need to delete those children
+  // explicitly. machine_assignments / tickets.resolved_by /
+  // manual_chunks.verified_by all CASCADE / SET NULL off profiles so they
+  // resolve themselves when the user actually gets deleted.
+  const cascadeFirst = [
+    'ai_conversations',
+    'tickets',
+    'shifts',
+    'maintenance_events',
+    'parts_requests',
+    'invites',
+  ] as const;
+  for (const tbl of cascadeFirst) {
+    const { error: clearErr } = await adminAny
+      .from(tbl)
+      .delete()
+      .eq('company_id', body.company_id);
+    if (clearErr) {
+      return NextResponse.json(
+        { error: `Не удалось очистить ${tbl}: ${clearErr.message}` },
+        { status: 500 }
+      );
+    }
+  }
+
   // Phase 1: delete every auth user in this tenant (cascades their profile).
   const { data: members, error: membersErr } = await adminAny
     .from('profiles')
@@ -90,8 +126,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Phase 2: the company itself. machines, tickets, parts_requests, etc.
-  // cascade off companies.id.
+  // Phase 2: the company itself. machines, parts catalog rows, etc. cascade
+  // off companies.id (the rest was wiped in Phase 0).
   const { error: deleteErr } = await adminAny
     .from('companies')
     .delete()
