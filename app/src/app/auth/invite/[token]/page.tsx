@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2, UserPlus, Building2, AlertTriangle, CheckCircle2, LogIn } from 'lucide-react';
@@ -20,18 +21,11 @@ interface InvitePreview {
   accepted: boolean;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  operator: 'Оператора',
-  service_engineer: 'Сервисного инженера',
-  project_manager: 'Проектного менеджера',
-  company_admin: 'Руководителя сервисной службы',
-  tier2_engineer: 'члена команды НПГМ',
-  platform_admin: 'Платформа',
-};
-
 const PENDING_INVITE_KEY = 'npgm.pending_invite_token';
 
 export default function InviteLandingPage() {
+  const t = useTranslations('auth_invite');
+  const tRoles = useTranslations('roles');
   const params = useParams<{ token: string }>();
   const router = useRouter();
   const token = params.token;
@@ -53,7 +47,7 @@ export default function InviteLandingPage() {
           createSPASassClient(),
         ]);
         const previewJson = await previewResp.json();
-        if (!previewResp.ok) throw new Error(previewJson.error ?? 'Не удалось загрузить приглашение');
+        if (!previewResp.ok) throw new Error(previewJson.error ?? t('preview_load_failed'));
         const supabase = client.getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (cancelled) return;
@@ -112,7 +106,7 @@ export default function InviteLandingPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Проверяем приглашение…
+        {t('loading')}
       </div>
     );
   }
@@ -122,13 +116,13 @@ export default function InviteLandingPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Приглашение недоступно
+          {t('unavailable_title')}
         </h2>
         <p className="text-sm text-secondary-600 mb-4 whitespace-pre-wrap">
-          {error ?? 'Не нашли это приглашение.'}
+          {error ?? t('unavailable_default')}
         </p>
         <Button asChild variant="outline">
-          <Link href="/">На главную</Link>
+          <Link href="/">{t('back_home')}</Link>
         </Button>
       </Card>
     );
@@ -139,13 +133,11 @@ export default function InviteLandingPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Приглашение уже принято
+          {t('accepted_title')}
         </h2>
-        <p className="text-sm text-secondary-600 mb-4">
-          Эта ссылка одноразовая — она уже использована. Если это были вы — войдите как обычно.
-        </p>
+        <p className="text-sm text-secondary-600 mb-4">{t('accepted_desc')}</p>
         <Button asChild>
-          <Link href="/auth/login">Войти</Link>
+          <Link href="/auth/login">{t('login')}</Link>
         </Button>
       </Card>
     );
@@ -156,11 +148,9 @@ export default function InviteLandingPage() {
       <Card className="p-8 max-w-md mx-auto text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h2 className="font-heading font-semibold text-secondary-900 mb-2">
-          Срок приглашения истёк
+          {t('expired_title')}
         </h2>
-        <p className="text-sm text-secondary-600 mb-4">
-          Попросите руководителя выпустить новое приглашение.
-        </p>
+        <p className="text-sm text-secondary-600 mb-4">{t('expired_desc')}</p>
       </Card>
     );
   }
@@ -172,57 +162,51 @@ export default function InviteLandingPage() {
           <Building2 className="w-6 h-6" />
         </div>
         <h2 className="font-heading text-xl font-semibold text-secondary-900">
-          Приглашение в команду
+          {t('title')}
         </h2>
         {preview.company_name && (
           <p className="text-secondary-700 mt-1">{preview.company_name}</p>
         )}
         <p className="text-sm text-secondary-500 mt-1">
-          Роль: <strong>{ROLE_LABELS[preview.role]}</strong>
+          {t('role_label')} <strong>{tRoles(preview.role)}</strong>
         </p>
         {preview.email && (
           <p className="text-xs text-secondary-500 mt-1">
-            Только для <strong>{preview.email}</strong>
+            {t('only_for')} <strong>{preview.email}</strong>
           </p>
         )}
       </div>
 
       {authChecked && signedIn ? (
         <div className="space-y-3">
-          <p className="text-sm text-secondary-700">
-            Вы уже вошли в систему. Если у вас есть отдельный аккаунт — выйдите и зарегистрируйтесь
-            по этой ссылке как новый сотрудник.
-          </p>
+          <p className="text-sm text-secondary-700">{t('signed_in_note')}</p>
           <div className="flex flex-col gap-2">
             <Button onClick={acceptNow} disabled={accepting}>
               {accepting && <Loader2 className="w-4 h-4 animate-spin" />}
-              Принять под текущим аккаунтом
+              {t('accept_current')}
             </Button>
             <Button variant="outline" asChild>
               <Link href={`/auth/login?invite=${encodeURIComponent(token)}`}>
                 <LogIn className="w-4 h-4" />
-                Войти под другим аккаунтом
+                {t('login_other')}
               </Link>
             </Button>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-secondary-700">
-            Зарегистрируйтесь, чтобы присоединиться. Ваш профиль автоматически попадёт в
-            компанию с указанной ролью.
-          </p>
+          <p className="text-sm text-secondary-700">{t('register_note')}</p>
           <Button onClick={registerWithInvite} className="w-full">
             <UserPlus className="w-4 h-4" />
-            Зарегистрироваться по приглашению
+            {t('register_btn')}
           </Button>
           <p className="text-xs text-secondary-500 text-center">
-            Уже есть аккаунт?{' '}
+            {t('already_have_account')}{' '}
             <Link
               href={`/auth/login?invite=${encodeURIComponent(token)}`}
               className="text-primary-600 hover:underline"
             >
-              Войти
+              {t('login')}
             </Link>
           </p>
         </div>

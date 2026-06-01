@@ -3,9 +3,11 @@
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 
 export default function VerifyEmailPage() {
+  const t = useTranslations('auth_verify');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -13,7 +15,7 @@ export default function VerifyEmailPage() {
 
   const resendVerificationEmail = async () => {
     if (!email) {
-      setError('Введите email');
+      setError(t('enter_email'));
       return;
     }
 
@@ -28,7 +30,7 @@ export default function VerifyEmailPage() {
       }
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла неизвестная ошибка');
+      setError(err instanceof Error ? err.message : t('unknown_error'));
     } finally {
       setLoading(false);
     }
@@ -39,18 +41,13 @@ export default function VerifyEmailPage() {
       <CheckCircle className="h-12 w-12 text-primary-600 mx-auto mb-4" />
 
       <h2 className="font-heading text-2xl font-semibold text-secondary-900 mb-2">
-        Проверьте почту
+        {t('title')}
       </h2>
 
-      <p className="text-secondary-600 mb-6 leading-relaxed">
-        Мы отправили письмо со ссылкой для подтверждения аккаунта.
-        Откройте его и нажмите на ссылку.
-      </p>
+      <p className="text-secondary-600 mb-6 leading-relaxed">{t('desc')}</p>
 
       <div className="space-y-3">
-        <p className="text-xs text-secondary-500">
-          Письмо не пришло? Проверьте «Спам» или отправьте повторно:
-        </p>
+        <p className="text-xs text-secondary-500">{t('not_arrived')}</p>
 
         {error && (
           <div className="text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-md p-3">
@@ -60,7 +57,7 @@ export default function VerifyEmailPage() {
 
         {success && (
           <div className="text-sm text-primary-700 bg-primary-50 border border-primary-200 rounded-md p-3">
-            Письмо отправлено повторно.
+            {t('sent_again')}
           </div>
         )}
 
@@ -78,7 +75,7 @@ export default function VerifyEmailPage() {
           disabled={loading}
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Отправка...' : 'Отправить ещё раз'}
+          {loading ? t('sending') : t('resend')}
         </button>
       </div>
 
@@ -87,7 +84,7 @@ export default function VerifyEmailPage() {
           href="/auth/login"
           className="text-sm font-medium text-primary-600 hover:text-primary-700"
         >
-          Вернуться ко входу
+          {t('back_to_login')}
         </Link>
       </div>
     </div>

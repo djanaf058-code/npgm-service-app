@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('auth_forgot');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function ForgotPasswordPage() {
       if (error) throw error;
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла неизвестная ошибка');
+      setError(err instanceof Error ? err.message : t('unknown_error'));
     } finally {
       setLoading(false);
     }
@@ -36,17 +38,16 @@ export default function ForgotPasswordPage() {
       <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10 text-center">
         <CheckCircle className="h-12 w-12 text-primary-600 mx-auto mb-4" />
         <h2 className="font-heading text-2xl font-semibold text-secondary-900 mb-2">
-          Проверьте почту
+          {t('sent_title')}
         </h2>
         <p className="text-secondary-600 mb-6 leading-relaxed">
-          Мы отправили ссылку для сброса пароля на ваш email. Откройте письмо
-          и следуйте инструкции, чтобы установить новый пароль.
+          {t('sent_desc')}
         </p>
         <Link
           href="/auth/login"
           className="inline-block text-sm font-medium text-primary-600 hover:text-primary-700"
         >
-          Вернуться ко входу
+          {t('back_to_login')}
         </Link>
       </div>
     );
@@ -56,11 +57,9 @@ export default function ForgotPasswordPage() {
     <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10">
       <div className="text-center mb-6">
         <h2 className="font-heading text-2xl font-semibold text-secondary-900">
-          Восстановление пароля
+          {t('title')}
         </h2>
-        <p className="text-sm text-secondary-500 mt-1">
-          Введите email — мы пришлём ссылку для сброса
-        </p>
+        <p className="text-sm text-secondary-500 mt-1">{t('subtitle')}</p>
       </div>
 
       {error && (
@@ -72,7 +71,7 @@ export default function ForgotPasswordPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-secondary-700">
-            Email
+            {t('email_label')}
           </label>
           <input
             id="email"
@@ -92,14 +91,14 @@ export default function ForgotPasswordPage() {
           className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Отправка...' : 'Отправить ссылку'}
+          {loading ? t('sending') : t('send_link')}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm">
-        <span className="text-secondary-600">Вспомнили пароль? </span>
+        <span className="text-secondary-600">{t('remembered')} </span>
         <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-700">
-          Войти
+          {t('login')}
         </Link>
       </div>
     </div>

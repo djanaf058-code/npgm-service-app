@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Key, Loader2 } from 'lucide-react';
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('auth_reset');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,13 +24,14 @@ export default function ResetPasswordPage() {
           error,
         } = await supabase.getSupabaseClient().auth.getUser();
         if (error || !user) {
-          setError('Ссылка недействительна или истекла. Запросите сброс пароля снова.');
+          setError(t('session_invalid'));
         }
       } catch {
-        setError('Не удалось проверить сессию восстановления');
+        setError(t('session_check_failed'));
       }
     };
     checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,12 +39,12 @@ export default function ResetPasswordPage() {
     setError('');
 
     if (newPassword !== confirmPassword) {
-      setError('Пароли не совпадают');
+      setError(t('passwords_mismatch'));
       return;
     }
 
     if (newPassword.length < 8) {
-      setError('Пароль должен быть не короче 8 символов');
+      setError(t('password_too_short'));
       return;
     }
 
@@ -58,7 +61,7 @@ export default function ResetPasswordPage() {
       setSuccess(true);
       setTimeout(() => router.push('/app'), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось сбросить пароль');
+      setError(err instanceof Error ? err.message : t('reset_failed'));
     } finally {
       setLoading(false);
     }
@@ -69,11 +72,9 @@ export default function ResetPasswordPage() {
       <div className="bg-white py-8 px-4 shadow-sm border border-secondary-200 sm:rounded-xl sm:px-10 text-center">
         <CheckCircle className="h-12 w-12 text-primary-600 mx-auto mb-4" />
         <h2 className="font-heading text-2xl font-semibold text-secondary-900 mb-2">
-          Пароль обновлён
+          {t('success_title')}
         </h2>
-        <p className="text-secondary-600">
-          Сейчас перенаправим в приложение...
-        </p>
+        <p className="text-secondary-600">{t('success_desc')}</p>
       </div>
     );
   }
@@ -83,7 +84,7 @@ export default function ResetPasswordPage() {
       <div className="text-center mb-6">
         <Key className="h-10 w-10 text-primary-600 mx-auto mb-3" />
         <h2 className="font-heading text-2xl font-semibold text-secondary-900">
-          Новый пароль
+          {t('title')}
         </h2>
       </div>
 
@@ -96,7 +97,7 @@ export default function ResetPasswordPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="new-password" className="block text-sm font-medium text-secondary-700">
-            Новый пароль
+            {t('new_password_label')}
           </label>
           <input
             id="new-password"
@@ -109,12 +110,12 @@ export default function ResetPasswordPage() {
             onChange={(e) => setNewPassword(e.target.value)}
             className="mt-1 block w-full rounded-md border border-secondary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <p className="mt-1 text-xs text-secondary-500">Не короче 8 символов</p>
+          <p className="mt-1 text-xs text-secondary-500">{t('min_hint')}</p>
         </div>
 
         <div>
           <label htmlFor="confirm-password" className="block text-sm font-medium text-secondary-700">
-            Повторите пароль
+            {t('confirm_label')}
           </label>
           <input
             id="confirm-password"
@@ -134,7 +135,7 @@ export default function ResetPasswordPage() {
           className="flex w-full justify-center items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Сохранение...' : 'Сохранить пароль'}
+          {loading ? t('saving') : t('save')}
         </button>
       </form>
     </div>
