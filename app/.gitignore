@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Translate-catalog low-confidence review CSVs (local only)
+scripts/output/
