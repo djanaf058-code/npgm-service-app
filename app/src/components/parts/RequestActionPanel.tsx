@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Send,
   Quote as QuoteIcon,
@@ -53,6 +54,7 @@ export function RequestActionPanel({
   onChanged,
   onError,
 }: Props) {
+  const t = useTranslations('parts_actions');
   const {
     isOperator,
     isServiceEngineer,
@@ -129,7 +131,7 @@ export function RequestActionPanel({
         {canCancel && (
           <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
             <XCircle className="w-4 h-4" />
-            Отменить
+            {t('cancel')}
           </Button>
         )}
 
@@ -138,42 +140,42 @@ export function RequestActionPanel({
         {showSubmitToPm && (
           <Button onClick={() => callRpc('submit_consolidated_to_pm', { p_id: requestId })}>
             <Send className="w-4 h-4" />
-            Отправить PM
+            {t('submit_pm')}
           </Button>
         )}
 
         {showApproveScope && (
           <Button onClick={() => callRpc('pm_approve_scope', { p_id: requestId })}>
             <Send className="w-4 h-4" />
-            Согласовать scope
+            {t('approve_scope')}
           </Button>
         )}
 
         {showSendQuote && (
           <Button onClick={() => setQuoteOpen(true)}>
             <QuoteIcon className="w-4 h-4" />
-            Прислать КП
+            {t('send_quote')}
           </Button>
         )}
 
         {showAcceptQuote && (
           <Button onClick={() => callRpc('pm_accept_quote', { p_id: requestId })}>
             <CheckCircle2 className="w-4 h-4" />
-            Принять КП
+            {t('accept_quote')}
           </Button>
         )}
 
         {showPlaceOrder && (
           <Button onClick={() => setOrderOpen(true)}>
             <Truck className="w-4 h-4" />
-            Разместить заказ
+            {t('place_order')}
           </Button>
         )}
 
         {showMarkReceived && (
           <Button onClick={() => setReceivedOpen(true)}>
             <PackageCheck className="w-4 h-4" />
-            Получено
+            {t('mark_received')}
           </Button>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Camera, X, Loader2 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 
@@ -18,6 +19,7 @@ interface PhotoUploadProps {
  * narrows visibility to members of the same company.
  */
 export function PhotoUpload({ companyId, ticketId, onUploaded, onError }: PhotoUploadProps) {
+  const t = useTranslations('photo_upload');
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [storagePath, setStoragePath] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function PhotoUpload({ companyId, ticketId, onUploaded, onError }: PhotoU
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      onError('Можно загружать только изображения');
+      onError(t('images_only'));
       return;
     }
 
@@ -81,7 +83,7 @@ export function PhotoUpload({ companyId, ticketId, onUploaded, onError }: PhotoU
       setStoragePath(path);
       onUploaded(path);
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Не удалось загрузить фото');
+      onError(err instanceof Error ? err.message : t('upload_failed'));
       setPreview(null);
     } finally {
       setUploading(false);
@@ -108,14 +110,14 @@ export function PhotoUpload({ companyId, ticketId, onUploaded, onError }: PhotoU
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={preview}
-          alt="Прикреплённое фото"
+          alt={t('alt_attached')}
           className="w-32 h-32 object-cover rounded-lg border border-secondary-200"
         />
         <button
           type="button"
           onClick={handleRemove}
           className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent-600 text-white flex items-center justify-center shadow"
-          aria-label="Убрать фото"
+          aria-label={t('aria_remove')}
         >
           <X className="w-3 h-3" />
         </button>
@@ -131,7 +133,7 @@ export function PhotoUpload({ companyId, ticketId, onUploaded, onError }: PhotoU
         <Camera className="w-4 h-4 text-secondary-500" />
       )}
       <span className="text-sm text-secondary-700">
-        {uploading ? 'Загрузка...' : 'Прикрепить фото'}
+        {uploading ? t('loading') : t('attach')}
       </span>
       <input
         ref={inputRef}

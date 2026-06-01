@@ -11,6 +11,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRole } from '@/lib/context/GlobalContext';
 import type { PartsRequestStatus, PartsRequestKind } from '@/lib/types';
 
@@ -52,19 +53,25 @@ interface Event {
   highlight?: 'success' | 'cancel' | null;
 }
 
-function fmt(at: string | null): string {
-  if (!at) return '';
-  const d = new Date(at);
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function fmtFor(dateLocale: string) {
+  return (at: string | null): string => {
+    if (!at) return '';
+    const d = new Date(at);
+    return d.toLocaleString(dateLocale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 }
 
 export function RequestTimeline(props: RequestEventInputs) {
+  const t = useTranslations('parts_timeline');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+  const fmt = fmtFor(dateLocale);
   const cancelled = props.status === 'cancelled';
   const isOperatorKind = props.kind === 'operator';
   const { isOperator, isServiceEngineer } = useRole();
@@ -97,33 +104,33 @@ export function RequestTimeline(props: RequestEventInputs) {
       {
         key: 'submitted',
         icon: FileText,
-        title: 'Заявка создана оператором',
+        title: t('operator_submitted'),
         at: props.submitted_at,
         done: !!props.submitted_at,
       },
       {
         key: 'consolidated',
         icon: Layers,
-        title: 'Включена в сводную',
+        title: t('operator_consolidated'),
         at: props.consolidated_at,
         done: reached('consolidated'),
       },
     ];
-    return renderTimeline(events, cancelled, props.cancel_reason);
+    return renderTimeline(events, cancelled, props.cancel_reason, t('cancelled'), fmt);
   }
 
   const events: Event[] = [
     {
       key: 'drafting',
       icon: FileText,
-      title: 'Сводная создана сервисным инженером',
+      title: t('drafting_started'),
       at: props.submitted_at,  // populated when the consolidated row was created
       done: !!props.submitted_at,
     },
     {
       key: 'pending_pm',
       icon: Send,
-      title: 'Отправлено PM на согласование',
+      title: t('submitted_to_pm'),
       at: props.submitted_to_pm_at,
       byName: props.submitted_to_pm_by_name,
       done: reached('pending_pm'),
@@ -131,7 +138,7 @@ export function RequestTimeline(props: RequestEventInputs) {
     {
       key: 'forwarded',
       icon: Send,
-      title: 'Согласовано PM, передано в НПГМ',
+      title: t('pm_approved'),
       at: props.forwarded_at,
       byName: props.forwarded_by_name,
       done: reached('forwarded'),
@@ -139,25 +146,25 @@ export function RequestTimeline(props: RequestEventInputs) {
     {
       key: 'quoted',
       icon: QuoteIcon,
-      title: 'Получено коммерческое предложение',
+      title: t('quote_received'),
       at: props.quoted_at,
       byName: props.quoted_by_name,
       // Show notes always; show the amount only to roles allowed to see prices.
       detail: props.quote_notes
         ? `${props.quote_notes}${
             canSeePrice && props.quote_total_amount
-              ? ` · ${props.quote_total_amount.toLocaleString('ru-RU')} ${props.quote_currency ?? ''}`
+              ? ` · ${props.quote_total_amount.toLocaleString(dateLocale)} ${props.quote_currency ?? ''}`
               : ''
           }`
         : canSeePrice && props.quote_total_amount
-        ? `${props.quote_total_amount.toLocaleString('ru-RU')} ${props.quote_currency ?? ''}`
+        ? `${props.quote_total_amount.toLocaleString(dateLocale)} ${props.quote_currency ?? ''}`
         : null,
       done: reached('quoted'),
     },
     {
       key: 'approved',
       icon: CheckCircle2,
-      title: 'КП согласовано руководителем',
+      title: t('pm_accepted'),
       at: props.approved_at,
       byName: props.approved_by_name,
       done: reached('approved'),
@@ -165,18 +172,18 @@ export function RequestTimeline(props: RequestEventInputs) {
     {
       key: 'ordered',
       icon: Truck,
-      title: 'Заказ размещён',
+      title: t('ordered'),
       at: props.ordered_at,
       byName: props.ordered_by_name,
       detail: props.expected_delivery_date
-        ? `ETA: ${new Date(props.expected_delivery_date).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`
+        ? `ETA: ${new Date(props.expected_delivery_date).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short', year: 'numeric' })}`
         : null,
       done: reached('ordered'),
     },
     {
       key: 'received',
       icon: PackageCheck,
-      title: 'Получено клиентом',
+      title: t('received'),
       at: props.received_at,
       byName: props.received_by_name,
       detail: [props.received_quantity_text, props.received_notes].filter(Boolean).join(' · ') || null,
@@ -185,10 +192,16 @@ export function RequestTimeline(props: RequestEventInputs) {
     },
   ];
 
-  return renderTimeline(events, cancelled, props.cancel_reason);
+  return renderTimeline(events, cancelled, props.cancel_reason, t('cancelled'), fmt);
 }
 
-function renderTimeline(events: Event[], cancelled: boolean, cancelReason: string | null) {
+function renderTimeline(
+  events: Event[],
+  cancelled: boolean,
+  cancelReason: string | null,
+  cancelledLabel: string,
+  fmt: (at: string | null) => string,
+) {
   return (
     <ol className="relative border-l-2 border-secondary-200 ml-3 space-y-4">
       {events.map((ev) => (
@@ -224,7 +237,7 @@ function renderTimeline(events: Event[], cancelled: boolean, cancelReason: strin
             <XCircle className="w-3 h-3" />
           </span>
           <div>
-            <p className="text-sm font-medium text-accent-700">Заявка отменена</p>
+            <p className="text-sm font-medium text-accent-700">{cancelledLabel}</p>
             {cancelReason && (
               <p className="text-xs text-accent-700 italic mt-1">{cancelReason}</p>
             )}

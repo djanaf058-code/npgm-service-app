@@ -1221,5 +1221,52 @@
     "err_no_machine_types": "Pick the machine types this part applies to",
     "err_create_failed": "Could not create part",
     "default_manufacturer": "Other"
+  },
+  "parts_urgency": {
+    "normal": "Normal",
+    "urgent": "Urgent",
+    "critical": "Critical"
+  },
+  "parts_consolidation": {
+    "title": "Create consolidated request",
+    "description": "Pick the operator requests that go into the consolidated one. Catalog items with the same article number will be merged and quantities summed. Freeform items are simply appended.",
+    "empty": "No pending operator requests. You can start an empty consolidated and add items manually, or wait for new requests.",
+    "no_machine": "no machine",
+    "items_count_one": "{n} item",
+    "items_count_few": "{n} items",
+    "items_count_many": "{n} items",
+    "notes_label": "Note for the consolidated (optional)",
+    "notes_placeholder": "What the PM and NPGM should know when reviewing",
+    "cancel": "Cancel",
+    "create": "Create"
+  },
+  "parts_timeline": {
+    "operator_submitted": "Request created by operator",
+    "operator_consolidated": "Added to consolidated",
+    "drafting_started": "Consolidated created by service engineer",
+    "submitted_to_pm": "Sent to PM for approval",
+    "pm_approved": "Approved by PM, forwarded to NPGM",
+    "quote_received": "Commercial quote received",
+    "pm_accepted": "Quote approved by PM",
+    "ordered": "Order placed",
+    "received": "Received by customer",
+    "cancelled": "Request cancelled"
+  },
+  "parts_actions": {
+    "cancel": "Cancel",
+    "submit_pm": "Send to PM",
+    "approve_scope": "Approve scope",
+    "send_quote": "Send quote",
+    "accept_quote": "Accept quote",
+    "place_order": "Place order",
+    "mark_received": "Mark received"
+  },
+  "photo_upload": {
+    "images_only": "Images only",
+    "upload_failed": "Could not upload the photo",
+    "alt_attached": "Attached photo",
+    "aria_remove": "Remove photo",
+    "loading": "Uploading...",
+    "attach": "Attach photo"
   }
 }

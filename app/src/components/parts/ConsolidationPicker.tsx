@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 import {
   Dialog,
@@ -35,13 +36,11 @@ interface Props {
   onError: (msg: string) => void;
 }
 
-const URGENCY_INFO: Record<
-  PartsRequestUrgency,
-  { ru: string; variant: 'outline' | 'warning' | 'destructive' }
-> = {
-  normal: { ru: 'Обычная', variant: 'outline' },
-  urgent: { ru: 'Срочная', variant: 'warning' },
-  critical: { ru: 'Критическая', variant: 'destructive' },
+// Variant per urgency level — labels come from i18n (parts_urgency.*).
+const URGENCY_VARIANT: Record<PartsRequestUrgency, 'outline' | 'warning' | 'destructive'> = {
+  normal: 'outline',
+  urgent: 'warning',
+  critical: 'destructive',
 };
 
 // Wraps two RPCs into one user action: create the consolidated, then link
@@ -80,6 +79,15 @@ export function ConsolidationPicker({
   onConsolidated,
   onError,
 }: Props) {
+  const t = useTranslations('parts_consolidation');
+  const tUrgency = useTranslations('parts_urgency');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
+  const itemsLabel = (n: number) => {
+    if (n === 1) return t('items_count_one', { n });
+    if (n >= 2 && n <= 4) return t('items_count_few', { n });
+    return t('items_count_many', { n });
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -116,25 +124,18 @@ export function ConsolidationPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Создать сводную заявку</DialogTitle>
-          <DialogDescription>
-            Отметьте заявки операторов, которые войдут в сводную. Каталожные
-            позиции с одинаковым артикулом будут объединены, количества
-            суммируются. Свободные позиции просто добавятся подряд.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         {operatorRows.length === 0 ? (
-          <p className="text-sm text-secondary-500 text-center py-6">
-            Нет ожидающих заявок от операторов. Сводную можно создать пустой и
-            пополнить позициями вручную, либо подождать новых заявок.
-          </p>
+          <p className="text-sm text-secondary-500 text-center py-6">{t('empty')}</p>
         ) : (
           <div className="max-h-80 overflow-y-auto space-y-1.5 -mx-6 px-6">
             {operatorRows.map((r) => {
               const isSelected = selected.has(r.id);
               const itemsCount = r.parts_requested.length + r.parts_freeform.length;
-              const urgency = URGENCY_INFO[r.urgency];
+              const urgencyVariant = URGENCY_VARIANT[r.urgency];
               return (
                 <label
                   key={r.id}
@@ -153,27 +154,27 @@ export function ConsolidationPicker({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       {r.urgency !== 'normal' && (
-                        <Badge variant={urgency.variant}>
+                        <Badge variant={urgencyVariant}>
                           {r.urgency === 'critical' && (
                             <AlertTriangle className="w-3 h-3 inline mr-1" />
                           )}
                           {r.urgency === 'urgent' && (
                             <AlertCircle className="w-3 h-3 inline mr-1" />
                           )}
-                          {urgency.ru}
+                          {tUrgency(r.urgency)}
                         </Badge>
                       )}
                       <span className="text-sm font-medium text-secondary-900">
-                        {r.machine?.model_code ?? 'без машины'}
+                        {r.machine?.model_code ?? t('no_machine')}
                       </span>
                       <span className="text-xs text-secondary-500">
-                        {itemsCount} {itemsCount === 1 ? 'позиция' : 'позиций'}
+                        {itemsLabel(itemsCount)}
                       </span>
                     </div>
                     {r.requester?.full_name && (
                       <p className="text-xs text-secondary-500 truncate">
                         {r.requester.full_name} ·{' '}
-                        {new Date(r.created_at).toLocaleDateString('ru-RU', {
+                        {new Date(r.created_at).toLocaleDateString(dateLocale, {
                           day: '2-digit',
                           month: 'short',
                         })}
@@ -187,24 +188,24 @@ export function ConsolidationPicker({
         )}
 
         <div className="mt-3">
-          <Label htmlFor="cons_notes">Комментарий к сводной (опционально)</Label>
+          <Label htmlFor="cons_notes">{t('notes_label')}</Label>
           <Textarea
             id="cons_notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            placeholder="Что важно знать руководителю и НПГМ при рассмотрении"
+            placeholder={t('notes_placeholder')}
             className="mt-1"
           />
         </div>
 
         <DialogFooter className="mt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={busy}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Создать{' '}
+            {t('create')}{' '}
             {selected.size > 0 && (
               <span className="ml-1 text-xs opacity-80">({selected.size})</span>
             )}
