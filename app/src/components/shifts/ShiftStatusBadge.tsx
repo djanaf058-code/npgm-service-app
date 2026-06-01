@@ -1,17 +1,18 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
+import { useTranslations } from 'next-intl';
 import type { ShiftStatus } from '@/lib/types';
 
-const LABELS: Record<ShiftStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  planned: { ru: 'Запланирована', variant: 'default' },
-  in_progress: { ru: 'Идёт', variant: 'warning' },
-  completed: { ru: 'Закрыта', variant: 'success' },
-  cancelled: { ru: 'Отменена', variant: 'secondary' },
-  blocked: { ru: 'Заблокирована', variant: 'destructive' },
+const VARIANTS: Record<ShiftStatus, React.ComponentProps<typeof Badge>['variant']> = {
+  planned: 'default',
+  in_progress: 'warning',
+  completed: 'success',
+  cancelled: 'secondary',
+  blocked: 'destructive',
 };
 
 export function ShiftStatusBadge({ status }: { status: ShiftStatus }) {
-  const cfg = LABELS[status] ?? { ru: status, variant: 'outline' as const };
-  return <Badge variant={cfg.variant}>{cfg.ru}</Badge>;
+  const t = useTranslations('shift_status_badge');
+  return <Badge variant={VARIANTS[status] ?? 'outline'}>{t(status)}</Badge>;
 }
-
-export const SHIFT_STATUS_LABELS = LABELS;

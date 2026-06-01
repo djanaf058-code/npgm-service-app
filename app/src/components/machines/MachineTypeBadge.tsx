@@ -1,18 +1,17 @@
-import { Badge } from "@/components/ui/badge";
+'use client';
 
-const TYPE_LABELS: Record<string, { ru: string; description: string }> = {
-  МЗВ: { ru: "МЗВ", description: "100% эмульсия" },
-  МСЗ: { ru: "МСЗ", description: "100% ANFO" },
-  МСЗУ: { ru: "МСЗУ", description: "Универсал" },
-  МЗУ: { ru: "МЗУ", description: "Смесевой 70/30" },
-};
+import { Badge } from "@/components/ui/badge";
+import { useTranslations } from 'next-intl';
+
+const KNOWN_TYPES = ['МЗВ', 'МСЗ', 'МСЗУ', 'МЗУ'];
 
 export function MachineTypeBadge({ type }: { type: string }) {
-  const label = TYPE_LABELS[type];
-  if (!label) return <Badge variant="outline">{type}</Badge>;
+  const tShort = useTranslations('machine_type_short');
+  if (!KNOWN_TYPES.includes(type)) return <Badge variant="outline">{type}</Badge>;
+  // Short tag (the code itself, language-neutral) + localized tooltip description.
   return (
-    <Badge variant="default" title={label.description}>
-      {label.ru}
+    <Badge variant="default" title={tShort(type)}>
+      {type}
     </Badge>
   );
 }

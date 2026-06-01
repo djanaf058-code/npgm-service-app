@@ -1268,5 +1268,49 @@
     "aria_remove": "Remove photo",
     "loading": "Uploading...",
     "attach": "Attach photo"
+  },
+  "machine_status": {
+    "operational": "Operational",
+    "maintenance": "In maintenance",
+    "decommissioned": "Decommissioned"
+  },
+  "machine_type_short": {
+    "МЗВ": "100% emulsion",
+    "МСЗ": "100% ANFO",
+    "МСЗУ": "Universal",
+    "МЗУ": "Blended 70/30"
+  },
+  "shift_status_badge": {
+    "planned": "Planned",
+    "in_progress": "In progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "blocked": "Blocked"
+  },
+  "machines_operators": {
+    "title": "Operators ({n})",
+    "assign": "Assign",
+    "loading": "Loading…",
+    "empty": "No operators assigned to this machine yet. They won't see it until someone is assigned.",
+    "operator_badge": "Operator",
+    "no_name": "(name unset)",
+    "since": "since {date}",
+    "unassign": "Remove",
+    "confirm_unassign": "Remove this operator from the machine? They will stop seeing it.",
+    "dialog_title": "Assign operator to machine",
+    "dialog_desc": "Available operators from your company not yet assigned to this machine.",
+    "dialog_empty": "All company operators are already assigned. Invite a new operator under \"Team\" first.",
+    "choose_operator": "— choose operator —",
+    "err_pick_operator": "Pick an operator",
+    "cancel": "Cancel"
+  },
+  "shift_detail_extra": {
+    "not_found": "Shift not found",
+    "load_error": "Loading error",
+    "blocked_msg": "Shift blocked — a critical fail in the checklist. Resolve the issue, then start a new shift.",
+    "not_closed": "Shift not closed yet",
+    "monthly_inspection": "Monthly inspection",
+    "preshift_inspection": "Pre-shift inspection",
+    "critical_fail": "Critical fail"
   }
 }

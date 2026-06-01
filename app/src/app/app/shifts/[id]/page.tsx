@@ -74,6 +74,7 @@ export default function ShiftDetailPage() {
   const t = useTranslations('shifts.detail');
   const tRecipe = useTranslations('shifts.recipe');
   const tCommon = useTranslations('common');
+  const tExtra = useTranslations('shift_detail_extra');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
 
@@ -111,13 +112,13 @@ export default function ShiftDetailPage() {
       ]);
       if (shiftResp.error) throw shiftResp.error;
       if (!shiftResp.data) {
-        setError('Смена не найдена');
+        setError(tExtra('not_found'));
         return;
       }
       setShift(shiftResp.data as unknown as ShiftDetail);
       if (checkResp.data) setChecklists(checkResp.data as unknown as ChecklistRow[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : tExtra('load_error'));
     } finally {
       setLoading(false);
     }
@@ -285,7 +286,7 @@ export default function ShiftDetailPage() {
             <span>
               {locale === 'en'
                 ? 'Shift is blocked — there was a critical checklist failure. Resolve the fault, then start a new shift.'
-                : 'Смена заблокирована — в чек-листе была критичная ошибка. Устраните неисправность, затем создайте новую смену.'}
+                : tExtra('blocked_msg')}
             </span>
           </div>
         )}
@@ -360,7 +361,7 @@ export default function ShiftDetailPage() {
             </dl>
           ) : (
             <p className="text-sm text-secondary-500 italic">
-              {locale === 'en' ? 'Shift not closed yet' : 'Смена ещё не закрыта'}
+              {tExtra('not_closed')}
             </p>
           )}
           {shift.actual_notes && (
@@ -377,11 +378,11 @@ export default function ShiftDetailPage() {
             <CardHeader>
               <CardTitle className="font-heading text-base flex items-center gap-2 flex-wrap">
                 {isMonthly
-                  ? (locale === 'en' ? 'Monthly inspection' : 'Ежемесячный осмотр')
-                  : (locale === 'en' ? 'Pre-shift inspection' : 'Ежесменный осмотр')}
+                  ? tExtra('monthly_inspection')
+                  : tExtra('preshift_inspection')}
                 {cl.has_critical_fail && (
                   <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
-                    <AlertTriangle className="w-3 h-3" /> {locale === 'en' ? 'Critical fail' : 'Критичный fail'}
+                    <AlertTriangle className="w-3 h-3" /> {tExtra('critical_fail')}
                   </span>
                 )}
               </CardTitle>

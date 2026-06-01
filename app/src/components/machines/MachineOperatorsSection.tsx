@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { useRole } from '@/lib/context/GlobalContext';
@@ -42,6 +43,9 @@ export function MachineOperatorsSection({
   machineId: string;
   companyId: string;
 }) {
+  const t = useTranslations('machines_operators');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
   const { canAssignOperators } = useRole();
   const [assigned, setAssigned] = useState<AssignedOperator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +79,7 @@ export function MachineOperatorsSection({
   }, [machineId]);
 
   const unassign = async (operatorId: string) => {
-    if (!confirm('Снять оператора с этой машины? Он перестанет её видеть.')) return;
+    if (!confirm(t('confirm_unassign'))) return;
     try {
       const c = await createSPASassClient();
       const sb = c.getSupabaseClient();
@@ -97,12 +101,12 @@ export function MachineOperatorsSection({
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="font-heading text-base flex items-center gap-2">
           <Users className="w-4 h-4 text-primary-600" />
-          Операторы ({assigned.length})
+          {t('title', { n: assigned.length })}
         </CardTitle>
         {canAssignOperators && (
           <Button size="sm" onClick={() => setPickerOpen(true)}>
             <UserPlus className="w-3.5 h-3.5" />
-            Назначить
+            {t('assign')}
           </Button>
         )}
       </CardHeader>
@@ -115,13 +119,10 @@ export function MachineOperatorsSection({
         {loading ? (
           <p className="text-sm text-secondary-500 flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Загрузка…
+            {t('loading')}
           </p>
         ) : assigned.length === 0 ? (
-          <p className="text-sm text-secondary-500">
-            На машине пока нет назначенных операторов. Они её не видят, пока вы не добавите
-            кого-то.
-          </p>
+          <p className="text-sm text-secondary-500">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-secondary-100">
             {assigned.map((a) => (
@@ -130,18 +131,19 @@ export function MachineOperatorsSection({
                 className="py-2 flex items-center justify-between gap-3 flex-wrap"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="outline">Оператор</Badge>
+                  <Badge variant="outline">{t('operator_badge')}</Badge>
                   <span className="text-sm font-medium text-secondary-900 truncate">
-                    {a.profile?.full_name || '(имя не указано)'}
+                    {a.profile?.full_name || t('no_name')}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-secondary-500 flex-shrink-0">
                   <span>
-                    с{' '}
-                    {new Date(a.assigned_at).toLocaleDateString('ru-RU', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
+                    {t('since', {
+                      date: new Date(a.assigned_at).toLocaleDateString(dateLocale, {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      }),
                     })}
                   </span>
                   {canAssignOperators && (
@@ -151,7 +153,7 @@ export function MachineOperatorsSection({
                       onClick={() => unassign(a.operator_id)}
                     >
                       <UserMinus className="w-3 h-3" />
-                      Снять
+                      {t('unassign')}
                     </Button>
                   )}
                 </div>
@@ -197,6 +199,7 @@ function AssignOperatorDialog({
   alreadyAssigned: string[];
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('machines_operators');
   const [available, setAvailable] = useState<AvailableOperator[]>([]);
   const [selected, setSelected] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -232,7 +235,7 @@ function AssignOperatorDialog({
 
   const submit = async () => {
     if (!selected) {
-      setLocalErr('Выберите оператора');
+      setLocalErr(t('err_pick_operator'));
       return;
     }
     setBusy(true);
@@ -269,29 +272,24 @@ function AssignOperatorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Назначить оператора на машину</DialogTitle>
-          <DialogDescription>
-            Доступны операторы вашей компании, ещё не назначенные на эту машину.
-          </DialogDescription>
+          <DialogTitle>{t('dialog_title')}</DialogTitle>
+          <DialogDescription>{t('dialog_desc')}</DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <p className="text-sm text-secondary-500 flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Загрузка…
+            {t('loading')}
           </p>
         ) : available.length === 0 ? (
-          <p className="text-sm text-secondary-500">
-            Все операторы компании уже назначены на эту машину. Сначала пригласите нового
-            оператора в разделе «Команда».
-          </p>
+          <p className="text-sm text-secondary-500">{t('dialog_empty')}</p>
         ) : (
           <div className="space-y-3">
             <Select value={selected} onChange={(e) => setSelected(e.target.value)}>
-              <option value="">— выберите оператора —</option>
+              <option value="">{t('choose_operator')}</option>
               {available.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.full_name || '(имя не указано)'}
+                  {o.full_name || t('no_name')}
                 </option>
               ))}
             </Select>
@@ -306,11 +304,11 @@ function AssignOperatorDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={busy || !selected || available.length === 0}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Назначить
+            {t('assign')}
           </Button>
         </DialogFooter>
       </DialogContent>

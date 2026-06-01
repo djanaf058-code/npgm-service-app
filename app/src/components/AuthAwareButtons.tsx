@@ -59,18 +59,18 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
         href="/app"
         className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
       >
-        В приложение
+        {t('cta_dashboard')}
       </Link>
     ) : (
       <>
         <Link href="/auth/login" className="text-secondary-600 hover:text-secondary-900 text-sm font-medium px-3 py-2">
-          Войти
+          {t('cta_login')}
         </Link>
         <Link
           href="/auth/register"
           className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
         >
-          Начать
+          {t('cta_register')}
         </Link>
       </>
     );
@@ -90,7 +90,7 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
       href="/auth/register"
       className="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors"
     >
-      Зарегистрировать компанию
+      {t('cta_register')}
       <ArrowRight className="ml-2 h-5 w-5" />
     </Link>
   );
