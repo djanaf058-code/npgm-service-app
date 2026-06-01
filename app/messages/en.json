@@ -66,7 +66,8 @@
       "parts_ordered": "Order placed",
       "parts_received": "Parts received",
       "parts_cancelled": "Request cancelled",
-      "generic": "Notification"
+      "generic": "Notification",
+      "ticket_sos": "🚨 SOS — urgent ticket"
     }
   },
   "charging_input": {
@@ -184,7 +185,6 @@
     "register_link": "Register",
     "have_account": "Already have an account? ",
     "login_link": "Sign in",
-
     "register_title_company": "Company registration",
     "register_title_invite": "Register via invitation",
     "register_subtitle_invite": "Create an account. After confirming your email you'll automatically join the team.",
@@ -201,7 +201,6 @@
     "must_accept_terms": "Please accept the terms of use and privacy policy",
     "passwords_dont_match": "Passwords don't match",
     "password_too_short": "Password must be at least 8 characters",
-
     "onboarding_title": "Create your company",
     "onboarding_subtitle": "Register your organization to get started",
     "redeeming_invite": "Accepting invitation…",
@@ -217,7 +216,6 @@
     "creating": "Creating...",
     "country_unsupported": "Please contact us to register a company in your country — for now we only support the countries listed above.",
     "create_company_failed": "Failed to create company",
-
     "checking_invite": "Checking invitation…",
     "invite_unavailable": "Invitation unavailable",
     "to_home": "To home",
@@ -1039,5 +1037,69 @@
     "password_update_failed": "Failed to update password",
     "passwords_mismatch": "New passwords don't match",
     "mfa_updated": "Two-factor authentication settings updated successfully"
+  },
+  "ticket_status": {
+    "new": "New",
+    "tier2_responding": "With NPGM team",
+    "awaiting_operator": "Awaiting operator",
+    "resolved": "Resolved",
+    "closed_self": "Closed by operator"
+  },
+  "priority": {
+    "1": "Critical",
+    "2": "High",
+    "3": "Medium",
+    "4": "Low",
+    "5": "Non-urgent"
+  },
+  "sender": {
+    "operator": "Operator",
+    "service_engineer": "Service engineer",
+    "tier2": "NPGM team",
+    "ai": "AI assistant",
+    "platform_admin": "NPGM"
+  },
+  "sla": {
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "days": "{n} d",
+    "tooltip": "Time since the ticket was created"
+  },
+  "ticket_detail": {
+    "loading": "Loading ticket…",
+    "not_found": "Ticket not found or you don't have access",
+    "load_error": "Loading error",
+    "back_to_list": "Back to tickets",
+    "no_subject": "no subject",
+    "created_by": "Created by:",
+    "machine_label": "machine:",
+    "change_status_aria": "Change ticket status",
+    "close_resolved": "Close as resolved",
+    "no_messages": "No messages",
+    "ai_typing": "AI assistant is typing…",
+    "reply_placeholder": "Your reply…",
+    "attach_photo": "Attach photo",
+    "sending": "Sending…",
+    "send": "Send",
+    "send_error": "Could not send the message",
+    "status_change_error": "Could not change status",
+    "resolution_title": "Resolution",
+    "need_part": "Need a part",
+    "need_part_sent_title": "Parts request sent to NPGM. The admin will prepare a quote.",
+    "need_part_sent_done": "Done",
+    "need_part_desc": "Describe the part — the request will go to the NPGM admin for a quote.",
+    "part_label": "Part",
+    "part_placeholder": "E.g. seal NK-25",
+    "qty_label": "Quantity",
+    "cancel": "Cancel",
+    "submit_part_request": "Send request",
+    "part_request_error": "Could not create parts request",
+    "by_ticket_note": "From ticket: {title}",
+    "sos_button": "SOS — escalate to NPGM",
+    "sos_confirm": "Escalate to NPGM immediately? The ticket goes to top priority and the NPGM team is alerted.",
+    "sos_sent": "SOS sent. The NPGM team has been alerted.",
+    "sos_error": "Could not send SOS",
+    "sos_cancel": "Cancel",
+    "sos_confirm_button": "Send SOS"
   }
 }

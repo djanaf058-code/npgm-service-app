@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Loader2, Sparkles } from 'lucide-react';
 import type { MessageSender } from '@/lib/types';
@@ -14,16 +15,9 @@ interface MessageBubbleProps {
   isOwn: boolean;
 }
 
-// Sender labels stay hardcoded RU for now — i18n migration is a separate sweep.
-// AI-escalated tickets surface 'ai' and 'platform_admin' rows which were added
-// in migration 0032a; they MUST have entries here to render correctly.
-const SENDER_LABEL: Record<MessageSender, string> = {
-  operator: 'Оператор',
-  service_engineer: 'Сервисный инженер',
-  tier2: 'Поддержка NPGM',
-  ai: 'AI-ассистент',
-  platform_admin: 'НПГМ — Платформа',
-};
+// Sender role labels come from i18n (namespace "sender"). AI-escalated
+// tickets surface 'ai' and 'platform_admin' senders which were added in
+// migration 0032a; both must have entries in the namespace.
 
 // AI messages from escalations have sender_id = NULL → senderName comes in as '—'.
 // Override so the column reads sensibly.
@@ -40,6 +34,9 @@ export function MessageBubble({
   createdAt,
   isOwn,
 }: MessageBubbleProps) {
+  const tSender = useTranslations('sender');
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
 
@@ -86,10 +83,10 @@ export function MessageBubble({
           {isAI && <Sparkles className="inline w-3 h-3 mr-1 text-indigo-500" />}
           <span className="font-medium text-secondary-700">{displayName(senderType, senderName)}</span>
           <span className="mx-1">·</span>
-          <span>{SENDER_LABEL[senderType]}</span>
+          <span>{tSender(senderType)}</span>
           <span className="mx-1">·</span>
           <span>
-            {new Date(createdAt).toLocaleString('ru-RU', {
+            {new Date(createdAt).toLocaleString(dateLocale, {
               hour: '2-digit',
               minute: '2-digit',
               day: '2-digit',

@@ -49,6 +49,7 @@ interface InventoryRow {
   part: {
     id: string;
     display_name_ru: string;
+    display_name_en: string | null;
     application_ru: string | null;
     category: PartCategory;
     unit: string;
@@ -59,6 +60,7 @@ interface InventoryRow {
 interface CatalogRow {
   id: string;
   display_name_ru: string;
+  display_name_en: string | null;
   application_ru: string | null;
   category: PartCategory;
   unit: string;
@@ -100,6 +102,9 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 
 export default function PartsPage() {
   const t = useTranslations('parts');
+  const locale = useLocale();
+  const partName = (p: { display_name_ru: string; display_name_en?: string | null }) =>
+    locale === 'en' && p.display_name_en ? p.display_name_en : p.display_name_ru;
   const router = useRouter();
   const { user } = useGlobal();
   const { isOperator, isServiceEngineer, isProjectManager } = useRole();
@@ -140,7 +145,7 @@ export default function PartsPage() {
         ? supabase
             .from('parts_inventory')
             .select(
-              'id, quantity, reorder_threshold, last_replenished_at, machine:machines(id, model_code), part:parts_catalog(id, display_name_ru, application_ru, category, unit, compatible_machine_types)'
+              'id, quantity, reorder_threshold, last_replenished_at, machine:machines(id, model_code), part:parts_catalog(id, display_name_ru, display_name_en, application_ru, category, unit, compatible_machine_types)'
             )
             .order('updated_at', { ascending: false })
         : Promise.resolve({ data: [], error: null });
@@ -148,7 +153,7 @@ export default function PartsPage() {
       const catalogPromise = showInventory
         ? supabase
             .from('parts_catalog')
-            .select('id, display_name_ru, application_ru, category, unit, compatible_machine_types')
+            .select('id, display_name_ru, display_name_en, application_ru, category, unit, compatible_machine_types')
             .order('display_name_ru')
         : Promise.resolve({ data: [], error: null });
 
@@ -211,7 +216,8 @@ export default function PartsPage() {
       }
       if (query) {
         const q = query.toLowerCase();
-        const inName = row.part.display_name_ru.toLowerCase().includes(q);
+        const inName = partName(row.part).toLowerCase().includes(q)
+          || row.part.display_name_ru.toLowerCase().includes(q);
         const inApp = row.part.application_ru?.toLowerCase().includes(q) ?? false;
         const inMachine = row.machine?.model_code.toLowerCase().includes(q) ?? false;
         if (!(inName || inApp || inMachine)) return false;
@@ -503,7 +509,7 @@ export default function PartsPage() {
                     {filtered.map((row) => (
                       <tr key={row.id} className="hover:bg-secondary-50/60 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-medium text-secondary-900">{row.part.display_name_ru}</p>
+                          <p className="font-medium text-secondary-900">{partName(row.part)}</p>
                           <p className="text-xs text-secondary-500 mt-0.5">
                             {t('for_machines', { types: row.part.compatible_machine_types.join(', ') || '—' })}
                           </p>

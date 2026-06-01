@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Send,
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Camera,
   Package,
+  Siren,
   X as XIcon,
 } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
@@ -23,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
-import { TicketStatusBadge, TICKET_STATUS_LABELS } from '@/components/tickets/TicketStatusBadge';
+import { TicketStatusBadge, TICKET_STATUSES } from '@/components/tickets/TicketStatusBadge';
 import { PriorityBadge } from '@/components/tickets/PriorityBadge';
 import { SLATimer } from '@/components/tickets/SLATimer';
 import { MessageBubble } from '@/components/tickets/MessageBubble';
@@ -61,7 +62,10 @@ export default function TicketDetailPage() {
   const ticketId = params.id;
   const { user } = useGlobal();
   const locale = useLocale();
-  const L = (ru: string, en: string) => (locale === 'en' ? en : ru);
+  // dateLocale unused here — MessageBubble already handles its own date locale.
+  void locale;
+  const t = useTranslations('ticket_detail');
+  const tStatus = useTranslations('ticket_status');
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -88,6 +92,11 @@ export default function TicketDetailPage() {
   const [partQty, setPartQty] = useState('1');
   const [partSubmitting, setPartSubmitting] = useState(false);
   const [partDone, setPartDone] = useState(false);
+
+  // SOS — direct escalation to NPGM team. Confirm → POST → toast.
+  const [sosConfirmOpen, setSosConfirmOpen] = useState(false);
+  const [sosSubmitting, setSosSubmitting] = useState(false);
+  const [sosBanner, setSosBanner] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -122,7 +131,7 @@ export default function TicketDetailPage() {
           .maybeSingle();
         if (ticketErr) throw ticketErr;
         if (!ticketData) {
-          if (!cancelled) setError('Тикет не найден или у вас нет к нему доступа');
+          if (!cancelled) setError(t('not_found'));
           return;
         }
         if (!cancelled) setTicket(ticketData as unknown as TicketDetail);
@@ -138,7 +147,7 @@ export default function TicketDetailPage() {
         if (msgErr) throw msgErr;
         if (!cancelled) setMessages((msgData ?? []) as unknown as MessageRow[]);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        if (!cancelled) setError(err instanceof Error ? err.message : t('load_error'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -211,12 +220,24 @@ export default function TicketDetailPage() {
     scrollToBottom();
   }, [messages.length, scrollToBottom]);
 
-  // Clear the "AI is typing" bubble the moment an AI reply actually shows up.
+  // Watch the messages list and decide whether "AI is typing" should be shown:
+  //  - last message is AI → clear (reply landed)
+  //  - last message is operator, recent (<60s), ticket has a machine → show
+  //    (also catches the case where we mount on a freshly-created ticket
+  //    whose AI reply is still in flight from /app/tickets/new)
+  //  - anything else → leave aiPending unchanged (an engineer cut in, etc.)
   useEffect(() => {
-    if (!aiPending || messages.length === 0) return;
+    if (!ticket?.machine || messages.length === 0) return;
     const last = messages[messages.length - 1];
-    if (last.sender_type === 'ai') setAiPending(false);
-  }, [messages, aiPending]);
+    if (last.sender_type === 'ai') {
+      setAiPending(false);
+      return;
+    }
+    if (last.sender_type === 'operator') {
+      const ageMs = Date.now() - new Date(last.created_at).getTime();
+      if (ageMs < 60_000) setAiPending(true);
+    }
+  }, [messages, ticket?.machine]);
 
   // Safety net: if the AI request silently fails or takes too long, drop the
   // typing bubble after 60s so the user isn't stuck staring at it forever.
@@ -285,7 +306,7 @@ export default function TicketDetailPage() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение');
+      setError(err instanceof Error ? err.message : t('send_error'));
     } finally {
       setSending(false);
     }
@@ -313,7 +334,7 @@ export default function TicketDetailPage() {
             quantity_estimate: Number.isFinite(qty) && qty > 0 ? qty : 1,
           },
         ],
-        notes: `По тикету: ${ticket.title ?? ticket.id}`,
+        notes: t('by_ticket_note', { title: ticket.title ?? ticket.id }),
         requested_by: user.id,
       });
       if (insErr) throw insErr;
@@ -321,7 +342,7 @@ export default function TicketDetailPage() {
       setPartDesc('');
       setPartQty('1');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось создать заявку на запчасть');
+      setError(err instanceof Error ? err.message : t('part_request_error'));
     } finally {
       setPartSubmitting(false);
     }
@@ -357,9 +378,35 @@ export default function TicketDetailPage() {
       if (updateErr) throw updateErr;
       setTicket({ ...ticket, ...update });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось изменить статус');
+      setError(err instanceof Error ? err.message : t('status_change_error'));
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  // SOS escalation: confirm dialog → POST /api/tickets/sos → toast.
+  // Server-side flips status to 'tier2_responding' + priority 1, and inserts
+  // notifications for every tier2_engineer + platform_admin.
+  const handleSos = async () => {
+    if (!ticket) return;
+    setSosSubmitting(true);
+    setError(null);
+    try {
+      const resp = await fetch('/api/tickets/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_id: ticketId }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? t('sos_error'));
+      setTicket({ ...ticket, status: 'tier2_responding' as TicketStatus, priority: 1 });
+      setSosBanner(t('sos_sent'));
+      setTimeout(() => setSosBanner(null), 6000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('sos_error'));
+    } finally {
+      setSosSubmitting(false);
+      setSosConfirmOpen(false);
     }
   };
 
@@ -389,7 +436,7 @@ export default function TicketDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-secondary-500">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Загрузка тикета…
+        {t('loading')}
       </div>
     );
   }
@@ -401,7 +448,7 @@ export default function TicketDetailPage() {
           href="/app/tickets"
           className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> К списку тикетов
+          <ArrowLeft className="w-4 h-4" /> {t('back_to_list')}
         </Link>
         <Card className="p-6 text-center">
           <AlertCircle className="w-8 h-8 text-accent-600 mx-auto mb-3" />
@@ -419,7 +466,7 @@ export default function TicketDetailPage() {
         href="/app/tickets"
         className="inline-flex items-center gap-2 text-sm text-secondary-600 hover:text-secondary-900"
       >
-        <ArrowLeft className="w-4 h-4" />К списку тикетов
+        <ArrowLeft className="w-4 h-4" />{t('back_to_list')}
       </Link>
 
       {/* Header */}
@@ -432,13 +479,13 @@ export default function TicketDetailPage() {
               <SLATimer createdAt={ticket.created_at} resolved={isResolved} />
             </div>
             <h1 className="font-heading text-xl md:text-2xl font-bold text-secondary-900">
-              {ticket.title ?? <span className="text-secondary-400 italic">без темы</span>}
+              {ticket.title ?? <span className="text-secondary-400 italic">{t('no_subject')}</span>}
             </h1>
             <p className="text-sm text-secondary-600 mt-1">
-              Создал: <span className="font-medium text-secondary-800">{ticket.operator?.full_name ?? '—'}</span>
+              {t('created_by')} <span className="font-medium text-secondary-800">{ticket.operator?.full_name ?? '—'}</span>
               {ticket.machine && (
                 <>
-                  {' · '}машина:{' '}
+                  {' · '}{t('machine_label')}{' '}
                   <Link
                     href={`/app/machines/${ticket.machine.id}`}
                     className="inline-flex items-center gap-1 font-medium text-primary-700 hover:underline"
@@ -461,11 +508,11 @@ export default function TicketDetailPage() {
                 onChange={(e) => handleStatusChange(e.target.value as TicketStatus)}
                 disabled={updatingStatus}
                 className="max-w-[200px]"
-                aria-label="Изменить статус тикета"
+                aria-label={t('change_status_aria')}
               >
-                {(Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((s) => (
+                {TICKET_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {TICKET_STATUS_LABELS[s].ru}
+                    {tStatus(s)}
                   </option>
                 ))}
               </Select>
@@ -479,9 +526,18 @@ export default function TicketDetailPage() {
                   }}
                 >
                   <Package className="w-4 h-4" />
-                  {L('Нужна запчасть', 'Need a part')}
+                  {t('need_part')}
                 </Button>
               )}
+              <Button
+                size="sm"
+                onClick={() => setSosConfirmOpen(true)}
+                disabled={sosSubmitting}
+                className="bg-accent-600 hover:bg-accent-700 text-white border-0 focus-visible:ring-accent-400"
+              >
+                {sosSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Siren className="w-4 h-4" />}
+                {t('sos_button')}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -489,7 +545,7 @@ export default function TicketDetailPage() {
                 disabled={updatingStatus}
               >
                 {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Закрыть как решённый
+                {t('close_resolved')}
               </Button>
             </div>
           )}
@@ -500,7 +556,7 @@ export default function TicketDetailPage() {
       <Card className="p-4 md:p-6 min-h-[400px] flex flex-col">
         <div className="flex-1 space-y-4 overflow-y-auto max-h-[60vh]">
           {messages.length === 0 ? (
-            <p className="text-center text-secondary-400 italic py-8">Нет сообщений</p>
+            <p className="text-center text-secondary-400 italic py-8">{t('no_messages')}</p>
           ) : (
             messages.map((m) => (
               <MessageBubble
@@ -521,7 +577,7 @@ export default function TicketDetailPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" />
               </span>
-              <span>AI-ассистент печатает…</span>
+              <span>{t('ai_typing')}</span>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -535,7 +591,7 @@ export default function TicketDetailPage() {
             <Textarea
               value={reply}
               onChange={(e) => setReply(e.target.value)}
-              placeholder="Ваш ответ…"
+              placeholder={t('reply_placeholder')}
               rows={3}
               className="resize-none"
             />
@@ -556,13 +612,13 @@ export default function TicketDetailPage() {
                     onClick={() => setShowPhotoUpload(true)}
                   >
                     <Camera className="w-4 h-4" />
-                    Прикрепить фото
+                    {t('attach_photo')}
                   </Button>
                 )}
               </div>
               <Button type="submit" disabled={sending || (!reply.trim() && !replyPhoto)}>
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {sending ? 'Отправка…' : 'Отправить'}
+                {sending ? t('sending') : t('send')}
               </Button>
             </div>
           </form>
@@ -572,7 +628,7 @@ export default function TicketDetailPage() {
       {isResolved && ticket.resolution_summary && (
         <Card className="p-4 bg-emerald-50/50 border-emerald-200">
           <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700 mb-1">
-            Решение
+            {t('resolution_title')}
           </p>
           <p className="text-sm text-secondary-800 whitespace-pre-wrap">{ticket.resolution_summary}</p>
         </Card>
@@ -597,7 +653,7 @@ export default function TicketDetailPage() {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-secondary-200">
               <h2 className="font-heading text-lg font-semibold text-secondary-900">
-                {L('Нужна запчасть', 'Need a part')}
+                {t('need_part')}
               </h2>
               <button onClick={() => setNeedPartOpen(false)} className="text-secondary-500 hover:text-secondary-900">
                 <XIcon className="w-5 h-5" />
@@ -607,35 +663,25 @@ export default function TicketDetailPage() {
             {partDone ? (
               <div className="p-6 text-center">
                 <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
-                <p className="text-sm text-secondary-700 mb-5">
-                  {L(
-                    'Заявка на запчасть отправлена в НПГМ. Администратор подготовит КП.',
-                    'Parts request sent to NPGM. The admin will prepare a quote.'
-                  )}
-                </p>
-                <Button onClick={() => setNeedPartOpen(false)}>{L('Готово', 'Done')}</Button>
+                <p className="text-sm text-secondary-700 mb-5">{t('need_part_sent_title')}</p>
+                <Button onClick={() => setNeedPartOpen(false)}>{t('need_part_sent_done')}</Button>
               </div>
             ) : (
               <div className="p-5 space-y-4">
-                <p className="text-xs text-secondary-500">
-                  {L(
-                    'Опишите нужную деталь — заявка уйдёт администратору НПГМ для коммерческого предложения.',
-                    'Describe the part needed — the request goes to the NPGM admin for a quote.'
-                  )}
-                </p>
+                <p className="text-xs text-secondary-500">{t('need_part_desc')}</p>
                 <div>
-                  <Label htmlFor="partDesc">{L('Деталь', 'Part')}</Label>
+                  <Label htmlFor="partDesc">{t('part_label')}</Label>
                   <Textarea
                     id="partDesc"
                     value={partDesc}
                     onChange={(e) => setPartDesc(e.target.value)}
-                    placeholder={L('Например: уплотнение НК-25', 'e.g. seal NK-25')}
+                    placeholder={t('part_placeholder')}
                     rows={2}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="partQty">{L('Количество', 'Quantity')}</Label>
+                  <Label htmlFor="partQty">{t('qty_label')}</Label>
                   <Input
                     id="partQty"
                     type="number"
@@ -649,16 +695,55 @@ export default function TicketDetailPage() {
                 </div>
                 <div className="flex items-center justify-end gap-3 pt-2 border-t border-secondary-100">
                   <Button variant="outline" onClick={() => setNeedPartOpen(false)}>
-                    {L('Отмена', 'Cancel')}
+                    {t('cancel')}
                   </Button>
                   <Button onClick={handleNeedPart} disabled={partSubmitting || partDesc.trim().length < 2}>
                     {partSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
-                    {L('Отправить заявку', 'Send request')}
+                    {t('submit_part_request')}
                   </Button>
                 </div>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* SOS confirm dialog */}
+      {sosConfirmOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => !sosSubmitting && setSosConfirmOpen(false)}
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-secondary-100 flex items-center gap-3">
+              <Siren className="w-6 h-6 text-accent-600 flex-shrink-0" />
+              <h3 className="font-semibold text-secondary-900">{t('sos_button')}</h3>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-secondary-700">{t('sos_confirm')}</p>
+            </div>
+            <div className="p-4 border-t border-secondary-100 flex items-center justify-end gap-3">
+              <Button variant="outline" onClick={() => setSosConfirmOpen(false)} disabled={sosSubmitting}>
+                {t('sos_cancel')}
+              </Button>
+              <Button
+                onClick={handleSos}
+                disabled={sosSubmitting}
+                className="bg-accent-600 hover:bg-accent-700 text-white border-0"
+              >
+                {sosSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Siren className="w-4 h-4" />}
+                {t('sos_confirm_button')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SOS success banner (auto-clears after 6s) */}
+      {sosBanner && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-accent-600 text-white px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium">
+          <Siren className="w-4 h-4" />
+          {sosBanner}
         </div>
       )}
     </div>

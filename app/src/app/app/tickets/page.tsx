@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
-import { TicketStatusBadge, TICKET_STATUS_LABELS } from '@/components/tickets/TicketStatusBadge';
+import { TicketStatusBadge, TICKET_STATUSES } from '@/components/tickets/TicketStatusBadge';
 import { PriorityBadge } from '@/components/tickets/PriorityBadge';
 import { SLATimer } from '@/components/tickets/SLATimer';
 import type { TicketStatus } from '@/lib/types';
@@ -27,6 +27,7 @@ interface TicketRow {
 
 export default function TicketsListPage() {
   const t = useTranslations('tickets');
+  const tStatus = useTranslations('ticket_status');
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,9 +108,9 @@ export default function TicketsListPage() {
           >
             <option value="open">{t('filter_open')}</option>
             <option value="all">{t('filter_all')}</option>
-            {(Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((s) => (
+            {TICKET_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {t('filter_only_prefix', { label: TICKET_STATUS_LABELS[s].ru })}
+                {t('filter_only_prefix', { label: tStatus(s) })}
               </option>
             ))}
           </Select>

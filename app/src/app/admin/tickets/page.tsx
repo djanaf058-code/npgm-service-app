@@ -15,7 +15,7 @@ import { useRole } from '@/lib/context/GlobalContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { TicketStatusBadge, TICKET_STATUS_LABELS } from '@/components/tickets/TicketStatusBadge';
+import { TicketStatusBadge, TICKET_STATUSES } from '@/components/tickets/TicketStatusBadge';
 import { PriorityBadge } from '@/components/tickets/PriorityBadge';
 import { SLATimer } from '@/components/tickets/SLATimer';
 import type { TicketStatus } from '@/lib/types';
@@ -37,6 +37,7 @@ type StatusFilter = TicketStatus | 'all' | 'open';
 
 export default function AdminTicketsPage() {
   const t = useTranslations('admin_tickets');
+  const tStatus = useTranslations('ticket_status');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-US' : 'ru-RU';
   // platform_admin inspects tickets read-only at /admin/tickets/[id]. The НПГМ
@@ -145,9 +146,9 @@ export default function AdminTicketsPage() {
           >
             <option value="open">{t('filter_open')}</option>
             <option value="all">{t('filter_all')}</option>
-            {(Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((s) => (
+            {TICKET_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {t('filter_only_prefix', { label: TICKET_STATUS_LABELS[s].ru })}
+                {t('filter_only_prefix', { label: tStatus(s) })}
               </option>
             ))}
           </Select>

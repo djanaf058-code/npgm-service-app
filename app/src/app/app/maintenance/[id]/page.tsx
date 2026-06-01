@@ -305,7 +305,9 @@ export default function MaintenanceEventPage() {
             <ul className="divide-y divide-secondary-100">
               {event.parts_requested.map((p, idx) => (
                 <li key={idx} className="py-2.5 flex items-center justify-between text-sm">
-                  <span className="text-secondary-900">{p.display_name_ru}</span>
+                  <span className="text-secondary-900">
+                    {locale === 'en' && p.display_name_en ? p.display_name_en : p.display_name_ru}
+                  </span>
                   <span className="text-secondary-700 tabular-nums">
                     {p.quantity} {t('detail.qty_short')}
                   </span>
@@ -358,7 +360,9 @@ export default function MaintenanceEventPage() {
             <ol className="space-y-2 text-sm text-secondary-800 list-decimal list-inside">
               {event.schedule.work_items.map((w, idx) => (
                 <li key={idx} className="flex items-baseline gap-2">
-                  <span className="flex-1">{w.name_ru}</span>
+                  <span className="flex-1">
+                    {locale === 'en' && w.name_en ? w.name_en : w.name_ru}
+                  </span>
                   {w.hours_norm && (
                     <span className="text-xs text-secondary-500 tabular-nums">
                       {t('detail.work_item_hours', { hours: w.hours_norm })}

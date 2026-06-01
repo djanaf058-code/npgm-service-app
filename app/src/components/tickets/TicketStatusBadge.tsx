@@ -1,17 +1,28 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
+import { useTranslations } from 'next-intl';
 import type { TicketStatus } from '@/lib/types';
 
-const LABELS: Record<TicketStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  new: { ru: 'Новый', variant: 'destructive' },
-  tier2_responding: { ru: 'У команды НПГМ', variant: 'warning' },
-  awaiting_operator: { ru: 'Ждёт оператора', variant: 'default' },
-  resolved: { ru: 'Решён', variant: 'success' },
-  closed_self: { ru: 'Закрыт оператором', variant: 'secondary' },
+// Status → badge variant. Labels come from i18n (namespace "ticket_status")
+// so the badge follows the user's locale instead of being hardcoded RU.
+const VARIANTS: Record<TicketStatus, React.ComponentProps<typeof Badge>['variant']> = {
+  new: 'destructive',
+  tier2_responding: 'warning',
+  awaiting_operator: 'default',
+  resolved: 'success',
+  closed_self: 'secondary',
 };
 
-export function TicketStatusBadge({ status }: { status: TicketStatus }) {
-  const cfg = LABELS[status] ?? { ru: status, variant: 'outline' as const };
-  return <Badge variant={cfg.variant}>{cfg.ru}</Badge>;
-}
+export const TICKET_STATUSES: TicketStatus[] = [
+  'new',
+  'tier2_responding',
+  'awaiting_operator',
+  'resolved',
+  'closed_self',
+];
 
-export const TICKET_STATUS_LABELS = LABELS;
+export function TicketStatusBadge({ status }: { status: TicketStatus }) {
+  const t = useTranslations('ticket_status');
+  return <Badge variant={VARIANTS[status] ?? 'outline'}>{t(status)}</Badge>;
+}

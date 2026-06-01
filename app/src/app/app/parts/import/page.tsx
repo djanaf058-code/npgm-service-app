@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import * as XLSX from 'xlsx';
 import {
   ArrowLeft,
@@ -49,6 +49,9 @@ type Step = 'upload' | 'map' | 'review' | 'done';
 
 export default function PartsImportPage() {
   const t = useTranslations('parts_import');
+  const locale = useLocale();
+  const partName = (p: { display_name_ru: string; display_name_en?: string | null }) =>
+    locale === 'en' && p.display_name_en ? p.display_name_en : p.display_name_ru;
   const router = useRouter();
   const { user } = useGlobal();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -530,7 +533,7 @@ export default function PartsImportPage() {
                         <optgroup label={t('pick_catalog')}>
                           {catalog.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.display_name_ru}
+                              {partName(p)}
                             </option>
                           ))}
                         </optgroup>
