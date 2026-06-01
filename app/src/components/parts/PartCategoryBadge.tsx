@@ -1,18 +1,28 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
+import { useTranslations } from 'next-intl';
 import type { PartCategory } from '@/lib/types';
 
-const LABELS: Record<PartCategory, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
-  filter: { ru: 'Фильтр', variant: 'default' },
-  seal: { ru: 'Уплотнение', variant: 'secondary' },
-  sensor: { ru: 'Датчик', variant: 'warning' },
-  module: { ru: 'Модуль', variant: 'destructive' },
-  pump_part: { ru: 'Узел насоса', variant: 'destructive' },
-  consumable: { ru: 'Расходник', variant: 'outline' },
+const VARIANTS: Record<PartCategory, React.ComponentProps<typeof Badge>['variant']> = {
+  filter: 'default',
+  seal: 'secondary',
+  sensor: 'warning',
+  module: 'destructive',
+  pump_part: 'destructive',
+  consumable: 'outline',
 };
 
-export function PartCategoryBadge({ category }: { category: PartCategory }) {
-  const cfg = LABELS[category] ?? { ru: category, variant: 'outline' as const };
-  return <Badge variant={cfg.variant}>{cfg.ru}</Badge>;
-}
+export const PART_CATEGORIES: PartCategory[] = [
+  'filter',
+  'seal',
+  'sensor',
+  'module',
+  'pump_part',
+  'consumable',
+];
 
-export const CATEGORY_LABELS = LABELS;
+export function PartCategoryBadge({ category }: { category: PartCategory }) {
+  const t = useTranslations('parts_category');
+  return <Badge variant={VARIANTS[category] ?? 'outline'}>{t(category)}</Badge>;
+}

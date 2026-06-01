@@ -1,37 +1,31 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
+import { useTranslations } from 'next-intl';
 import type { PartsRequestStatus } from '@/lib/types';
 
-const LABELS: Record<
-  PartsRequestStatus,
-  { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }
-> = {
-  // Operator-level statuses.
-  submitted:    { ru: 'У сервисника',    variant: 'secondary' },
-  consolidated: { ru: 'В сводной',       variant: 'outline' },
-  // Consolidated-level statuses.
-  drafting:     { ru: 'Черновик сводной', variant: 'outline' },
-  pending_pm:   { ru: 'Ждёт PM',          variant: 'warning' },
-  forwarded:    { ru: 'У НПГМ',           variant: 'default' },
-  quoted:       { ru: 'Получен КП',       variant: 'default' },
-  approved:     { ru: 'Согласовано',      variant: 'warning' },
-  ordered:      { ru: 'В пути',           variant: 'warning' },
-  received:     { ru: 'Получено',         variant: 'success' },
-  cancelled:    { ru: 'Отменена',         variant: 'destructive' },
-  // Legacy values (pre-migration 0023).
-  new:          { ru: 'У сервисника',     variant: 'secondary' },
-  delivered:    { ru: 'Получено',         variant: 'success' },
+const VARIANTS: Record<PartsRequestStatus, React.ComponentProps<typeof Badge>['variant']> = {
+  submitted: 'secondary',
+  consolidated: 'outline',
+  drafting: 'outline',
+  pending_pm: 'warning',
+  forwarded: 'default',
+  quoted: 'default',
+  approved: 'warning',
+  ordered: 'warning',
+  received: 'success',
+  cancelled: 'destructive',
+  new: 'secondary',
+  delivered: 'success',
 };
 
 export function RequestStatusBadge({ status }: { status: PartsRequestStatus }) {
-  const cfg = LABELS[status] ?? { ru: status, variant: 'outline' as const };
-  return <Badge variant={cfg.variant}>{cfg.ru}</Badge>;
+  const t = useTranslations('parts_status');
+  return <Badge variant={VARIANTS[status] ?? 'outline'}>{t(status)}</Badge>;
 }
 
-export const REQUEST_STATUS_LABELS = LABELS;
-
-// Display order for sections / sorting.
-// Operator-level: submitted only (consolidated is "absorbed" — final-ish for ops).
-// Consolidated-level: drafting → pending_pm → forwarded → quoted → approved → ordered.
+// Display order for sections / sorting. Internal — not exported as a label map
+// anymore (labels live in i18n).
 export const ACTIVE_REQUEST_STATUSES: PartsRequestStatus[] = [
   'submitted',
   'drafting',

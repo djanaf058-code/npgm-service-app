@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PartCategoryBadge, CATEGORY_LABELS } from '@/components/parts/PartCategoryBadge';
+import { PartCategoryBadge, PART_CATEGORIES } from '@/components/parts/PartCategoryBadge';
 import { StockBadge } from '@/components/parts/StockBadge';
 import { AddStockDialog } from '@/components/parts/AddStockDialog';
 import { RequestStatusBadge, isFinalStatus } from '@/components/parts/RequestStatusBadge';
@@ -102,6 +102,7 @@ function sortByUrgencyAndDate(a: PartsRequestRow, b: PartsRequestRow): number {
 
 export default function PartsPage() {
   const t = useTranslations('parts');
+  const tCategory = useTranslations('parts_category');
   const locale = useLocale();
   const partName = (p: { display_name_ru: string; display_name_en?: string | null }) =>
     locale === 'en' && p.display_name_en ? p.display_name_en : p.display_name_ru;
@@ -464,9 +465,9 @@ export default function PartsPage() {
               className="max-w-[200px]"
             >
               <option value="all">{t('all_categories')}</option>
-              {(Object.keys(CATEGORY_LABELS) as PartCategory[]).map((c) => (
+              {PART_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {CATEGORY_LABELS[c].ru}
+                  {tCategory(c)}
                 </option>
               ))}
             </Select>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -32,6 +33,7 @@ export function QuoteDialog({
 }: BaseProps & {
   onSubmit: (notes: string, amount: number | null, currency: string | null) => Promise<void>;
 }) {
+  const t = useTranslations('parts_dialogs');
   const [notes, setNotes] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('USD');
@@ -41,14 +43,13 @@ export function QuoteDialog({
   const submit = async () => {
     setErr(null);
     if (!notes.trim()) {
-      setErr('Опишите КП');
+      setErr(t('quote.empty_error'));
       return;
     }
     setBusy(true);
     try {
       const a = amount ? parseFloat(amount) : null;
       await onSubmit(notes.trim(), a, a !== null ? currency : null);
-      // Reset for next time
       setNotes('');
       setAmount('');
       onOpenChange(false);
@@ -63,27 +64,25 @@ export function QuoteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Прислать КП</DialogTitle>
-          <DialogDescription>
-            Текст коммерческого предложения и общая сумма (если применимо).
-          </DialogDescription>
+          <DialogTitle>{t('quote.title')}</DialogTitle>
+          <DialogDescription>{t('quote.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="quote_notes">Текст КП *</Label>
+            <Label htmlFor="quote_notes">{t('quote.notes_label')}</Label>
             <Textarea
               id="quote_notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={5}
-              placeholder="Что входит, сроки изготовления / отгрузки, условия…"
+              placeholder={t('quote.notes_placeholder')}
               maxLength={2000}
               className="mt-1"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="quote_amount">Сумма</Label>
+              <Label htmlFor="quote_amount">{t('quote.amount_label')}</Label>
               <Input
                 id="quote_amount"
                 type="number"
@@ -91,12 +90,12 @@ export function QuoteDialog({
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="1234.56"
+                placeholder={t('quote.amount_placeholder')}
                 className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="quote_currency">Валюта</Label>
+              <Label htmlFor="quote_currency">{t('quote.currency_label')}</Label>
               <Select
                 id="quote_currency"
                 value={currency}
@@ -119,11 +118,11 @@ export function QuoteDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {t('cancel_button')}
           </Button>
           <Button onClick={submit} disabled={busy || !notes.trim()}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Отправить КП
+            {t('quote.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -139,6 +138,7 @@ export function OrderDialog({
 }: BaseProps & {
   onSubmit: (eta: string) => Promise<void>;
 }) {
+  const t = useTranslations('parts_dialogs');
   const [eta, setEta] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -146,7 +146,7 @@ export function OrderDialog({
   const submit = async () => {
     setErr(null);
     if (!eta) {
-      setErr('Укажите ожидаемую дату поставки');
+      setErr(t('order.empty_error'));
       return;
     }
     setBusy(true);
@@ -165,14 +165,12 @@ export function OrderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Разместить заказ</DialogTitle>
-          <DialogDescription>
-            Заказ размещён у поставщика. Укажите ожидаемую дату поставки.
-          </DialogDescription>
+          <DialogTitle>{t('order.title')}</DialogTitle>
+          <DialogDescription>{t('order.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="order_eta">Ожидаемая дата поставки *</Label>
+            <Label htmlFor="order_eta">{t('order.eta_label')}</Label>
             <DatePicker
               id="order_eta"
               value={eta}
@@ -190,11 +188,11 @@ export function OrderDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {t('cancel_button')}
           </Button>
           <Button onClick={submit} disabled={busy || !eta}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Разместить
+            {t('order.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -210,6 +208,7 @@ export function CancelDialog({
 }: BaseProps & {
   onSubmit: (reason: string) => Promise<void>;
 }) {
+  const t = useTranslations('parts_dialogs');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -232,18 +231,18 @@ export function CancelDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Отменить заявку</DialogTitle>
-          <DialogDescription>Это действие нельзя откатить.</DialogDescription>
+          <DialogTitle>{t('cancel.title')}</DialogTitle>
+          <DialogDescription>{t('cancel.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="cancel_reason">Причина отмены</Label>
+            <Label htmlFor="cancel_reason">{t('cancel.reason_label')}</Label>
             <Textarea
               id="cancel_reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              placeholder="Не нужны / нашли другой источник / ошиблись с моделью…"
+              placeholder={t('cancel.reason_placeholder')}
               className="mt-1"
             />
           </div>
@@ -255,11 +254,11 @@ export function CancelDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Назад
+            {t('cancel.back')}
           </Button>
           <Button variant="destructive" onClick={submit} disabled={busy}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Отменить заявку
+            {t('cancel.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -277,6 +276,7 @@ export function MarkReceivedDialog({
   companyId: string;
   onSubmit: (qtyText: string, photoUrl: string, notes: string | null) => Promise<void>;
 }) {
+  const t = useTranslations('parts_dialogs');
   const [qty, setQty] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
@@ -286,11 +286,11 @@ export function MarkReceivedDialog({
   const submit = async () => {
     setErr(null);
     if (!qty.trim()) {
-      setErr('Опишите фактическое количество получения');
+      setErr(t('received.qty_empty_error'));
       return;
     }
     if (!photoUrl) {
-      setErr('Загрузите фото получения');
+      setErr(t('received.photo_empty_error'));
       return;
     }
     setBusy(true);
@@ -311,24 +311,22 @@ export function MarkReceivedDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Подтвердить получение</DialogTitle>
-          <DialogDescription>
-            Запчасть получена клиентом — введите фактическое количество и приложите фото.
-          </DialogDescription>
+          <DialogTitle>{t('received.title')}</DialogTitle>
+          <DialogDescription>{t('received.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="recv_qty">Получено по факту *</Label>
+            <Label htmlFor="recv_qty">{t('received.qty_label')}</Label>
             <Input
               id="recv_qty"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
-              placeholder="12 фильтров, 4 уплотнения"
+              placeholder={t('received.qty_placeholder')}
               className="mt-1"
             />
           </div>
           <div>
-            <Label>Фото подтверждения *</Label>
+            <Label>{t('received.photo_label')}</Label>
             <div className="mt-1">
               <PhotoUploader
                 bucket="parts-photos"
@@ -342,13 +340,13 @@ export function MarkReceivedDialog({
             </div>
           </div>
           <div>
-            <Label htmlFor="recv_notes">Примечания</Label>
+            <Label htmlFor="recv_notes">{t('received.notes_label')}</Label>
             <Textarea
               id="recv_notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Состояние упаковки, недостача и т.п."
+              placeholder={t('received.notes_placeholder')}
               className="mt-1"
             />
           </div>
@@ -360,11 +358,11 @@ export function MarkReceivedDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Отмена
+            {t('cancel_button')}
           </Button>
           <Button onClick={submit} disabled={busy || !qty.trim() || !photoUrl}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Подтвердить получение
+            {t('received.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

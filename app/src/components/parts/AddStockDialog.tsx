@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Loader2, X, Save, BookOpen, Plus } from 'lucide-react';
 import { createSPASassClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,14 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CATEGORY_LABELS } from '@/components/parts/PartCategoryBadge';
+import { PART_CATEGORIES } from '@/components/parts/PartCategoryBadge';
 import { PhotoUploader } from '@/components/shared/PhotoUploader';
 import type { PartCategory, PartUnit } from '@/lib/types';
 
 interface CatalogPart {
   id: string;
   display_name_ru: string;
+  display_name_en?: string | null;
   application_ru: string | null;
+  application_en?: string | null;
   category: PartCategory;
   unit: string;
   compatible_machine_types: string[];
@@ -37,13 +40,7 @@ interface AddStockDialogProps {
 
 const MACHINE_TYPES: string[] = ['МЗВ', 'МСЗ', 'МСЗУ', 'МЗУ'];
 
-const UNIT_OPTIONS: { value: PartUnit; label: string }[] = [
-  { value: 'pcs', label: 'шт' },
-  { value: 'm', label: 'м' },
-  { value: 'kg', label: 'кг' },
-  { value: 'l', label: 'л' },
-  { value: 'set', label: 'компл.' },
-];
+const UNIT_KEYS: PartUnit[] = ['pcs', 'm', 'kg', 'l', 'set'];
 
 type Mode = 'catalog' | 'custom';
 
@@ -54,21 +51,27 @@ export function AddStockDialog({
   onClose,
   onSaved,
 }: AddStockDialogProps) {
+  const t = useTranslations('parts_add_stock');
+  const tCategory = useTranslations('parts_category');
+  const tUnits = useTranslations('units');
+  const locale = useLocale();
+  const partName = (p: CatalogPart) =>
+    locale === 'en' && p.display_name_en ? p.display_name_en : p.display_name_ru;
+  const partApplication = (p: CatalogPart) =>
+    locale === 'en' && p.application_en ? p.application_en : p.application_ru;
+
   const [mode, setMode] = useState<Mode>('catalog');
   const [machines, setMachines] = useState<MachineOption[]>([]);
 
-  // Common fields
   const [machineId, setMachineId] = useState<string>('');
   const [quantity, setQuantity] = useState('1');
   const [threshold, setThreshold] = useState('');
   const [notes, setNotes] = useState('');
   const [receiptPhotoPath, setReceiptPhotoPath] = useState<string | null>(null);
 
-  // Catalog mode
   const [partId, setPartId] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<PartCategory | 'all'>('all');
 
-  // Custom mode
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState<PartCategory>('consumable');
   const [customApplication, setCustomApplication] = useState('');
@@ -111,12 +114,12 @@ export function AddStockDialog({
 
     const qty = parseFloat(quantity);
     if (!Number.isFinite(qty) || qty < 0) {
-      setError('Введите корректное количество');
+      setError(t('err_qty_invalid'));
       return;
     }
     const thr = threshold ? parseFloat(threshold) : null;
     if (threshold && (!Number.isFinite(thr!) || thr! < 0)) {
-      setError('Порог пополнения должен быть числом');
+      setError(t('err_threshold_invalid'));
       return;
     }
 
@@ -129,22 +132,20 @@ export function AddStockDialog({
 
       if (mode === 'catalog') {
         if (!partId) {
-          throw new Error('Выберите запчасть из каталога');
+          throw new Error(t('err_no_catalog_part'));
         }
         resolvedPartId = partId;
       } else {
-        // Validate custom part input
         if (customName.trim().length < 2) {
-          throw new Error('Введите название запчасти (минимум 2 символа)');
+          throw new Error(t('err_custom_name_too_short'));
         }
         if (customMachineTypes.length === 0) {
-          throw new Error('Выберите типы машин, к которым относится запчасть');
+          throw new Error(t('err_no_machine_types'));
         }
-        // Mint a part_number if user didn't provide one
         const partNumber =
           customPartNumber.trim() ||
           `CUSTOM-${customCategory.toUpperCase()}-${Date.now().toString().slice(-6)}`;
-        const manufacturer = customManufacturer.trim() || 'Прочее';
+        const manufacturer = customManufacturer.trim() || t('default_manufacturer');
 
         const { data: created, error: createErr } = await supabase
           .from('parts_catalog')
@@ -162,11 +163,10 @@ export function AddStockDialog({
           })
           .select('id')
           .single();
-        if (createErr || !created) throw createErr ?? new Error('Не удалось создать запчасть');
+        if (createErr || !created) throw createErr ?? new Error(t('err_create_failed'));
         resolvedPartId = (created as { id: string }).id;
       }
 
-      // Upsert inventory: accumulate if existing row, otherwise insert
       const machineKey = machineId || null;
       let existingId: string | null = null;
       let existingQty = 0;
@@ -229,7 +229,7 @@ export function AddStockDialog({
       if (err instanceof Error) msg = err.message;
       else if (err && typeof err === 'object' && 'message' in err) msg = String((err as { message: unknown }).message);
       else msg = JSON.stringify(err);
-      setError(`Не удалось сохранить: ${msg}`);
+      setError(t('err_save_failed', { msg }));
       setSubmitting(false);
     }
   };
@@ -245,14 +245,13 @@ export function AddStockDialog({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-secondary-200">
           <h2 className="font-heading text-lg font-semibold text-secondary-900">
-            Добавить запчасть на склад
+            {t('title')}
           </h2>
-          <button onClick={onClose} className="text-secondary-500 hover:text-secondary-900" aria-label="Закрыть">
+          <button onClick={onClose} className="text-secondary-500 hover:text-secondary-900" aria-label={t('close_aria')}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Mode tabs */}
         <div className="flex border-b border-secondary-200">
           <button
             type="button"
@@ -264,7 +263,7 @@ export function AddStockDialog({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            Из каталога
+            {t('tab_catalog')}
           </button>
           <button
             type="button"
@@ -276,7 +275,7 @@ export function AddStockDialog({
             }`}
           >
             <Plus className="w-4 h-4" />
-            Своя запчасть
+            {t('tab_custom')}
           </button>
         </div>
 
@@ -287,27 +286,26 @@ export function AddStockDialog({
             </div>
           )}
 
-          {/* === CATALOG MODE === */}
           {mode === 'catalog' && (
             <>
               <div>
-                <Label>Категория</Label>
+                <Label>{t('category_label')}</Label>
                 <Select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value as typeof categoryFilter)}
                   className="mt-1"
                 >
-                  <option value="all">Все категории</option>
-                  {(Object.keys(CATEGORY_LABELS) as PartCategory[]).map((c) => (
+                  <option value="all">{t('all_categories')}</option>
+                  {PART_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {CATEGORY_LABELS[c].ru}
+                      {tCategory(c)}
                     </option>
                   ))}
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="partId">Запчасть *</Label>
+                <Label htmlFor="partId">{t('part_label')}</Label>
                 <Select
                   id="partId"
                   value={partId}
@@ -315,39 +313,36 @@ export function AddStockDialog({
                   required={mode === 'catalog'}
                   className="mt-1"
                 >
-                  <option value="">Выберите запчасть…</option>
+                  <option value="">{t('choose_part')}</option>
                   {visibleCatalog.map((p) => (
                     <option key={p.id} value={p.id}>
                       {existingInventoryPartIds.has(p.id) ? '✓ ' : ''}
-                      {p.display_name_ru} (для {p.compatible_machine_types.join(', ')})
+                      {partName(p)} {t('for_machines', { types: p.compatible_machine_types.join(', ') })}
                     </option>
                   ))}
                 </Select>
-                {partId && catalog.find((c) => c.id === partId)?.application_ru && (
+                {partId && partApplication(catalog.find((c) => c.id === partId)!) && (
                   <p className="mt-1 text-xs text-secondary-500">
-                    {catalog.find((c) => c.id === partId)!.application_ru}
+                    {partApplication(catalog.find((c) => c.id === partId)!)}
                   </p>
                 )}
               </div>
             </>
           )}
 
-          {/* === CUSTOM MODE === */}
           {mode === 'custom' && (
             <>
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
-                Запчасть появится в каталоге только вашей компании. Tier 2 / администратор
-                платформы тоже её увидит — по запросу мы поможем найти точный артикул и
-                поставщика.
+                {t('custom_hint')}
               </div>
 
               <div>
-                <Label htmlFor="customName">Название запчасти *</Label>
+                <Label htmlFor="customName">{t('custom_name_label')}</Label>
                 <Input
                   id="customName"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Например: Подшипник 6205-2RS"
+                  placeholder={t('custom_name_placeholder')}
                   required={mode === 'custom'}
                   className="mt-1"
                 />
@@ -355,31 +350,31 @@ export function AddStockDialog({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="customCategory">Категория</Label>
+                  <Label htmlFor="customCategory">{t('category_label')}</Label>
                   <Select
                     id="customCategory"
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value as PartCategory)}
                     className="mt-1"
                   >
-                    {(Object.keys(CATEGORY_LABELS) as PartCategory[]).map((c) => (
+                    {PART_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
-                        {CATEGORY_LABELS[c].ru}
+                        {tCategory(c)}
                       </option>
                     ))}
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="customUnit">Ед. измерения</Label>
+                  <Label htmlFor="customUnit">{t('custom_unit_label')}</Label>
                   <Select
                     id="customUnit"
                     value={customUnit}
                     onChange={(e) => setCustomUnit(e.target.value as PartUnit)}
                     className="mt-1"
                   >
-                    {UNIT_OPTIONS.map((u) => (
-                      <option key={u.value} value={u.value}>
-                        {u.label}
+                    {UNIT_KEYS.map((u) => (
+                      <option key={u} value={u}>
+                        {tUnits(u)}
                       </option>
                     ))}
                   </Select>
@@ -387,41 +382,41 @@ export function AddStockDialog({
               </div>
 
               <div>
-                <Label htmlFor="customApplication">Применение / где используется</Label>
+                <Label htmlFor="customApplication">{t('custom_application_label')}</Label>
                 <Input
                   id="customApplication"
                   value={customApplication}
                   onChange={(e) => setCustomApplication(e.target.value)}
-                  placeholder="Например: вал гидронасоса"
+                  placeholder={t('custom_application_placeholder')}
                   className="mt-1"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="customManufacturer">Производитель</Label>
+                  <Label htmlFor="customManufacturer">{t('custom_manufacturer_label')}</Label>
                   <Input
                     id="customManufacturer"
                     value={customManufacturer}
                     onChange={(e) => setCustomManufacturer(e.target.value)}
-                    placeholder="SKF / необязательно"
+                    placeholder={t('custom_manufacturer_placeholder')}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customPartNumber">Артикул</Label>
+                  <Label htmlFor="customPartNumber">{t('custom_part_number_label')}</Label>
                   <Input
                     id="customPartNumber"
                     value={customPartNumber}
                     onChange={(e) => setCustomPartNumber(e.target.value)}
-                    placeholder="6205-2RS / необязательно"
+                    placeholder={t('custom_part_number_placeholder')}
                     className="mt-1 font-mono text-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <Label>Совместимые типы машин *</Label>
+                <Label>{t('custom_machine_types_label')}</Label>
                 <div className="mt-1 grid grid-cols-4 gap-2">
                   {MACHINE_TYPES.map((mt) => (
                     <button
@@ -441,10 +436,8 @@ export function AddStockDialog({
               </div>
 
               <div>
-                <Label>Фото запчасти</Label>
-                <p className="text-xs text-secondary-500 mb-2">
-                  Помогает уточнить какая именно деталь нужна. Можно с камеры мобильного.
-                </p>
+                <Label>{t('custom_photo_label')}</Label>
+                <p className="text-xs text-secondary-500 mb-2">{t('custom_photo_hint')}</p>
                 <PhotoUploader
                   bucket="parts-photos"
                   companyId={companyId}
@@ -458,18 +451,16 @@ export function AddStockDialog({
             </>
           )}
 
-          {/* === COMMON: location, qty, threshold, notes, receipt photo === */}
-
           <div className="border-t border-secondary-200 pt-5">
             <div>
-              <Label htmlFor="machineId">Привязка к машине (опционально)</Label>
+              <Label htmlFor="machineId">{t('machine_id_label')}</Label>
               <Select
                 id="machineId"
                 value={machineId}
                 onChange={(e) => setMachineId(e.target.value)}
                 className="mt-1"
               >
-                <option value="">Общий склад компании</option>
+                <option value="">{t('machine_id_default')}</option>
                 {machines.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.model_code}
@@ -481,7 +472,7 @@ export function AddStockDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="quantity">Количество *</Label>
+              <Label htmlFor="quantity">{t('qty_label')}</Label>
               <Input
                 id="quantity"
                 type="number"
@@ -492,12 +483,10 @@ export function AddStockDialog({
                 required
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-secondary-500">
-                Если запчасть уже на складе — добавится к остатку.
-              </p>
+              <p className="mt-1 text-xs text-secondary-500">{t('qty_hint')}</p>
             </div>
             <div>
-              <Label htmlFor="threshold">Порог 🟡-алерта</Label>
+              <Label htmlFor="threshold">{t('threshold_label')}</Label>
               <Input
                 id="threshold"
                 type="number"
@@ -505,30 +494,27 @@ export function AddStockDialog({
                 min="0"
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                placeholder="напр. 1"
+                placeholder={t('threshold_placeholder')}
                 className="mt-1"
               />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="notes">Заметки</Label>
+            <Label htmlFor="notes">{t('notes_label')}</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Откуда поступила, особенности…"
+              placeholder={t('notes_placeholder')}
               rows={2}
               className="mt-1"
             />
           </div>
 
           <div>
-            <Label>Фото при получении</Label>
-            <p className="text-xs text-secondary-500 mb-2">
-              Сфотографируйте коробку / артикул-тег. Поможет если потом возникнет вопрос
-              «то ли пришло».
-            </p>
+            <Label>{t('receipt_photo_label')}</Label>
+            <p className="text-xs text-secondary-500 mb-2">{t('receipt_photo_hint')}</p>
             <PhotoUploader
               bucket="parts-photos"
               companyId={companyId}
@@ -542,11 +528,11 @@ export function AddStockDialog({
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-secondary-100">
             <Button type="button" variant="outline" onClick={onClose}>
-              Отмена
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {submitting ? 'Сохранение…' : 'Сохранить'}
+              {submitting ? t('saving') : t('save')}
             </Button>
           </div>
         </form>
