@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
   if (!password || password.length < 8) {
     return NextResponse.json(
-      { error: 'Пароль должен быть не короче 8 символов' },
+      { error: 'password_too_short' },
       { status: 400 }
     );
   }
@@ -46,16 +46,16 @@ export async function POST(request: NextRequest) {
   }
   if (!invite.user_id) {
     return NextResponse.json(
-      { error: 'Это анонимная ссылка — используйте /auth/invite' },
+      { error: 'anonymous_link' },
       { status: 400 }
     );
   }
   if (invite.status === 'consumed') {
-    return NextResponse.json({ error: 'Аккаунт уже активирован, войдите как обычно' }, { status: 400 });
+    return NextResponse.json({ error: 'account_already_activated' }, { status: 400 });
   }
   if (invite.status === 'cancelled' || new Date(invite.expires_at).getTime() < Date.now()) {
     return NextResponse.json(
-      { error: 'Приглашение отозвано или истекло' },
+      { error: 'invite_cancelled_or_expired' },
       { status: 400 }
     );
   }

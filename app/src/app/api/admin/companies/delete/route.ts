@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .single();
   if (profErr || !profile) {
-    return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'profile_not_found' }, { status: 404 });
   }
   if (profile.role !== 'platform_admin') {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: companyErr.message }, { status: 500 });
   }
   if (!company) {
-    return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 });
+    return NextResponse.json({ error: 'company_not_found' }, { status: 404 });
   }
   if (body.confirm_name !== company.name) {
     return NextResponse.json(

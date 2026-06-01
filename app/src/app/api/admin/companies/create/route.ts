@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .single();
   if (profErr || !profile) {
-    return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'profile_not_found' }, { status: 404 });
   }
   if (profile.role !== 'platform_admin') {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   }
   const name = body.name?.trim();
   if (!name || name.length < 2) {
-    return NextResponse.json({ error: 'Введите название компании' }, { status: 400 });
+    return NextResponse.json({ error: 'company_name_required' }, { status: 400 });
   }
   const country = body.country?.trim() || 'Saudi Arabia';
   const language = body.language?.trim() || 'ru';
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     .single();
   if (createErr || !company) {
     return NextResponse.json(
-      { error: createErr?.message ?? 'Не удалось создать компанию' },
+      { error: createErr?.message ?? 'company_create_failed' },
       { status: 500 }
     );
   }

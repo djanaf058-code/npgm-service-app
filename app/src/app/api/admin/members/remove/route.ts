@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .single();
   if (profErr || !profile) {
-    return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'profile_not_found' }, { status: 404 });
   }
   if (!['project_manager', 'platform_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   }
   if (body.member_id === user.id) {
     return NextResponse.json(
-      { error: 'Нельзя удалить самого себя через эту кнопку' },
+      { error: 'cannot_remove_self' },
       { status: 400 }
     );
   }
@@ -62,11 +62,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: targetErr.message }, { status: 500 });
   }
   if (!target) {
-    return NextResponse.json({ error: 'Сотрудник не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'member_not_found' }, { status: 404 });
   }
   if (target.role === 'platform_admin' && profile.role !== 'platform_admin') {
     return NextResponse.json(
-      { error: 'Платформ-админа может удалить только другой платформ-админ' },
+      { error: 'platform_admin_removal_restricted' },
       { status: 403 }
     );
   }

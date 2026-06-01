@@ -40,16 +40,16 @@ export async function POST(request: NextRequest) {
   const timezone = body.timezone?.trim() || 'UTC';
 
   if (!name || name.length < 2) {
-    return NextResponse.json({ error: 'Название компании слишком короткое' }, { status: 400 });
+    return NextResponse.json({ error: 'company_name_too_short' }, { status: 400 });
   }
   if (!country || country.length !== 2) {
     return NextResponse.json(
-      { error: 'Страна должна быть в формате ISO-2 (RU, SA, AE, ...)' },
+      { error: 'country_format_invalid' },
       { status: 400 }
     );
   }
   if (!fullName || fullName.length < 2) {
-    return NextResponse.json({ error: 'Имя пользователя слишком короткое' }, { status: 400 });
+    return NextResponse.json({ error: 'full_name_too_short' }, { status: 400 });
   }
 
   // 3. Use admin client to bypass RLS (we're handling onboarding for this user only)
@@ -70,11 +70,11 @@ export async function POST(request: NextRequest) {
 
   if (profileErr) {
     console.error('Failed to fetch profile:', profileErr);
-    return NextResponse.json({ error: 'Не удалось загрузить профиль' }, { status: 500 });
+    return NextResponse.json({ error: 'profile_load_failed' }, { status: 500 });
   }
   if (existingProfile?.company_id) {
     return NextResponse.json(
-      { error: 'Вы уже состоите в компании' },
+      { error: 'already_in_company' },
       { status: 409 }
     );
   }
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
   if (companyErr || !company) {
     console.error('Failed to create company:', companyErr);
     return NextResponse.json(
-      { error: 'Не удалось создать компанию' },
+      { error: 'company_create_failed' },
       { status: 500 }
     );
   }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Best-effort: try to delete the orphan company so we can retry cleanly
     await adminAny.from('companies').delete().eq('id', company.id);
     return NextResponse.json(
-      { error: 'Не удалось привязать пользователя к компании' },
+      { error: 'profile_link_failed' },
       { status: 500 }
     );
   }

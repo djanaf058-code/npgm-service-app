@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import type { UserRole } from '@/lib/types';
 import { useTranslations } from 'next-intl';
+import { translateApiError } from '@/lib/i18n/apiError';
 
 interface Preview {
   role: UserRole;
@@ -31,6 +32,7 @@ export default function SetPasswordPage() {
   const router = useRouter();
   const token = params.token;
   const t = useTranslations('auth');
+  const tErrors = useTranslations('api_errors');
   const tRoles = useTranslations('roles');
 
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -48,7 +50,7 @@ export default function SetPasswordPage() {
       try {
         const resp = await fetch(`/api/invites/lookup?token=${encodeURIComponent(token)}`);
         const json = await resp.json();
-        if (!resp.ok) throw new Error(json.error ?? t('invite_load_failed'));
+        if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('invite_load_failed')));
         if (!cancelled) setPreview(json as Preview);
         // If this is actually an anonymous link, send the user to the right page.
         if (!cancelled && json && !json.is_preregistered) {
@@ -83,7 +85,7 @@ export default function SetPasswordPage() {
         body: JSON.stringify({ token, password }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('set_password_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('set_password_failed')));
 
       // Sign in with the freshly-set password so we land a real session.
       if (json.email) {

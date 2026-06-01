@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { translateApiError } from '@/lib/i18n/apiError';
 import {
   Building2,
   Truck,
@@ -241,6 +242,7 @@ function RegisterEngineerDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin');
   const tCommon = useTranslations('common');
   const [name, setName] = useState('');
@@ -274,7 +276,7 @@ function RegisterEngineerDialog({
         }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('engineer_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('engineer_failed')));
       setLink(`${window.location.origin}${json.path}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -383,6 +385,7 @@ function CreateCompanyDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin');
   const tCommon = useTranslations('common');
   const [name, setName] = useState('');
@@ -408,7 +411,7 @@ function CreateCompanyDialog({
         body: JSON.stringify({ name, country: country || undefined }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('create_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('create_failed')));
       onCreated(json.company.id);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -482,6 +485,7 @@ function DeleteCompanyDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin');
   const tCommon = useTranslations('common');
   const [confirmText, setConfirmText] = useState('');
@@ -506,7 +510,7 @@ function DeleteCompanyDialog({
         body: JSON.stringify({ company_id: company.id, confirm_name: confirmText }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('delete_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('delete_failed')));
       onDeleted();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

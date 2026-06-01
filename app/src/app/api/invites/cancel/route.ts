@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .single();
   if (profErr || !profile) {
-    return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'profile_not_found' }, { status: 404 });
   }
   if (!ALLOWED_ROLES.includes(profile.role as UserRole)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'access_denied_company_mismatch' }, { status: 403 });
   }
   if (invite.status === 'consumed') {
-    return NextResponse.json({ error: 'Аккаунт уже активирован — удалите его через карточку сотрудника' }, { status: 400 });
+    return NextResponse.json({ error: 'account_already_activated_cancel' }, { status: 400 });
   }
 
   if (invite.user_id) {

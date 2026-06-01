@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { translateApiError } from '@/lib/i18n/apiError';
 import {
   Loader2,
   UserPlus,
@@ -327,6 +328,7 @@ function PendingActivationCard({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('team');
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('roles');
@@ -361,7 +363,7 @@ function PendingActivationCard({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('remove_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('remove_failed')));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -421,6 +423,7 @@ function PendingLinkCard({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('team');
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('roles');
@@ -452,7 +455,7 @@ function PendingLinkCard({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('cancel_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('cancel_failed')));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -515,6 +518,7 @@ function InviteDialog({
   availableRoles: UserRole[];
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('team');
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('roles');
@@ -556,7 +560,7 @@ function InviteDialog({
         body: JSON.stringify(payload),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('submit_create_invite_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('submit_create_invite_failed')));
       const fullUrl = `${window.location.origin}${json.path}`;
       setGeneratedUrl(fullUrl);
     } catch (e) {

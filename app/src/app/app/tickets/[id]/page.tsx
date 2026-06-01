@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { translateApiError } from '@/lib/i18n/apiError';
 import {
   ArrowLeft,
   Send,
@@ -65,6 +66,7 @@ export default function TicketDetailPage() {
   // dateLocale unused here — MessageBubble already handles its own date locale.
   void locale;
   const t = useTranslations('ticket_detail');
+  const tErrors = useTranslations('api_errors');
   const tStatus = useTranslations('ticket_status');
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
@@ -398,7 +400,7 @@ export default function TicketDetailPage() {
         body: JSON.stringify({ ticket_id: ticketId }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('sos_error'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('sos_error')));
       setTicket({ ...ticket, status: 'tier2_responding' as TicketStatus, priority: 1 });
       setSosBanner(t('sos_sent'));
       setTimeout(() => setSosBanner(null), 6000);

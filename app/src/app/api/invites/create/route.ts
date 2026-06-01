@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   const allowed = ROLES_BY_INVITER[profile.role as UserRole] ?? [];
   if (allowed.length === 0) {
     return NextResponse.json(
-      { error: 'У вас нет прав создавать приглашения' },
+      { error: 'forbidden_invite' },
       { status: 403 }
     );
   }
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
   if (!allowed.includes(body.role)) {
-    return NextResponse.json({ error: 'Эту роль вы не можете назначить' }, { status: 403 });
+    return NextResponse.json({ error: 'role_not_allowed' }, { status: 403 });
   }
 
   // Resolve target company.
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     targetCompanyId = body.target_company_id ?? null;
     if (!targetCompanyId) {
       return NextResponse.json(
-        { error: 'target_company_id обязателен для platform_admin' },
+        { error: 'target_company_id_required' },
         { status: 400 }
       );
     }
@@ -95,14 +95,14 @@ export async function POST(request: NextRequest) {
       .eq('id', targetCompanyId)
       .maybeSingle();
     if (targetErr || !target) {
-      return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 });
+      return NextResponse.json({ error: 'company_not_found' }, { status: 404 });
     }
   } else if (!targetCompanyId) {
-    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
+    return NextResponse.json({ error: 'profile_no_company' }, { status: 400 });
   }
   const email = body.email?.trim().toLowerCase() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Некорректный email' }, { status: 400 });
+    return NextResponse.json({ error: 'invalid_email' }, { status: 400 });
   }
 
   // 4. Insert invite via admin client (bypasses RLS for safety: we already
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     .single();
   if (insertErr || !invite) {
     return NextResponse.json(
-      { error: insertErr?.message ?? 'Не удалось создать приглашение' },
+      { error: insertErr?.message ?? 'invite_create_failed' },
       { status: 500 }
     );
   }

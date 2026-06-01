@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { translateApiError } from '@/lib/i18n/apiError';
 import {
   ArrowLeft,
   Loader2,
@@ -502,6 +503,7 @@ function MemberRowItem({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin_company');
   const tRoles = useTranslations('roles');
   const [busy, setBusy] = useState(false);
@@ -522,7 +524,7 @@ function MemberRowItem({
         body: JSON.stringify({ member_id: member.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('delete_member_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('delete_member_failed')));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -620,6 +622,7 @@ function DeleteCompanyDialog({
   onDeleted: () => void;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin_delete_company');
   const tCommon = useTranslations('common');
   const [confirmText, setConfirmText] = useState('');
@@ -643,7 +646,7 @@ function DeleteCompanyDialog({
         body: JSON.stringify({ company_id: company.id, confirm_name: confirmText }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('delete_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('delete_failed')));
       onDeleted();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -714,6 +717,7 @@ function AdminInviteRow({
   onChanged: () => void;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin_company');
   const tRoles = useTranslations('roles');
   const [copied, setCopied] = useState(false);
@@ -749,7 +753,7 @@ function AdminInviteRow({
         body: JSON.stringify({ id: invite.id }),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('cancel_invite_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('cancel_invite_failed')));
       onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -803,6 +807,7 @@ function AdminInviteDialog({
   companyName: string;
   onError: (msg: string) => void;
 }) {
+  const tErrors = useTranslations('api_errors');
   const t = useTranslations('admin_invite');
   const tCommon = useTranslations('common');
   const tCompany = useTranslations('admin_company');
@@ -848,7 +853,7 @@ function AdminInviteDialog({
         body: JSON.stringify(payload),
       });
       const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? t('creation_failed'));
+      if (!resp.ok) throw new Error(translateApiError(tErrors, json.error, t('creation_failed')));
       setGeneratedUrl(`${window.location.origin}${json.path}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

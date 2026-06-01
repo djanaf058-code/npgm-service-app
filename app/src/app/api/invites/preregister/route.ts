@@ -58,12 +58,12 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .single();
   if (profErr || !profile) {
-    return NextResponse.json({ error: 'Профиль не найден' }, { status: 404 });
+    return NextResponse.json({ error: 'profile_not_found' }, { status: 404 });
   }
   const allowed = ROLES_BY_INVITER[profile.role as UserRole] ?? [];
   if (allowed.length === 0) {
     return NextResponse.json(
-      { error: 'У вас нет прав на регистрацию сотрудников' },
+      { error: 'forbidden_preregister' },
       { status: 403 }
     );
   }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     targetCompanyId = body.target_company_id ?? null;
     if (!targetCompanyId) {
       return NextResponse.json(
-        { error: 'target_company_id обязателен для platform_admin' },
+        { error: 'target_company_id_required' },
         { status: 400 }
       );
     }
@@ -98,21 +98,21 @@ export async function POST(request: NextRequest) {
       .eq('id', targetCompanyId)
       .maybeSingle();
     if (targetErr || !target) {
-      return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 });
+      return NextResponse.json({ error: 'company_not_found' }, { status: 404 });
     }
   } else if (!targetCompanyId) {
-    return NextResponse.json({ error: 'Профиль не привязан к компании' }, { status: 400 });
+    return NextResponse.json({ error: 'profile_no_company' }, { status: 400 });
   }
   const email = body.email?.trim().toLowerCase();
   const fullName = body.full_name?.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Некорректный email' }, { status: 400 });
+    return NextResponse.json({ error: 'invalid_email' }, { status: 400 });
   }
   if (!fullName || fullName.length < 2) {
-    return NextResponse.json({ error: 'Укажите ФИО сотрудника' }, { status: 400 });
+    return NextResponse.json({ error: 'full_name_required' }, { status: 400 });
   }
   if (!allowed.includes(body.role)) {
-    return NextResponse.json({ error: 'Эту роль вы не можете назначить' }, { status: 403 });
+    return NextResponse.json({ error: 'role_not_allowed' }, { status: 403 });
   }
 
   // 4. Create the auth user. email_confirm=true skips the (non-existent) SMTP
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     // Surface duplicate-email cleanly — most common failure mode.
     const dup = /already (registered|been registered|exists)/i.test(msg);
     return NextResponse.json(
-      { error: dup ? 'Пользователь с таким email уже существует' : msg },
+      { error: dup ? 'email_in_use' : msg },
       { status: dup ? 409 : 400 }
     );
   }
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).auth.admin.deleteUser(newUserId).catch(() => null);
     return NextResponse.json(
-      { error: insertErr?.message ?? 'Не удалось создать приглашение' },
+      { error: insertErr?.message ?? 'invite_create_failed' },
       { status: 500 }
     );
   }
