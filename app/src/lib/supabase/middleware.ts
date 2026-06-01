@@ -49,8 +49,10 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Logged in → role/onboarding-aware redirects.
-    // platform_admin is cross-tenant: they intentionally have company_id=NULL
-    // and should never see the onboarding screen — they land in /admin.
+    // НПГМ side (platform_admin and tier2_engineer / NPGM team) is cross-tenant:
+    // they intentionally have company_id=NULL and should never see the
+    // onboarding screen — they land in /admin. The /admin layout then routes
+    // tier2 specifically to /admin/tickets.
     if (authedUser && (isProtectedAppRoute || isAdminRoute || isOnboardingRoute)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const {data: profile} = await (supabase as any)
@@ -61,25 +63,30 @@ export async function updateSession(request: NextRequest) {
 
         const hasCompany = !!profile?.company_id
         const isPlatformAdmin = profile?.role === 'platform_admin'
+        const isTier2Engineer = profile?.role === 'tier2_engineer'
+        const isNpgmSide = isPlatformAdmin || isTier2Engineer
 
-        // Server-side gate for /admin/*: only platform_admin may enter; bounce
-        // everyone else to their app (the client guard was defense-in-depth only).
-        if (isAdminRoute && !isPlatformAdmin) {
+        // Server-side gate for /admin/*: only НПГМ side may enter; bounce
+        // everyone else to their app (client guards are defense-in-depth).
+        if (isAdminRoute && !isNpgmSide) {
             const url = request.nextUrl.clone()
             url.pathname = '/app'
             return NextResponse.redirect(url)
         }
 
-        if (isPlatformAdmin) {
-            // Send admin to /admin from either /app root or onboarding.
+        if (isNpgmSide) {
+            // Send НПГМ side to /admin from either /app root or onboarding.
+            // (The /admin layout further routes tier2 to /admin/tickets.)
             if (path === '/app' || isOnboardingRoute) {
                 const url = request.nextUrl.clone()
                 url.pathname = '/admin'
                 return NextResponse.redirect(url)
             }
-            // Other /app/* subpaths are allowed (admin can inspect a tenant).
+            // Other /app/* subpaths are allowed (НПГМ side can deep-link to
+            // inspect a tenant — e.g. /app/tickets/<id> for tier2 replies,
+            // /app/parts/request/<id> from the cross-tenant queue).
         } else {
-            // Regular users: must have a company to use /app/*.
+            // Regular customer-side users: must have a company to use /app/*.
             if (isProtectedAppRoute && !hasCompany) {
                 const url = request.nextUrl.clone()
                 url.pathname = '/auth/onboarding'

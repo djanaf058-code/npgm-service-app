@@ -41,7 +41,7 @@
     "service_engineer": "Service engineer",
     "project_manager": "Project manager",
     "company_admin": "Service manager",
-    "tier2_engineer": "NPGM Service Engineer",
+    "tier2_engineer": "NPGM team",
     "platform_admin": "NPGM Platform"
   },
   "user_menu": {
@@ -810,9 +810,9 @@
     "delete_confirm_prompt_part2": "to confirm:",
     "delete_failed": "Could not delete",
     "delete_forever": "Delete permanently",
-    "register_engineer": "NPGM engineer",
-    "engineer_dialog_title": "Register NPGM engineer",
-    "engineer_dialog_desc": "The NPGM service engineer sees tickets and parts requests across all companies. Prices and quotes stay with you only.",
+    "register_engineer": "NPGM team",
+    "engineer_dialog_title": "Add NPGM team member",
+    "engineer_dialog_desc": "The NPGM team sees tickets and parts requests across all customer companies and replies to them. Prices and quotes stay with you only.",
     "engineer_field_name": "Full name *",
     "engineer_field_email": "Email *",
     "engineer_create": "Create account",

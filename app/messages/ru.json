@@ -41,7 +41,7 @@
     "service_engineer": "Сервисный инженер",
     "project_manager": "Проектный менеджер",
     "company_admin": "Руководитель сервисной службы",
-    "tier2_engineer": "Сервисный инженер НПГМ",
+    "tier2_engineer": "Команда НПГМ",
     "platform_admin": "НПГМ — Платформа"
   },
   "user_menu": {
@@ -810,9 +810,9 @@
     "delete_confirm_prompt_part2": "для подтверждения:",
     "delete_failed": "Не удалось удалить",
     "delete_forever": "Удалить навсегда",
-    "register_engineer": "Инженер НПГМ",
-    "engineer_dialog_title": "Регистрация инженера НПГМ",
-    "engineer_dialog_desc": "Сервисный инженер НИПИГОРМАШ видит тикеты и заявки на запчасти всех компаний. Цены и КП остаются только у вас.",
+    "register_engineer": "Команда НПГМ",
+    "engineer_dialog_title": "Регистрация члена команды НПГМ",
+    "engineer_dialog_desc": "Команда НИПИГОРМАШ видит тикеты и заявки на запчасти всех компаний-клиентов и отвечает на них. Цены и КП остаются только у вас.",
     "engineer_field_name": "ФИО *",
     "engineer_field_email": "Email *",
     "engineer_create": "Создать аккаунт",
