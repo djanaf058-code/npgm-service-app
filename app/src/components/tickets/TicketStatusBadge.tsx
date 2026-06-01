@@ -3,7 +3,7 @@ import type { TicketStatus } from '@/lib/types';
 
 const LABELS: Record<TicketStatus, { ru: string; variant: React.ComponentProps<typeof Badge>['variant'] }> = {
   new: { ru: 'Новый', variant: 'destructive' },
-  tier2_responding: { ru: 'У сервисника', variant: 'warning' },
+  tier2_responding: { ru: 'У команды НПГМ', variant: 'warning' },
   awaiting_operator: { ru: 'Ждёт оператора', variant: 'default' },
   resolved: { ru: 'Решён', variant: 'success' },
   closed_self: { ru: 'Закрыт оператором', variant: 'secondary' },

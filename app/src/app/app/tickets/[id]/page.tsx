@@ -72,6 +72,11 @@ export default function TicketDetailPage() {
   const [replyPhoto, setReplyPhoto] = useState<string | null>(null);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [sending, setSending] = useState(false);
+  // True while we expect an AI reply to land — shown as a "typing" bubble at
+  // the end of the messages list. Cleared when (a) an AI message actually
+  // arrives, or (b) a safety timeout fires (in case the AI request failed
+  // silently).
+  const [aiPending, setAiPending] = useState(false);
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
@@ -206,6 +211,21 @@ export default function TicketDetailPage() {
     scrollToBottom();
   }, [messages.length, scrollToBottom]);
 
+  // Clear the "AI is typing" bubble the moment an AI reply actually shows up.
+  useEffect(() => {
+    if (!aiPending || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.sender_type === 'ai') setAiPending(false);
+  }, [messages, aiPending]);
+
+  // Safety net: if the AI request silently fails or takes too long, drop the
+  // typing bubble after 60s so the user isn't stuck staring at it forever.
+  useEffect(() => {
+    if (!aiPending) return;
+    const t = setTimeout(() => setAiPending(false), 60_000);
+    return () => clearTimeout(t);
+  }, [aiPending]);
+
   const senderTypeForMe = ((): MessageSender => {
     const role = myProfile?.role;
     if (role === 'tier2_engineer' || role === 'platform_admin') return 'tier2';
@@ -254,7 +274,8 @@ export default function TicketDetailPage() {
       // and posts a reply. Fire-and-forget so the operator isn't blocked by
       // Claude latency. AI itself bails out if the last message isn't from
       // the operator (e.g. an engineer cut in).
-      if (senderTypeForMe === 'operator') {
+      if (senderTypeForMe === 'operator' && ticket?.machine) {
+        setAiPending(true);
         void fetch('/api/tickets/ai-reply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -492,6 +513,16 @@ export default function TicketDetailPage() {
                 isOwn={m.sender_id === user?.id}
               />
             ))
+          )}
+          {aiPending && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-50 border border-primary-100 max-w-[60%] text-xs text-primary-700">
+              <span className="inline-flex gap-0.5" aria-hidden="true">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" />
+              </span>
+              <span>AI-ассистент печатает…</span>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
